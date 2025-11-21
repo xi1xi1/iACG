@@ -161,17 +161,33 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  // 修改：创建一个新的推荐页面，将活动预览整合到滚动视图中
+  Widget _buildRecommendPage() {
+    return CustomScrollView(
+      slivers: [
+        // 热门活动部分
+        SliverToBoxAdapter(
+          child: _buildEventsPreview(),
+        ),
+        // 推荐内容部分 - 现在 HomeRecommendTab 返回一个 Sliver
+        const HomeRecommendTab(),
+      ],
+    );
+  }
+
   Widget _buildEventsPreview() {
     if (_isEventsLoading) {
-      return const SizedBox(
+      return Container(
         height: 180, // 固定高度
-        child: Center(child: CircularProgressIndicator()),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: const Center(child: CircularProgressIndicator()),
       );
     }
 
     if (_eventsError != null) {
-      return SizedBox(
+      return Container(
         height: 100,
+        padding: const EdgeInsets.symmetric(vertical: 16),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -188,8 +204,9 @@ class _HomePageState extends State<HomePage>
     }
 
     if (_events.isEmpty) {
-      return SizedBox(
+      return Container(
         height: 100,
+        padding: const EdgeInsets.symmetric(vertical: 16),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -205,74 +222,77 @@ class _HomePageState extends State<HomePage>
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 标题区域
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8), // 减少顶部间距
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                '热门活动',
-                style: TextStyle(
-                  fontSize: 16, // 减小标题字体
-                  fontWeight: FontWeight.bold,
+    return Container(
+      color: Colors.grey[50], // 添加背景色区分
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题区域
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8), // 调整顶部间距
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  '热门活动',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-              TextButton(
-                onPressed: () {
-                  // 切换到活动标签
-                  _tabController.animateTo(1);
-                },
-                child: const Text(
-                  '查看全部',
-                  style: TextStyle(fontSize: 12, color: Colors.blue), // 减小字体
+                TextButton(
+                  onPressed: () {
+                    // 切换到活动标签
+                    _tabController.animateTo(1);
+                  },
+                  child: const Text(
+                    '查看全部',
+                    style: TextStyle(fontSize: 12, color: Colors.blue),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        // 活动卡片滑动区域
-        SizedBox(
-          height: 190, // 减少整体高度
-          child: PageView.builder(
-            controller: _eventPageController,
-            itemCount: _events.length,
-            onPageChanged: (index) {
-              setState(() {
-                _currentEventPage = index;
-              });
-            },
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6), // 减少水平间距
-                child: _buildEventCard(_events[index]),
+          // 活动卡片滑动区域
+          SizedBox(
+            height: 190,
+            child: PageView.builder(
+              controller: _eventPageController,
+              itemCount: _events.length,
+              onPageChanged: (index) {
+                setState(() {
+                  _currentEventPage = index;
+                });
+              },
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: _buildEventCard(_events[index]),
+                );
+              },
+            ),
+          ),
+          // 指示器
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(_events.length, (index) {
+              return Container(
+                width: 6,
+                height: 6,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _currentEventPage == index
+                      ? Colors.blue
+                      : Colors.grey[300],
+                ),
               );
-            },
+            }),
           ),
-        ),
-        // 指示器
-        const SizedBox(height: 6), // 减少间距
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(_events.length, (index) {
-            return Container(
-              width: 6, // 减小指示器大小
-              height: 6,
-              margin: const EdgeInsets.symmetric(horizontal: 3), // 减少边距
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _currentEventPage == index
-                    ? Colors.blue
-                    : Colors.grey[300],
-              ),
-            );
-          }),
-        ),
-        const SizedBox(height: 12), // 减少底部间距
-      ],
+          const SizedBox(height: 16), // 增加底部间距
+        ],
+      ),
     );
   }
 
@@ -350,15 +370,8 @@ class _HomePageState extends State<HomePage>
       body: TabBarView(
         controller: _tabController,
         children: [
-          // 推荐标签页 - 使用ListView避免溢出
-          Column(
-            children: [
-              _buildEventsPreview(),
-              const Expanded(
-                child: HomeRecommendTab(),
-              ),
-            ],
-          ),
+          // 推荐标签页 - 使用整合的滚动视图
+          _buildRecommendPage(),
           // 活动标签页
           const HomeEventsTab(),
         ],
