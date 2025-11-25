@@ -15,53 +15,114 @@ class _LoginPageState extends State<LoginPage> {
   final _authService = AuthService();
   bool _isLoading = false;
   bool _isLogin = true;
+Future<void> _submit() async {
+  if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('请填写邮箱和密码')),
+    );
+    return;
+  }
 
-  Future<void> _submit() async {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('请填写邮箱和密码')),
+  setState(() {
+    _isLoading = true;
+  });
+
+  try {
+    if (_isLogin) {
+      // 登录逻辑
+      await _authService.signInWithEmail(
+        _emailController.text,
+        _passwordController.text,
       );
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      if (_isLogin) {
-        await _authService.signInWithEmail(
-          _emailController.text,
-          _passwordController.text,
-        );
-      } else {
-        // 注册逻辑 - 需要昵称
-        // 这里简化处理，实际应该有一个注册表单
-        await _authService.signUpWithEmail(
-          _emailController.text,
-          _passwordController.text,
-          '新用户',
-        );
-      }
-
-      // 登录成功，跳转到首页
+      
+      // 只有登录成功才跳转到首页
       if (mounted) {
-        Navigator.of(context).pushReplacementNamed('/');
+        // Navigator.of(context).pushReplacementNamed('/');
+           // ✅ 直接 pop 返回 RootShell
+        Navigator.of(context).pop();
       }
-    } catch (e) {
+    } else {
+      // 注册逻辑
+      print('📝 [注册流程] 开始注册...');
+      await _authService.signUpWithEmail(
+        _emailController.text,
+        _passwordController.text,
+        '新用户',
+      );
+      
+      // 注册成功，显示提示并切换回登录模式
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('操作失败: $e')),
+          const SnackBar(content: Text('注册成功！请登录')),
         );
-      }
-    } finally {
-      if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isLogin = true; // 切换回登录模式
+          _emailController.clear();
+          _passwordController.clear();
         });
       }
+      return; // ⭐⭐⭐ 重要：注册后立即返回，不继续执行 ⭐⭐⭐
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('操作失败: $e')),
+      );
+    }
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
+}
+  // Future<void> _submit() async {
+  //   if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(content: Text('请填写邮箱和密码')),
+  //     );
+  //     return;
+  //   }
+
+  //   setState(() {
+  //     _isLoading = true;
+  //   });
+
+  //   try {
+  //     if (_isLogin) {
+  //       await _authService.signInWithEmail(
+  //         _emailController.text,
+  //         _passwordController.text,
+  //       );
+  //     } else {
+  //       // 注册逻辑 - 需要昵称
+  //       // 这里简化处理，实际应该有一个注册表单
+  //       await _authService.signUpWithEmail(
+  //         _emailController.text,
+  //         _passwordController.text,
+  //         '新用户',
+  //       );
+  //     }
+
+  //     // 登录成功，跳转到首页
+  //     if (mounted) {
+  //       Navigator.of(context).pushReplacementNamed('/');
+  //     }
+  //   } catch (e) {
+  //     if (mounted) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(content: Text('操作失败: $e')),
+  //       );
+  //     }
+  //   } finally {
+  //     if (mounted) {
+  //       setState(() {
+  //         _isLoading = false;
+  //       });
+  //     }
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {
