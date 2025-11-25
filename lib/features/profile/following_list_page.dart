@@ -7,7 +7,7 @@ import 'user_profile_page.dart';
 
 class FollowingListPage extends StatefulWidget {
   final String userId;
-  const FollowingListPage({Key? key, required this.userId}) : super(key: key);
+  const FollowingListPage({super.key, required this.userId});
 
   @override
   State<FollowingListPage> createState() => _FollowingListPageState();
@@ -70,7 +70,7 @@ class _FollowingListPageState extends State<FollowingListPage> {
 
 class FollowersListPage extends StatefulWidget {
   final String userId;
-  const FollowersListPage({Key? key, required this.userId}) : super(key: key);
+  const FollowersListPage({super.key, required this.userId});
 
   @override
   State<FollowersListPage> createState() => _FollowersListPageState();
@@ -134,7 +134,7 @@ class _FollowersListPageState extends State<FollowersListPage> {
 /// 通用的用户一行展示
 class _UserRow extends StatelessWidget {
   final UserProfile profile;
-  const _UserRow({Key? key, required this.profile}) : super(key: key);
+  const _UserRow({super.key, required this.profile});
 
   @override
   Widget build(BuildContext context) {
@@ -175,7 +175,7 @@ class _UserRow extends StatelessWidget {
               ),
             ),
             // 只有当有等级信息时才显示等级标签
-            if (profile.displayCosLevel != null && profile.displayCosLevel!.isNotEmpty) ...[
+            if (profile.displayCosLevel.isNotEmpty) ...[
               const SizedBox(width: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -184,7 +184,7 @@ class _UserRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  profile.displayCosLevel!,
+                  profile.displayCosLevel,
                   style: const TextStyle(
                     fontSize: 10,
                     color: Colors.pink,
@@ -214,10 +214,10 @@ class _ErrorRetry extends StatelessWidget {
   final VoidCallback onRetry;
 
   const _ErrorRetry({
-    Key? key,
+    super.key,
     required this.message,
     required this.onRetry,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

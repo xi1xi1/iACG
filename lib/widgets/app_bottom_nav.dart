@@ -137,7 +137,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/home.svg' : 'assets/icons/home.svg',
       width: 24,
       height: 24,
-      color: isActive ? Color(0xFFEC4899) : Colors.grey,
+      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
     );
   }
 
@@ -148,7 +148,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/island.svg' : 'assets/icons/island.svg',
       width: 24,
       height: 24,
-      color: isActive ? Color(0xFFEC4899) : Colors.grey,
+      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
     );
   }
 
@@ -159,7 +159,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/cos.svg' : 'assets/icons/cos.svg',
       width: 24,
       height: 24,
-      color: isActive ? Color(0xFFEC4899) : Colors.grey,
+      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
     );
   }
 
@@ -170,7 +170,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/message.svg' : 'assets/icons/message.svg',
       width: 24,
       height: 24,
-      color: isActive ? Color(0xFFEC4899) : Colors.grey,
+      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
     );
   }
   /// 构建消息图标（带未读角标）
@@ -225,7 +225,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/me.svg' : 'assets/icons/me.svg',
       width: 24,
       height: 24,
-      color: isActive ? Color(0xFFEC4899) : Colors.grey,
+      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
     );
   }
 

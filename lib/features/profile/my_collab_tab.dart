@@ -6,7 +6,7 @@ import '../../widgets/loading_view.dart';
 
 class MyCollabTab extends StatefulWidget {
   final String userId;
-  const MyCollabTab({Key? key, required this.userId}) : super(key: key);
+  const MyCollabTab({super.key, required this.userId});
 
   @override
   State<MyCollabTab> createState() => _MyCollabTabState();
@@ -14,7 +14,7 @@ class MyCollabTab extends StatefulWidget {
 
 class _MyCollabTabState extends State<MyCollabTab> {
   final SupabaseClient _client = Supabase.instance.client;
-  List<Map<String, dynamic>> _posts = [];
+  final List<Map<String, dynamic>> _posts = [];
   bool _isLoading = false; // 改为 false，避免初始化时重复
   String? _error;
   int _page = 0;

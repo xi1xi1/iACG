@@ -159,7 +159,7 @@ class TagService {
     return tagIds;
   } */
 
-  Future<List<int>> ensureTagsAndReturnIds(List<String> tagNames) async {
+  Future<List<int>> ensureTagsAndReturnIds(List<String> tagNames, {String type = 'user'}) async {
     if (tagNames.isEmpty) return [];
 
     final List<int> tagIds = [];
@@ -180,7 +180,7 @@ class TagService {
               .insert(<String, dynamic>{
                 // ✅ 添加类型
                 'name': name,
-                'type': 'user',
+                'type': type, // ✅ 使用传入的类型，默认是'user'
               })
               .select('id')
               .single();
@@ -236,7 +236,7 @@ class TagService {
     int limit = 20,
     int offset = 0,
   }) async {
-    final selColumns = '''
+    const selColumns = '''
       posts!inner(
         id, author_id, channel, title, content, main_category, main_ip_tag_id,
         like_count, favorite_count, comment_count, view_count, created_at,

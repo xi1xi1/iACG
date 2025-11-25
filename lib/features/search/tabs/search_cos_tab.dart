@@ -8,10 +8,10 @@ class SearchCosTab extends StatefulWidget {
   final String keyword;
 
   const SearchCosTab({
-    Key? key,
+    super.key,
     required this.searchService,
     required this.keyword,
-  }) : super(key: key);
+  });
 
   @override
   State<SearchCosTab> createState() => _SearchCosTabState();

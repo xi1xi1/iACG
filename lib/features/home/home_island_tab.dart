@@ -4,7 +4,9 @@ import 'package:iacg/widgets/post_card.dart';
 import '../../services/post_service.dart';
 import '../../widgets/loading_view.dart';
 import '../../widgets/error_view.dart';
-
+import 'package:iacg/features/post/post_compose_page.dart';
+import 'package:iacg/features/search/search_page.dart';
+import '../../services/auth_service.dart';
 
 class HomeIslandTab extends StatefulWidget {
   const HomeIslandTab({super.key});
@@ -16,17 +18,26 @@ class HomeIslandTab extends StatefulWidget {
 class _HomeIslandTabState extends State<HomeIslandTab> {
   final List<Map<String, dynamic>> _posts = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
   String? _error;
   String _selectedType = '全部';
+  final AuthService _authService = AuthService();
+
+  // 分页相关变量
+  int _currentPage = 1;
+  bool _hasMore = true;
+  final int _pageSize = 10;
 
   // 群岛类型选项 - 只显示数据库中实际存在的类型
   final List<String> _islandTypes = ['全部', '求助', '分享', '吐槽', '找搭子', '约拍', '其他'];
 
   final ScrollController _scrollController = ScrollController();
+  final PostService _postService = PostService();
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_scrollListener);
     _loadPosts();
   }
 
@@ -36,33 +47,53 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
     super.dispose();
   }
 
-  Future<void> _loadPosts({String? type}) async {
+  void _scrollListener() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 300 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMorePosts();
+    }
+  }
+
+  Future<void> _loadPosts({bool isRefresh = false, String? type}) async {
     try {
       setState(() {
-        _isLoading = true;
-        _error = null;
+        if (isRefresh) {
+          _currentPage = 1;
+          _hasMore = true;
+          _posts.clear();
+        }
         if (type != null) {
           _selectedType = type;
         }
+        _isLoading = true;
+        _error = null;
       });
 
       if (kDebugMode) {
-        debugPrint('开始加载群岛帖子，类型: $_selectedType');
+        debugPrint('开始加载群岛帖子，类型: $_selectedType, 页码: $_currentPage');
       }
 
       // 使用真实的群岛帖子数据
       final String? islandType = _selectedType == '全部' ? null : _selectedType;
-      final result =
-          await PostService().fetchIslandPosts(islandType: islandType);
+      final result = await _postService.fetchIslandPosts(
+        islandType: islandType,
+        limit: _pageSize,
+        offset: (isRefresh ? 0 : _currentPage - 1) * _pageSize,
+      );
 
       if (kDebugMode) {
         debugPrint('成功加载 ${result.length} 条帖子');
       }
 
       setState(() {
-        _posts.clear();
+        if (isRefresh) {
+          _posts.clear();
+        }
         _posts.addAll(result);
-        _error = null; // 清除之前的错误
+        _hasMore = result.length >= _pageSize;
+        _error = null;
       });
     } catch (e, stack) {
       if (kDebugMode) {
@@ -71,7 +102,9 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
       }
       setState(() {
         _error = '加载失败: ${e.toString()}';
-        _posts.clear(); // 出错时清空列表
+        if (isRefresh) {
+          _posts.clear();
+        }
       });
     } finally {
       if (mounted) {
@@ -80,6 +113,73 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
         });
       }
     }
+  }
+
+  Future<void> _loadMorePosts() async {
+    if (_isLoadingMore || !_hasMore) return;
+
+    try {
+      setState(() {
+        _isLoadingMore = true;
+      });
+
+      _currentPage++;
+
+      final String? islandType = _selectedType == '全部' ? null : _selectedType;
+      final result = await _postService.fetchIslandPosts(
+        islandType: islandType,
+        limit: _pageSize,
+        offset: (_currentPage - 1) * _pageSize,
+      );
+
+      setState(() {
+        _posts.addAll(result);
+        _hasMore = result.length >= _pageSize;
+      });
+    } catch (e) {
+      _currentPage--; // 加载失败，回退页码
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('加载更多失败: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+      }
+    }
+  }
+
+  // 构建加载更多指示器
+  Widget _buildLoadMoreIndicator() {
+    if (!_hasMore && _posts.isNotEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: Text(
+            '已经到底了～',
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return _isLoadingMore
+        ? const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          )
+        : const SizedBox.shrink();
   }
 
   // 回到顶部
@@ -91,6 +191,68 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
         curve: Curves.easeInOut,
       );
     }
+  }
+
+  // 构建顶部导航栏
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Row(
+        children: [
+          const Text(
+            'iACG',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Container(
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: TextField(
+                readOnly: true,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SearchPage()),
+                  );
+                },
+                decoration: InputDecoration(
+                  hintText: '搜索内容...',
+                  hintStyle: TextStyle(color: Colors.grey[600]),
+                  border: InputBorder.none,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.add_circle_outline),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PostComposePage()),
+            );
+          },
+          tooltip: '发布',
+        ),
+        if (!_authService.isLoggedIn)
+          TextButton(
+            onPressed: () => Navigator.of(context).pushNamed('/login'),
+            child: const Text(
+              '登录',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+      ],
+    );
   }
 
   // 构建类型筛选器
@@ -110,7 +272,7 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
             onTap: () {
               if (!isSelected) {
                 _scrollToTop();
-                _loadPosts(type: type);
+                _loadPosts(type: type, isRefresh: true);
               }
             },
             child: Container(
@@ -135,183 +297,6 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
     );
   }
 
-  // 获取类型颜色
-  Color _getTypeColor(String type) {
-    switch (type) {
-      case '求助':
-        return Colors.orange;
-      case '分享':
-        return Colors.green;
-      case '吐槽':
-        return Colors.red;
-      case '找搭子':
-        return Colors.blue;
-      case '约拍':
-        return Colors.purple;
-      case '其他':
-        return Colors.grey;
-      default:
-        return Colors.blue;
-    }
-  }
-
-  // 获取类型背景颜色
-  Color _getTypeBackgroundColor(String type) {
-    final baseColor = _getTypeColor(type);
-    return Color.alphaBlend(baseColor.withAlpha(25), Colors.white);
-  }
-
-  // 获取类型边框颜色
-  Color _getTypeBorderColor(String type) {
-    final baseColor = _getTypeColor(type);
-    return Color.alphaBlend(baseColor.withAlpha(75), Colors.white);
-  }
-
-  // 构建群岛帖子卡片
-  Widget _buildIslandPostCard(Map<String, dynamic> post) {
-    final author = post['author'] as Map<String, dynamic>?;
-    final islandType = post['island_type'] as String? ?? '讨论';
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 作者信息和类型标签
-            Row(
-              children: [
-                if (author != null) ...[
-                  CircleAvatar(
-                    radius: 12,
-                    backgroundColor: Colors.grey[300],
-                    child: author['avatar_url'] != null
-                        ? ClipOval(
-                            child: Image.network(
-                              author['avatar_url'].toString(),
-                              width: 24,
-                              height: 24,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : Text(
-                            author['nickname']?.toString().substring(0, 1) ??
-                                'U',
-                            style: const TextStyle(fontSize: 10),
-                          ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    author['nickname']?.toString() ?? '未知用户',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-                const Spacer(),
-                // 类型标签
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: _getTypeBackgroundColor(islandType),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: _getTypeBorderColor(islandType),
-                    ),
-                  ),
-                  child: Text(
-                    islandType,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _getTypeColor(islandType),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // 标题
-            Text(
-              post['title']?.toString() ?? '无标题',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-            // 正文摘要
-            if (post['content'] != null &&
-                post['content'].toString().isNotEmpty)
-              Text(
-                post['content'].toString(),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[700],
-                  height: 1.4,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            const SizedBox(height: 12),
-            // 互动数据
-            Row(
-              children: [
-                const Icon(Icons.chat_bubble_outline,
-                    size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(
-                  (post['comment_count'] ?? 0).toString(),
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const SizedBox(width: 16),
-                const Icon(Icons.visibility_outlined,
-                    size: 16, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text(
-                  (post['view_count'] ?? 0).toString(),
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-                const Spacer(),
-                Text(
-                  _formatTime(post['created_at']),
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _formatTime(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      final now = DateTime.now();
-      final difference = now.difference(date);
-
-      if (difference.inMinutes < 1) {
-        return '刚刚';
-      } else if (difference.inMinutes < 60) {
-        return '${difference.inMinutes}分钟前';
-      } else if (difference.inHours < 24) {
-        return '${difference.inHours}小时前';
-      } else if (difference.inDays < 30) {
-        return '${difference.inDays}天前';
-      } else {
-        return '${date.month}-${date.day}';
-      }
-    } catch (e) {
-      return '未知时间';
-    }
-  }
-
   // 构建空状态
   Widget _buildEmptyState() {
     return Center(
@@ -326,7 +311,7 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
           ),
           const SizedBox(height: 8),
           ElevatedButton(
-            onPressed: _loadPosts,
+            onPressed: () => _loadPosts(isRefresh: true),
             child: const Text('重新加载'),
           ),
         ],
@@ -336,38 +321,39 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // 类型筛选器
-        _buildTypeFilter(),
-        const SizedBox(height: 8),
-        // 帖子列表
-        Expanded(
-          child: _isLoading
-              ? const LoadingView()
-              : _error != null
-                  ? ErrorView(error: _error!)
-                  : _posts.isEmpty
-                      ? _buildEmptyState()
-                      : RefreshIndicator(
-                          onRefresh: () => _loadPosts(),
-                          child: 
-                          // ListView.builder(
-                          //   controller: _scrollController,
-                          //   itemCount: _posts.length,
-                          //   itemBuilder: (context, index) {
-                          //     final post = _posts[index];
-                          //     return _buildIslandPostCard(post);
-                          //   },
-                          // ),
-                          ListView.builder(
-                            controller: _scrollController,
-                            itemCount: _posts.length,
-                            itemBuilder: (context, index) => PostCard(post: _posts[index]),
+    return Scaffold(
+      appBar: _buildAppBar(),
+      body: Column(
+        children: [
+          // 类型筛选器
+          _buildTypeFilter(),
+          const SizedBox(height: 8),
+          // 帖子列表
+          Expanded(
+            child: _isLoading
+                ? const LoadingView()
+                : _error != null
+                    ? ErrorView(
+                        error: _error!,
+                        onRetry: () => _loadPosts(isRefresh: true))
+                    : _posts.isEmpty
+                        ? _buildEmptyState()
+                        : RefreshIndicator(
+                            onRefresh: () => _loadPosts(isRefresh: true),
+                            child: ListView.builder(
+                              controller: _scrollController,
+                              itemCount: _posts.length + 1,
+                              itemBuilder: (context, index) {
+                                if (index == _posts.length) {
+                                  return _buildLoadMoreIndicator();
+                                }
+                                return PostCard(post: _posts[index]);
+                              },
+                            ),
                           ),
-                        ),
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }

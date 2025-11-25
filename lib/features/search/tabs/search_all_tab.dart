@@ -8,10 +8,10 @@ class SearchAllTab extends StatefulWidget {
   final String keyword;
 
   const SearchAllTab({
-    Key? key,
+    super.key,
     required this.searchService,
     required this.keyword,
-  }) : super(key: key);
+  });
 
   @override
   State<SearchAllTab> createState() => _SearchAllTabState();

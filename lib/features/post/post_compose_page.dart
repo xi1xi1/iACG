@@ -1,336 +1,3 @@
-
-// import 'dart:io';
-// import 'dart:typed_data';
-// import 'package:flutter/material.dart';
-// import 'package:iacg/features/post/post_detail_page.dart';
-// import 'package:iacg/services/post_service.dart';
-// import 'package:iacg/services/tag_service.dart';
-// import 'package:image_picker/image_picker.dart';
-// import 'package:supabase_flutter/supabase_flutter.dart';
-
-// class PostComposePage extends StatefulWidget {
-//   const PostComposePage({super.key});
-
-//   @override
-//   State<PostComposePage> createState() => _PostComposePageState();
-// }
-
-// class _PostComposePageState extends State<PostComposePage> {
-//   final _formKey = GlobalKey<FormState>();
-//   final _postService = PostService();
-
-//   String _channel = 'cos'; // cos | island
-//   final _titleCtrl = TextEditingController();
-//   final _contentCtrl = TextEditingController();
-
-//   // COS only
-//   String? _cosCategory; // anime/game/comic/novel/other
-//   final _cosCategories = const ['anime', 'game', 'comic', 'novel', 'other'];
-
-//   // Island only
-//   String? _islandType; // 自定：'求助' 等
-//   final _islandTypes = const ['求助', '分享', '吐槽', '找搭子', '约拍', '其他'];
-
-//   // 标签（先用简单文本，用逗号分隔）
-//   final _tagsCtrl = TextEditingController(); // 例如：原神,崩坏:星穹铁道
-
-//   // 选中的本地图片
-//   final List<File> _pickedImages = [];
-//   final List<Uint8List> _pickedImageBytes = []; // 用于预览
-
-//   bool _publishing = false;
-
-//   @override
-//   void dispose() {
-//     _titleCtrl.dispose();
-//     _contentCtrl.dispose();
-//     _tagsCtrl.dispose();
-//     super.dispose();
-//   }
-
-//   Future<void> _pickImages() async {
-//     final picker = ImagePicker();
-//     final files = await picker.pickMultiImage(imageQuality: 92);
-//     if (files.isEmpty) return;
-    
-//     for (final xfile in files) {
-//       final bytes = await xfile.readAsBytes();
-//       setState(() {
-//         _pickedImages.add(File(xfile.path));
-//         _pickedImageBytes.add(bytes);
-//       });
-//     }
-//   }
-
-//   Future<void> _publish() async {
-//     if (!(_formKey.currentState?.validate() ?? false)) return;
-
-//     final user = Supabase.instance.client.auth.currentUser;
-//     if (user == null) {
-//       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先登录')));
-//       return;
-//     }
-
-//     setState(() => _publishing = true);
-
-//     int? postId; // 修改：改为 int? 类型
-
-//     try {
-//       // 1) 创建帖子
-//       postId = await _postService.createPost(
-//         authorId: user.id,
-//         channel: _channel,
-//         title: _titleCtrl.text.trim(),
-//         content: _contentCtrl.text.trim().isEmpty ? null : _contentCtrl.text.trim(),
-//         mainCategory: _channel == 'cos' ? _cosCategory : null,
-//         islandType: _channel == 'island' ? _islandType : null,
-//       );
-
-//       print('帖子创建成功，ID: $postId');
-
-//       // 2) 上传图片并绑定 post_media
-//       if (_pickedImages.isNotEmpty) {
-//         print('开始上传 ${_pickedImages.length} 张图片');
-//         final mediaEntries = <Map<String, String>>[];
-//         for (int i = 0; i < _pickedImages.length; i++) {
-//           final file = _pickedImages[i];
-//           print('上传第 ${i + 1} 张图片: ${file.path}');
-//           try {
-//             // 使用 XFile 上传，保持原有 File 对象不变
-//             final xFile = XFile(file.path);
-//             final url = await _postService.uploadMediaFile(
-//               postId: postId, 
-//               xFile: xFile, // 使用 XFile 上传
-//             );
-//             mediaEntries.add({
-//               'media_url': url,
-//               'media_type': 'image',
-//               'sort_order': '$i',
-//             });
-//             print('第 ${i + 1} 张图片上传成功: $url');
-//           } catch (e) {
-//             print('第 ${i + 1} 张图片上传失败: $e');
-//             throw e;
-//           }
-//         }
-//         if (mediaEntries.isNotEmpty) {
-//           await _postService.attachMedia(postId, mediaEntries);
-//           print('媒体附件关联成功');
-//         }
-//       }
-
-//       // 3) 绑定标签（这里用简单做法：用你现有的 tags 表，先假设你已有 name->id 的方法；
-//       // 没有的话可以先跳过 attachTags，等你有"选标签/建标签"的页面再接）
-//       final raw = _tagsCtrl.text.trim();
-//       if (raw.isNotEmpty) {
-//         final names = raw.split(RegExp(r'[，,]')).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
-//         // 你可以写一个 TagService.nameToId 批量拿到 tag_id，这里简化为全部跳过
-//         final tagIds = await TagService().ensureTagsAndReturnIds(names);
-//         await _postService.attachTags(postId, tagIds);
-//       }
-
-//       if (!mounted) return;
-
-//       print('发布流程完成，跳转到详情页');
-//       // 4) 成功后跳详情页 - 确保 postId 不为 null
-//       if (postId != null) {
-//         Navigator.of(context).pushReplacement(
-//           MaterialPageRoute(builder: (_) => PostDetailPage(postId: postId!)),
-//         );
-//       } else {
-//         throw Exception('帖子ID为空');
-//       }
-//     } catch (e, stackTrace) {
-//       print('发布失败错误详情: $e');
-//       print('堆栈跟踪: $stackTrace');
-      
-//       if (!mounted) return;
-      
-//       // 如果有帖子ID但其他步骤失败，显示更具体的错误信息
-//       String errorMessage = '发布失败：$e';
-//       if (postId != null) {
-//         errorMessage = '帖子已创建，但媒体上传失败：$e\n帖子ID: $postId';
-//       }
-      
-//       ScaffoldMessenger.of(context).showSnackBar(
-//         SnackBar(
-//           content: Text(errorMessage),
-//           duration: const Duration(seconds: 5),
-//         ),
-//       );
-//     } finally {
-//       if (mounted) setState(() => _publishing = false);
-//     }
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final isCos = _channel == 'cos';
-
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: const Text('发布帖子'),
-//         actions: [
-//           TextButton(
-//             onPressed: _publishing ? null : _publish,
-//             child: _publishing
-//                 ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-//                 : const Text('发布'),
-//           ),
-//         ],
-//       ),
-//       body: Form(
-//         key: _formKey,
-//         child: ListView(
-//           padding: const EdgeInsets.all(16),
-//           children: [
-//             // 渠道
-//             Row(
-//               children: [
-//                 const Text('频道：'),
-//                 const SizedBox(width: 8),
-//                 ChoiceChip(
-//                   label: const Text('COS'),
-//                   selected: _channel == 'cos',
-//                   onSelected: (v) => setState(() => _channel = 'cos'),
-//                 ),
-//                 const SizedBox(width: 8),
-//                 ChoiceChip(
-//                   label: const Text('群岛'),
-//                   selected: _channel == 'island',
-//                   onSelected: (v) => setState(() => _channel = 'island'),
-//                 ),
-//               ],
-//             ),
-//             const SizedBox(height: 12),
-
-//             // 标题
-//             TextFormField(
-//               controller: _titleCtrl,
-//               decoration: const InputDecoration(labelText: '标题', border: OutlineInputBorder()),
-//               validator: (v) => (v == null || v.trim().isEmpty) ? '请输入标题' : null,
-//             ),
-//             const SizedBox(height: 12),
-
-//             // 正文
-//             TextFormField(
-//               controller: _contentCtrl,
-//               minLines: 5,
-//               maxLines: 10,
-//               decoration: const InputDecoration(
-//                 labelText: '正文（可选）',
-//                 border: OutlineInputBorder(),
-//               ),
-//             ),
-//             const SizedBox(height: 12),
-
-//             // COS 分类 或 群岛类型
-//             if (isCos)
-//               DropdownButtonFormField<String>(
-//                 value: _cosCategory,
-//                 decoration: const InputDecoration(
-//                   labelText: 'COS分类（必选）',
-//                   border: OutlineInputBorder(),
-//                 ),
-//                 items: _cosCategories.map((c) {
-//                   final label = {
-//                     'anime': '动漫',
-//                     'game': '游戏',
-//                     'comic': '漫画',
-//                     'novel': '小说',
-//                     'other': '其他',
-//                   }[c]!;
-//                   return DropdownMenuItem(value: c, child: Text(label));
-//                 }).toList(),
-//                 validator: (v) => v == null ? '请选择分类' : null,
-//                 onChanged: (v) => setState(() => _cosCategory = v),
-//               )
-//             else
-//               DropdownButtonFormField<String>(
-//                 value: _islandType,
-//                 decoration: const InputDecoration(
-//                   labelText: '群岛类型（必选）',
-//                   border: OutlineInputBorder(),
-//                 ),
-//                 items: _islandTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-//                 validator: (v) => v == null ? '请选择类型' : null,
-//                 onChanged: (v) => setState(() => _islandType = v),
-//               ),
-//             const SizedBox(height: 12),
-
-//             // 标签（简化：手输）
-//             TextField(
-//               controller: _tagsCtrl,
-//               decoration: const InputDecoration(
-//                 labelText: '标签（用逗号分隔，可选）',
-//                 hintText: '例：原神，崩铁',
-//                 border: OutlineInputBorder(),
-//               ),
-//             ),
-//             const SizedBox(height: 12),
-
-//             // 选择图片按钮
-//             Row(
-//               children: [
-//                 ElevatedButton.icon(
-//                   onPressed: _pickImages,
-//                   icon: const Icon(Icons.add_photo_alternate),
-//                   label: const Text('选择图片'),
-//                 ),
-//                 const SizedBox(width: 12),
-//                 Text('已选 ${_pickedImages.length} 张'),
-//               ],
-//             ),
-//             const SizedBox(height: 8),
-
-//             // 已选图片九宫格预览
-//             if (_pickedImageBytes.isNotEmpty)
-//               Wrap(
-//                 spacing: 8,
-//                 runSpacing: 8,
-//                 children: _pickedImageBytes
-//                     .asMap()
-//                     .entries
-//                     .map((e) => Stack(
-//                           children: [
-//                             ClipRRect(
-//                               borderRadius: BorderRadius.circular(8),
-//                               child: Image.memory(
-//                                 e.value,
-//                                 width: 100,
-//                                 height: 100,
-//                                 fit: BoxFit.cover,
-//                               ),
-//                             ),
-//                             Positioned(
-//                               right: 4,
-//                               top: 4,
-//                               child: InkWell(
-//                                 onTap: () => setState(() {
-//                                   _pickedImages.removeAt(e.key);
-//                                   _pickedImageBytes.removeAt(e.key);
-//                                 }),
-//                                 child: Container(
-//                                   decoration: BoxDecoration(
-//                                     color: Colors.black54,
-//                                     borderRadius: BorderRadius.circular(999),
-//                                   ),
-//                                   padding: const EdgeInsets.all(2),
-//                                   child: const Icon(Icons.close, size: 16, color: Colors.white),
-//                                 ),
-//                               ),
-//                             )
-//                           ],
-//                         ))
-//                     .toList(),
-//               ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
-
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -338,6 +5,7 @@ import 'package:iacg/features/post/post_detail_page.dart';
 import 'package:iacg/services/post_service.dart';
 import 'package:iacg/services/tag_service.dart';
 import 'package:iacg/services/search_service.dart';
+import 'package:iacg/services/profile_service.dart';
 import 'package:iacg/widgets/avatar_widget.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -355,8 +23,11 @@ class _PostComposePageState extends State<PostComposePage> {
   final _tagService = TagService();
   final _searchService = SearchService();
   final _client = Supabase.instance.client;
+  final _profileService = ProfileService();
 
-  String _channel = 'cos'; // cos | island
+  String _channel = 'cos'; // cos | island | event
+  bool _isOrganizer = false;
+  bool _loadingUserRole = true;
   final _titleCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
 
@@ -369,6 +40,16 @@ class _PostComposePageState extends State<PostComposePage> {
   // Island only
   String? _islandType;
   final _islandTypes = const ['求助', '分享', '吐槽', '找搭子', '约拍', '其他'];
+
+  // Event only
+  String? _eventType;
+  final _eventTypes = const ['漫展', '同人展', 'Cosplay比赛', '摄影会', '交流会', '其他活动'];
+  DateTime? _eventStartTime;
+  DateTime? _eventEndTime;
+  final TextEditingController _eventLocationCtrl = TextEditingController();
+  final TextEditingController _eventCityCtrl = TextEditingController();
+  final TextEditingController _eventTicketUrlCtrl = TextEditingController();
+  final TextEditingController _eventParticipantCountCtrl = TextEditingController();
 
   // 标签
   final _tagsCtrl = TextEditingController();
@@ -391,8 +72,20 @@ class _PostComposePageState extends State<PostComposePage> {
     {'value': 'retouch', 'label': '修图/后期'},
     {'value': 'other', 'label': '其他合作'},
   ];
- 
+
   bool _publishing = false;
+
+  // 二次元风格颜色
+  final Color _primaryColor = const Color(0xFFEC4899); // 粉色
+  final Color _secondaryColor = const Color(0xFF8B5CF6); // 紫色
+  final Color _accentColor = const Color(0xFF06B6D4); // 青色
+  final Color _backgroundColor = const Color(0xFFF8FAFC); // 浅灰背景
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserRole();
+  }
 
   @override
   void dispose() {
@@ -400,14 +93,37 @@ class _PostComposePageState extends State<PostComposePage> {
     _contentCtrl.dispose();
     _tagsCtrl.dispose();
     _searchCtrl.dispose();
+    _eventLocationCtrl.dispose();
+    _eventCityCtrl.dispose();
+    _eventTicketUrlCtrl.dispose();
+    _eventParticipantCountCtrl.dispose();
     super.dispose();
+  }
+
+  // 检查用户是否是活动组织者
+  Future<void> _checkUserRole() async {
+    try {
+      final profile = await _profileService.fetchMyProfile();
+      if (profile != null) {
+        setState(() {
+          _isOrganizer = profile.role == 'organizer';
+          _loadingUserRole = false;
+        });
+        print('用户身份检查完成: isOrganizer = $_isOrganizer, role = ${profile.role}');
+      } else {
+        setState(() => _loadingUserRole = false);
+      }
+    } catch (e) {
+      print('检查用户身份失败: $e');
+      setState(() => _loadingUserRole = false);
+    }
   }
 
   Future<void> _pickImages() async {
     final picker = ImagePicker();
     final files = await picker.pickMultiImage(imageQuality: 92);
     if (files.isEmpty) return;
-    
+
     for (final xfile in files) {
       final bytes = await xfile.readAsBytes();
       setState(() {
@@ -441,31 +157,77 @@ class _PostComposePageState extends State<PostComposePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('选择角色'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: _roles.map((role) {
-            return ListTile(
-              title: Text(role['label'] ?? '其他合作'),
-              onTap: () {
-                Navigator.pop(context);
-                setState(() {
-                  _collaborators.add({
-                    'user_id': user['id'],
-                    'nickname': user['nickname'],
-                    'avatar_url': user['avatar_url'],
-                    'role': role['value'],
-                    'role_label': role['label'],
-                  });
-                });
-                _searchCtrl.clear();
-                _searchResults = [];
-              },
-            );
-          }).toList(),
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          '选择角色',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+        ),
+        content: Container(
+          constraints: const BoxConstraints(maxHeight: 300),
+          child: ListView(
+            shrinkWrap: true,
+            children: _roles.map((role) {
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 4),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: ListTile(
+                  leading: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: _primaryColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      _getRoleIcon(role['value'] ?? 'other'),
+                      color: _primaryColor,
+                      size: 20,
+                    ),
+                  ),
+                  title: Text(
+                    role['label'] ?? '其他合作',
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      _collaborators.add({
+                        'user_id': user['id'],
+                        'nickname': user['nickname'],
+                        'avatar_url': user['avatar_url'],
+                        'role': role['value'],
+                        'role_label': role['label'],
+                      });
+                    });
+                    _searchCtrl.clear();
+                    _searchResults = [];
+                  },
+                ),
+              );
+            }).toList(),
+          ),
         ),
       ),
     );
+  }
+
+  // 获取角色图标
+  IconData _getRoleIcon(String role) {
+    switch (role) {
+      case 'photographer':
+        return Icons.camera_alt;
+      case 'makeup':
+        return Icons.brush;
+      case 'costume':
+        return Icons.checkroom;
+      case 'props':
+        return Icons.build;
+      case 'retouch':
+        return Icons.photo_filter;
+      default:
+        return Icons.people;
+    }
   }
 
   // 移除共创者
@@ -478,7 +240,12 @@ class _PostComposePageState extends State<PostComposePage> {
 
     final user = _client.auth.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('请先登录')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('请先登录'),
+          backgroundColor: _primaryColor,
+        ),
+      );
       return;
     }
 
@@ -522,14 +289,13 @@ class _PostComposePageState extends State<PostComposePage> {
             'post_id': postId,
             'user_id': collab['user_id'],
             'role': collab['role'],
-            'display_name': null, // 留空，用用户名显示
+            'display_name': null,
           }).toList();
-          
+
           await _client.from('post_collaborators').insert(collaboratorEntries);
           print('添加了 ${_collaborators.length} 个共创者');
         } catch (e) {
           print('添加共创者失败: $e');
-          // 不阻断发布流程
         }
       }
 
@@ -543,7 +309,7 @@ class _PostComposePageState extends State<PostComposePage> {
           try {
             final xFile = XFile(file.path);
             final url = await _postService.uploadMediaFile(
-              postId: postId!, 
+              postId: postId!,
               xFile: xFile,
             );
             mediaEntries.add({
@@ -575,7 +341,6 @@ class _PostComposePageState extends State<PostComposePage> {
           }
         } catch (e) {
           print('标签处理失败: $e');
-          // 不抛出异常，让帖子发布继续
         }
       }
 
@@ -593,17 +358,18 @@ class _PostComposePageState extends State<PostComposePage> {
     } catch (e, stackTrace) {
       print('发布失败错误详情: $e');
       print('堆栈跟踪: $stackTrace');
-      
+
       if (!mounted) return;
-      
+
       String errorMessage = '发布失败：$e';
       if (postId != null) {
         errorMessage = '帖子已创建，但后续处理失败：$e\n帖子ID: $postId';
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMessage),
+          backgroundColor: Colors.red,
           duration: const Duration(seconds: 5),
         ),
       );
@@ -612,19 +378,147 @@ class _PostComposePageState extends State<PostComposePage> {
     }
   }
 
+  // 构建二次元风格卡片
+  Widget _buildAnimeCard({required Widget child, EdgeInsetsGeometry? padding}) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: Padding(
+        padding: padding ?? const EdgeInsets.all(16),
+        child: child,
+      ),
+    );
+  }
+
+  // 构建二次元风格按钮
+  Widget _buildAnimeButton({
+    required VoidCallback? onPressed,
+    required Widget child,
+    Color? backgroundColor,
+    bool isPrimary = false,
+  }) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: backgroundColor ?? (isPrimary ? _primaryColor : _secondaryColor),
+        foregroundColor: Colors.white,
+        elevation: 2,
+        shadowColor: (backgroundColor ?? (isPrimary ? _primaryColor : _secondaryColor)).withOpacity(0.3),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      ),
+      child: child,
+    );
+  }
+
+  // 构建频道选择芯片
+  Widget _buildChannelChip({
+    required String label,
+    required bool isSelected,
+    required VoidCallback onSelected,
+    required IconData icon,
+  }) {
+    return Card(
+      elevation: isSelected ? 2 : 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: isSelected ? _primaryColor : Colors.grey.shade300,
+          width: isSelected ? 2 : 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: onSelected,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: isSelected ? _primaryColor.withOpacity(0.1) : Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  icon,
+                  color: isSelected ? _primaryColor : Colors.grey.shade600,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w500,
+                  color: isSelected ? _primaryColor : Colors.grey.shade700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isCos = _channel == 'cos';
+    final isEvent = _channel == 'event';
 
     return Scaffold(
+      backgroundColor: _backgroundColor,
       appBar: AppBar(
-        title: const Text('发布帖子'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          '发布内容',
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
         actions: [
-          TextButton(
-            onPressed: _publishing ? null : _publish,
-            child: _publishing
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('发布'),
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            child: _buildAnimeButton(
+              onPressed: _publishing ? null : _publish,
+              isPrimary: true,
+              child: _publishing
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    )
+                  : const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.send, size: 16),
+                        SizedBox(width: 4),
+                        Text('发布', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+            ),
           ),
         ],
       ),
@@ -633,241 +527,631 @@ class _PostComposePageState extends State<PostComposePage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // 渠道
-            Row(
-              children: [
-                const Text('频道：'),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  label: const Text('COS'),
-                  selected: _channel == 'cos',
-                  onSelected: (v) => setState(() => _channel = 'cos'),
-                ),
-                const SizedBox(width: 8),
-                ChoiceChip(
-                  label: const Text('群岛'),
-                  selected: _channel == 'island',
-                  onSelected: (v) => setState(() => _channel = 'island'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // 标题
-            TextFormField(
-              controller: _titleCtrl,
-              decoration: const InputDecoration(labelText: '标题', border: OutlineInputBorder()),
-              validator: (v) => (v == null || v.trim().isEmpty) ? '请输入标题' : null,
-            ),
-            const SizedBox(height: 12),
-
-            // 正文
-            TextFormField(
-              controller: _contentCtrl,
-              minLines: 5,
-              maxLines: 10,
-              decoration: const InputDecoration(
-                labelText: '正文（可选）',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // COS 分类 或 群岛类型
-            if (isCos)
-              Column(
+            // 频道选择
+            _buildAnimeCard(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // COS分类
-                  DropdownButtonFormField<String>(
-                    value: _cosCategory,
-                    decoration: const InputDecoration(
-                      labelText: 'COS分类（必选）',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _cosCategories.map((c) {
-                      final label = {
-                        'anime': '动漫',
-                        'game': '游戏',
-                        'comic': '漫画',
-                        'novel': '小说',
-                        'other': '其他',
-                      }[c]!;
-                      return DropdownMenuItem(value: c, child: Text(label));
-                    }).toList(),
-                    validator: (v) => v == null ? '请选择分类' : null,
-                    onChanged: (v) => setState(() => _cosCategory = v),
+                  const Text(
+                    '选择频道',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
                   ),
                   const SizedBox(height: 12),
-
-                  // IP标签
-                  TextFormField(
-                    decoration: const InputDecoration(
-                      labelText: 'IP标签（可选）',
-                      hintText: '例如：原神、崩坏：星穹铁道',
-                      border: OutlineInputBorder(),
-                    ),
-                    onChanged: (v) => setState(() => _ipTag = v),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 共创者
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('共创者（可选）', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: _searchCtrl,
-                        decoration: InputDecoration(
-                          hintText: '搜索用户名添加共创者...',
-                          border: const OutlineInputBorder(),
-                          suffixIcon: _searching
-                              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                              : null,
-                        ),
-                        onChanged: _searchUsers,
-                      ),
-                      if (_searchResults.isNotEmpty)
-                        Container(
-                          margin: const EdgeInsets.only(top: 8),
-                          decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey.shade300),
-                            borderRadius: BorderRadius.circular(8),
+                  if (_loadingUserRole)
+                    const Center(
+                      child: CircularProgressIndicator(),
+                    )
+                  else
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildChannelChip(
+                            label: 'COS作品',
+                            isSelected: _channel == 'cos',
+                            onSelected: () => setState(() => _channel = 'cos'),
+                            icon: Icons.photo_camera,
                           ),
-                          child: ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _searchResults.length,
-                            itemBuilder: (context, index) {
-                              final user = _searchResults[index];
-                              return ListTile(
-                                leading: AvatarWidget(
-                                    imageUrl: user['avatar_url'],
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildChannelChip(
+                            label: '群岛社区',
+                            isSelected: _channel == 'island',
+                            onSelected: () => setState(() => _channel = 'island'),
+                            icon: Icons.people,
+                          ),
+                        ),
+                        if (_isOrganizer) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildChannelChip(
+                              label: '活动',
+                              isSelected: _channel == 'event',
+                              onSelected: () => setState(() => _channel = 'event'),
+                              icon: Icons.event,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  // if (!_isOrganizer && !_loadingUserRole)
+                  //   Container(
+                  //     margin: const EdgeInsets.only(top: 8),
+                  //     padding: const EdgeInsets.all(12),
+                  //     decoration: BoxDecoration(
+                  //       color: Colors.orange.shade50,
+                  //       borderRadius: BorderRadius.circular(8),
+                  //       border: Border.all(color: Colors.orange.shade200),
+                  //     ),
+                  //     child: Row(
+                  //       children: [
+                  //         Icon(Icons.info_outline, color: Colors.orange.shade600, size: 16),
+                  //         const SizedBox(width: 8),
+                  //         Expanded(
+                  //           child: Text(
+                  //             '只有活动组织者才能发布活动',
+                  //             style: TextStyle(
+                  //               fontSize: 12,
+                  //               color: Colors.orange.shade700,
+                  //             ),
+                  //           ),
+                  //         ),
+                  //       ],
+                  //     ),
+                  //   ),
+                ],
+              ),
+            ),
+
+            // 标题
+            _buildAnimeCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '标题',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _titleCtrl,
+                    style: const TextStyle(fontSize: 16),
+                    decoration: InputDecoration(
+                      hintText: '请输入标题...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: _primaryColor, width: 2),
+                      ),
+                    ),
+                    validator: (v) => (v == null || v.trim().isEmpty) ? '请输入标题' : null,
+                  ),
+                ],
+              ),
+            ),
+
+            // 正文
+            _buildAnimeCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '正文内容',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                  ),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _contentCtrl,
+                    minLines: 5,
+                    maxLines: 10,
+                    style: const TextStyle(fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: '分享你的想法...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: _primaryColor, width: 2),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // COS 分类 或 群岛类型 或 活动类型
+            if (isCos)
+              _buildAnimeCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'COS分类',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _cosCategory,
+                      decoration: InputDecoration(
+                        labelText: '选择分类',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: _primaryColor, width: 2),
+                        ),
+                      ),
+                      items: _cosCategories.map((c) {
+                        final label = {
+                          'anime': '动漫',
+                          'game': '游戏',
+                          'comic': '漫画',
+                          'novel': '小说',
+                          'other': '其他',
+                        }[c]!;
+                        return DropdownMenuItem(
+                          value: c,
+                          child: Text(label),
+                        );
+                      }).toList(),
+                      validator: (v) => v == null ? '请选择分类' : null,
+                      onChanged: (v) => setState(() => _cosCategory = v),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // IP标签
+                    const Text(
+                      'IP标签',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      decoration: InputDecoration(
+                        hintText: '例如：原神、崩坏：星穹铁道',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: _primaryColor, width: 2),
+                        ),
+                      ),
+                      onChanged: (v) => setState(() => _ipTag = v),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // 共创者
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '共创者',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: _searchCtrl,
+                          decoration: InputDecoration(
+                            hintText: '搜索用户名添加共创者...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: _primaryColor, width: 2),
+                            ),
+                            suffixIcon: _searching
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : null,
+                          ),
+                          onChanged: _searchUsers,
+                        ),
+                        if (_searchResults.isNotEmpty)
+                          Container(
+                            margin: const EdgeInsets.only(top: 8),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ListView.builder(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: _searchResults.length,
+                              itemBuilder: (context, index) {
+                                final user = _searchResults[index];
+                                return ListTile(
+                                  leading: AvatarWidget(
+                                    imageUrl: user['avatar_url'] as String?,
                                     size: 40,
                                   ),
-                                title: Text(user['nickname'] as String? ?? '未知用户'),
-                                onTap: () => _addCollaborator(user),
+                                  title: Text(user['nickname'] as String? ?? '未知用户'),
+                                  onTap: () => _addCollaborator(user),
+                                );
+                              },
+                            ),
+                          ),
+                        
+                        // 已选择的共创者
+                        if (_collaborators.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          const Text(
+                            '已选择的共创者：',
+                            style: TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: _collaborators.asMap().entries.map((entry) {
+                              final index = entry.key;
+                              final collab = entry.value;
+                              return Chip(
+                                label: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(collab['nickname'] as String),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '(${collab['role_label']})',
+                                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                    ),
+                                  ],
+                                ),
+                                avatar: AvatarWidget(
+                                  imageUrl: collab['avatar_url'] as String?,
+                                  size: 24,
+                                ),
+                                onDeleted: () => _removeCollaborator(index),
                               );
+                            }).toList(),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              )
+            else if (isEvent)
+              _buildAnimeCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '活动类型',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _eventType,
+                      decoration: InputDecoration(
+                        labelText: '选择活动类型',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: _primaryColor, width: 2),
+                        ),
+                      ),
+                      items: _eventTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                      validator: (v) => v == null ? '请选择活动类型' : null,
+                      onChanged: (v) => setState(() => _eventType = v),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // 活动时间
+                    const Text(
+                      '活动时间',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            readOnly: true,
+                            decoration: InputDecoration(
+                              labelText: '开始时间',
+                              hintText: _eventStartTime == null ? '选择开始时间' : _eventStartTime.toString().substring(0, 16),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey.shade300),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: _primaryColor, width: 2),
+                              ),
+                            ),
+                            onTap: () async {
+                              final selected = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime(2100),
+                              );
+                              if (selected != null) {
+                                setState(() => _eventStartTime = selected);
+                              }
                             },
                           ),
                         ),
-
-                      // 已选择的共创者
-                      if (_collaborators.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        const Text('已选择的共创者：', style: TextStyle(fontSize: 14, color: Colors.grey)),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          children: _collaborators.asMap().entries.map((entry) {
-                            final index = entry.key;
-                            final collab = entry.value;
-                            return Chip(
-                              label: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(collab['nickname'] as String),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '(${collab['role_label']})',
-                                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                                  ),
-                                ],
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            readOnly: true,
+                            decoration: InputDecoration(
+                              labelText: '结束时间',
+                              hintText: _eventEndTime == null ? '选择结束时间' : _eventEndTime.toString().substring(0, 16),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey.shade300),
                               ),
-                              avatar:  AvatarWidget(
-                                  imageUrl: collab['avatar_url'],
-                                  size: 24,
-                                ),
-                              onDeleted: () => _removeCollaborator(index),
-                            );
-                          }).toList(),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: _primaryColor, width: 2),
+                              ),
+                            ),
+                            onTap: () async {
+                              final selected = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime(2100),
+                              );
+                              if (selected != null) {
+                                setState(() => _eventEndTime = selected);
+                              }
+                            },
+                          ),
                         ),
                       ],
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // 活动地点
+                    const Text(
+                      '活动地点',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _eventLocationCtrl,
+                      decoration: InputDecoration(
+                        hintText: '详细地址',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: _primaryColor, width: 2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _eventCityCtrl,
+                      decoration: InputDecoration(
+                        hintText: '城市',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: _primaryColor, width: 2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // 购票链接和参与人数
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _eventTicketUrlCtrl,
+                            decoration: InputDecoration(
+                              hintText: '购票链接',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey.shade300),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: _primaryColor, width: 2),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _eventParticipantCountCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: InputDecoration(
+                              hintText: '预计参与人数',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: Colors.grey.shade300),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: BorderSide(color: _primaryColor, width: 2),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               )
             else
-              // 群岛类型
-              DropdownButtonFormField<String>(
-                value: _islandType,
-                decoration: const InputDecoration(
-                  labelText: '群岛类型（必选）',
-                  border: OutlineInputBorder(),
+              _buildAnimeCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '群岛类型',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                    ),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String>(
+                      value: _islandType,
+                      decoration: InputDecoration(
+                        labelText: '选择类型',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade300),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: _primaryColor, width: 2),
+                        ),
+                      ),
+                      items: _islandTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                      validator: (v) => v == null ? '请选择类型' : null,
+                      onChanged: (v) => setState(() => _islandType = v),
+                    ),
+                  ],
                 ),
-                items: _islandTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
-                validator: (v) => v == null ? '请选择类型' : null,
-                onChanged: (v) => setState(() => _islandType = v),
               ),
             const SizedBox(height: 12),
 
             // 标签
-            TextField(
-              controller: _tagsCtrl,
-              decoration: const InputDecoration(
-                labelText: '标签（用逗号分隔，可选）',
-                hintText: '例：原神，崩铁',
-                border: OutlineInputBorder(),
+            _buildAnimeCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '标签',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _tagsCtrl,
+                    decoration: InputDecoration(
+                      hintText: '例：原神，崩铁（用逗号分隔）',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: _primaryColor, width: 2),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
 
-            // 选择图片按钮
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: _pickImages,
-                  icon: const Icon(Icons.add_photo_alternate),
-                  label: const Text('选择图片'),
-                ),
-                const SizedBox(width: 12),
-                Text('已选 ${_pickedImages.length} 张'),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // 已选图片九宫格预览
-            if (_pickedImageBytes.isNotEmpty)
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _pickedImageBytes
-                    .asMap()
-                    .entries
-                    .map((e) => Stack(
+            // 图片上传
+            _buildAnimeCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '图片上传',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildAnimeButton(
+                    onPressed: _pickImages,
+                    backgroundColor: _accentColor,
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add_photo_alternate, size: 18),
+                        SizedBox(width: 8),
+                        Text('选择图片', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '已选择 ${_pickedImages.length} 张图片',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  
+                  // 图片预览
+                  if (_pickedImageBytes.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _pickedImageBytes.asMap().entries.map((e) {
+                        return Stack(
                           children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.memory(
-                                e.value,
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
+                            Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.memory(
+                                  e.value,
+                                  width: 100,
+                                  height: 100,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
                             ),
                             Positioned(
                               right: 4,
                               top: 4,
-                              child: InkWell(
+                              child: GestureDetector(
                                 onTap: () => setState(() {
                                   _pickedImages.removeAt(e.key);
                                   _pickedImageBytes.removeAt(e.key);
                                 }),
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    borderRadius: BorderRadius.circular(999),
+                                    color: Colors.black.withOpacity(0.7),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                  padding: const EdgeInsets.all(2),
-                                  child: const Icon(Icons.close, size: 16, color: Colors.white),
+                                  padding: const EdgeInsets.all(4),
+                                  child: const Icon(
+                                    Icons.close,
+                                    size: 16,
+                                    color: Colors.white,
+                                  ),
                                 ),
                               ),
-                            )
+                            ),
                           ],
-                        ))
-                    .toList(),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ],
               ),
+            ),
           ],
         ),
       ),

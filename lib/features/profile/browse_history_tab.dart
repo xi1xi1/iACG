@@ -5,7 +5,7 @@ import 'dart:convert';
 import '../post/post_detail_page.dart';
 
 class BrowseHistoryTab extends StatefulWidget {
-  const BrowseHistoryTab({Key? key}) : super(key: key);
+  const BrowseHistoryTab({super.key});
 
   @override
   State<BrowseHistoryTab> createState() => _BrowseHistoryTabState();
@@ -217,12 +217,12 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
   }
 
   Widget _buildEmpty() {
-    return SizedBox(
+    return const SizedBox(
       height: 300,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             Icon(Icons.history, size: 64, color: Colors.grey),
             SizedBox(height: 16),
             Text('暂无浏览记录', style: TextStyle(fontSize: 16, color: Colors.grey)),

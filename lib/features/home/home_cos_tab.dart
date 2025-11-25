@@ -1,10 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:iacg/services/tag_service.dart';
 import 'package:iacg/widgets/post_card.dart';
 import '../../services/post_service.dart';
+import '../../services/auth_service.dart';
 import '../../widgets/loading_view.dart';
 import '../../widgets/error_view.dart';
+import 'package:iacg/features/post/post_compose_page.dart';
+import 'package:iacg/features/search/search_page.dart';
 
 class HomeCosTab extends StatefulWidget {
   const HomeCosTab({super.key});
@@ -13,15 +17,28 @@ class HomeCosTab extends StatefulWidget {
   State<HomeCosTab> createState() => _HomeCosTabState();
 }
 
-class _HomeCosTabState extends State<HomeCosTab> {
+class _HomeCosTabState extends State<HomeCosTab>
+    with SingleTickerProviderStateMixin {
   final List<Map<String, dynamic>> _posts = [];
   final List<Map<String, dynamic>> _ipTags = [];
-  final TagService _tagService = TagService(); // B新增
+  final TagService _tagService = TagService();
+  final AuthService _authService = AuthService();
   bool _isLoading = true;
+  bool _isLoadingMore = false;
   bool _isLoadingTags = true;
   String? _error;
 
-  // 筛选状态
+  // 分页相关变量
+  int _currentPage = 1;
+  bool _hasMore = true;
+  final int _pageSize = 10;
+
+  // 顶部标签：全部、关注
+  final List<String> _topTabs = ['全部', '关注'];
+  late TabController _tabController;
+  int _selectedTopTab = 0;
+
+  // 筛选状态（仅用于"全部"标签）
   String _selectedCategory = '全部';
   String _selectedIp = '全部';
 
@@ -32,62 +49,136 @@ class _HomeCosTabState extends State<HomeCosTab> {
   // COS 分类选项
   final List<String> _cosCategories = ['全部', '动漫', '游戏', '漫画', '小说', '其他'];
 
-  final ScrollController _scrollController = ScrollController();
   final PostService _postService = PostService();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: _topTabs.length, vsync: this);
+    _tabController.addListener(_handleTabSelection);
+    _scrollController.addListener(_scrollListener);
     _loadInitialData();
-    _loadIpTags(); // ← 新增：首次进入先加载 IP 筛选项
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadInitialData() async {
-    await Future.wait([
-      _loadPosts(),
-      _loadIpTags(),
-    ]);
+  void _scrollListener() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 300 &&
+        !_isLoadingMore &&
+        _hasMore) {
+      _loadMorePosts();
+    }
   }
 
-  Future<void> _loadPosts() async {
+  void _handleTabSelection() {
+    if (_tabController.indexIsChanging) {
+      setState(() {
+        _selectedTopTab = _tabController.index;
+        _showFilterPanel = false;
+        _currentFilterType = FilterType.none;
+        _currentPage = 1;
+        _hasMore = true;
+      });
+
+      _loadPosts(isRefresh: true);
+
+      // 如果是"全部"标签，加载IP标签
+      if (_tabController.index == 0) {
+        _loadIpTags();
+      }
+    }
+  }
+
+  Future<void> _loadInitialData() async {
+    await _loadPosts(isRefresh: true);
+    if (_selectedTopTab == 0) {
+      await _loadIpTags();
+    }
+  }
+
+  Future<void> _loadPosts({bool isRefresh = false}) async {
     try {
       setState(() {
+        if (isRefresh) {
+          _currentPage = 1;
+          _hasMore = true;
+          _posts.clear();
+        }
         _isLoading = true;
         _error = null;
       });
 
       if (kDebugMode) {
-        debugPrint('开始加载COS帖子，分类: $_selectedCategory, IP: $_selectedIp');
+        debugPrint(
+            '开始加载COS帖子，标签: ${_topTabs[_selectedTopTab]}, 分类: $_selectedCategory, IP: $_selectedIp, 页码: $_currentPage');
       }
 
-      final String? cosCategory =
-          _selectedCategory == '全部' ? null : _selectedCategory;
-      final String? ipTag = _selectedIp == '全部' ? null : _selectedIp;
+      List<Map<String, dynamic>> result;
 
-      final result = await _postService.fetchCosPosts(
-        category: cosCategory,
-        ipTag: ipTag,
-      );
+      if (_selectedTopTab == 0) {
+        // 全部标签：按类型和IP筛选
+        final String? cosCategory =
+            _selectedCategory == '全部' ? null : _selectedCategory;
+        final String? ipTag = _selectedIp == '全部' ? null : _selectedIp;
+
+        result = await _postService.fetchCosPosts(
+          category: cosCategory,
+          ipTag: ipTag,
+          limit: _pageSize,
+          offset: (isRefresh ? 0 : _currentPage - 1) * _pageSize,
+        );
+      } else {
+        // 关注标签：获取关注用户的COS帖子
+        if (!_authService.isLoggedIn) {
+          setState(() {
+            _error = '请先登录查看关注内容';
+            _isLoading = false;
+          });
+          return;
+        }
+
+        final userId = _authService.currentUser?.id;
+        if (userId == null) {
+          setState(() {
+            _error = '用户信息获取失败';
+            _isLoading = false;
+          });
+          return;
+        }
+
+        result = await _postService.fetchFollowPosts(
+          userId,
+          limit: _pageSize,
+          offset: (isRefresh ? 0 : _currentPage - 1) * _pageSize,
+        );
+      }
 
       if (kDebugMode) {
         debugPrint('加载完成: ${result.length} 条');
+        print(isRefresh);
       }
 
       setState(() {
-        _posts.clear();
+        if (isRefresh) {
+          _posts.clear();
+        }
         _posts.addAll(result);
+        _hasMore = result.length >= _pageSize;
         _error = null;
       });
     } catch (e) {
       setState(() {
         _error = '加载失败: ${e.toString()}';
-        _posts.clear();
+        if (isRefresh) {
+          _posts.clear();
+        }
       });
       if (kDebugMode) {
         debugPrint('COS页面加载错误: $e');
@@ -101,25 +192,63 @@ class _HomeCosTabState extends State<HomeCosTab> {
     }
   }
 
-  // Future<void> _loadIpTags() async {
-  //   try {
-  //     final result = await _tagService.fetchHotCosIpTags();
-  //     setState(() {
-  //       _ipTags.clear();
-  //       _ipTags.addAll(result);
-  //     });
-  //   } catch (e) {
-  //     if (kDebugMode) {
-  //       debugPrint('加载IP标签出错: $e');
-  //     }
-  //   } finally {
-  //     if (mounted) {
-  //       setState(() {
-  //         _isLoadingTags = false;
-  //       });
-  //     }
-  //   }
-  // }
+  Future<void> _loadMorePosts() async {
+    if (_isLoadingMore || !_hasMore) return;
+
+    try {
+      setState(() {
+        _isLoadingMore = true;
+      });
+
+      _currentPage++;
+
+      List<Map<String, dynamic>> result;
+
+      if (_selectedTopTab == 0) {
+        final String? cosCategory =
+            _selectedCategory == '全部' ? null : _selectedCategory;
+        final String? ipTag = _selectedIp == '全部' ? null : _selectedIp;
+
+        result = await _postService.fetchCosPosts(
+          category: cosCategory,
+          ipTag: ipTag,
+          limit: _pageSize,
+          offset: (_currentPage - 1) * _pageSize,
+        );
+      } else {
+        final userId = _authService.currentUser?.id;
+        if (userId == null) return;
+
+        result = await _postService.fetchFollowPosts(
+          userId,
+          limit: _pageSize,
+          offset: (_currentPage - 1) * _pageSize,
+        );
+      }
+
+      setState(() {
+        _posts.addAll(result);
+        _hasMore = result.length >= _pageSize;
+      });
+    } catch (e) {
+      _currentPage--; // 加载失败，回退页码
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('加载更多失败: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+      }
+    }
+  }
+
   Future<void> _loadIpTags() async {
     setState(() {
       _isLoadingTags = true;
@@ -127,7 +256,7 @@ class _HomeCosTabState extends State<HomeCosTab> {
 
     try {
       // 按当前所选类型获取 IP；当 _selectedCategory == '全部' 时，
-      // TagService 会自动返回“热门 IP”
+      // TagService 会自动返回"热门 IP"
       final list = await _tagService.fetchIpTagsByCategory(
         categoryZh: _selectedCategory,
         limit: 50,
@@ -142,7 +271,7 @@ class _HomeCosTabState extends State<HomeCosTab> {
         _ipTags
           ..clear()
           ..addAll(result);
-        // 切换类型后重置 IP 选择为“全部”
+        // 切换类型后重置 IP 选择为"全部"
         _selectedIp = '全部';
       });
     } catch (e) {
@@ -165,19 +294,10 @@ class _HomeCosTabState extends State<HomeCosTab> {
     }
   }
 
-
-  void _scrollToTop() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
-
-  // 打开筛选面板
+  // 打开筛选面板（仅全部标签可用）
   void _openFilterPanel(FilterType type) {
+    if (_selectedTopTab != 0) return; // 仅全部标签可用
+
     setState(() {
       _showFilterPanel = true;
       _currentFilterType = type;
@@ -195,8 +315,7 @@ class _HomeCosTabState extends State<HomeCosTab> {
   // 应用筛选
   void _applyFilters() {
     _closeFilterPanel();
-    _scrollToTop();
-    _loadPosts();
+    _loadPosts(isRefresh: true);
   }
 
   // 清除所有筛选
@@ -206,13 +325,221 @@ class _HomeCosTabState extends State<HomeCosTab> {
       _selectedIp = '全部';
     });
     _closeFilterPanel();
-    _scrollToTop();
-    _loadPosts();
+    _loadPosts(isRefresh: true);
   }
 
-  // 构建筛选面板
+  // 构建加载更多指示器
+  Widget _buildLoadMoreIndicator() {
+    if (!_hasMore && _posts.isNotEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: Text(
+            '已经到底了～',
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return _isLoadingMore
+        ? const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Center(
+              child: CircularProgressIndicator(),
+            ),
+          )
+        : const SizedBox.shrink();
+  }
+
+  // 构建顶部导航栏 - 二次元风格
+  PreferredSizeWidget _buildAppBar() {
+    backgroundColor: AnimeColors.backgroundLight;
+    return AppBar(
+      backgroundColor: AnimeColors.cardWhite,
+      elevation: 0,
+      title: Row(
+        children: [
+          // Logo部分 - 二次元风格
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AnimeColors.gradientStart, AnimeColors.gradientEnd],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: AnimeColors.primaryPink.withOpacity(0.3),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Text(
+              'iACG',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          // 搜索框 - 二次元风格
+          Expanded(
+            child: Container(
+              height: 40,
+              decoration: BoxDecoration(
+                color: AnimeColors.backgroundLight,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: AnimeColors.primaryPink.withOpacity(0.2),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: TextField(
+                readOnly: true,
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SearchPage()),
+                  );
+                },
+                decoration: InputDecoration(
+                  hintText: '搜索内容...',
+                  hintStyle: TextStyle(color: AnimeColors.textLight),
+                  border: InputBorder.none,
+                  contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: AnimeColors.primaryPink,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        // 发布按钮 - 二次元风格
+        Container(
+          margin: const EdgeInsets.only(right: 8),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AnimeColors.gradientStart,
+                    AnimeColors.gradientEnd
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AnimeColors.primaryPink.withOpacity(0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.add,
+                color: Colors.white,
+                size: 20,
+              ),
+            ),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PostComposePage()),
+              );
+            },
+            tooltip: '发布',
+          ),
+        ),
+        if (!_authService.isLoggedIn)
+          Container(
+            margin: const EdgeInsets.only(right: 16),
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pushNamed('/login'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AnimeColors.primaryPink,
+                foregroundColor: Colors.white,
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              ),
+              child: const Text(
+                '登录',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+      ],
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(48),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AnimeColors.cardWhite,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: TabBar(
+            controller: _tabController,
+            labelColor: AnimeColors.primaryPink,
+            unselectedLabelColor: AnimeColors.textLight,
+            indicatorColor: AnimeColors.primaryPink,
+            indicatorWeight: 3,
+            indicatorSize: TabBarIndicatorSize.label,
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.normal,
+              fontSize: 14,
+            ),
+            tabs: _topTabs.map((tab) => Tab(text: tab)).toList(),
+            isScrollable: false,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // 构建筛选面板（仅全部标签显示）
   Widget _buildFilterPanel() {
-    if (!_showFilterPanel) return const SizedBox.shrink();
+    if (_selectedTopTab != 0 || !_showFilterPanel) {
+      return const SizedBox.shrink();
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -301,14 +628,11 @@ class _HomeCosTabState extends State<HomeCosTab> {
         final isSelected = _selectedCategory == category;
         return GestureDetector(
           onTap: () {
-            // setState(() {
-            //   _selectedCategory = category;
-            // });
-            if (_selectedCategory == category) return; // 同项不重复
+            if (_selectedCategory == category) return;
             setState(() {
               _selectedCategory = category;
             });
-            _loadIpTags(); // ← 新增：类型变更后刷新 IP 选项列表
+            _loadIpTags();
           },
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -408,9 +732,111 @@ class _HomeCosTabState extends State<HomeCosTab> {
           );
   }
 
-  // 构建筛选状态显示
+  // 构建筛选按钮（仅全部标签显示）
+  Widget _buildFilterButtons() {
+    if (_selectedTopTab != 0) return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          // 类型筛选按钮
+          Expanded(
+            child: _buildFilterButton(
+              label: _selectedCategory == '全部' ? '类型' : _selectedCategory,
+              icon: Icons.category_outlined,
+              isActive: _selectedCategory != '全部',
+              onTap: () => _openFilterPanel(FilterType.category),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // IP筛选按钮
+          Expanded(
+            child: _buildFilterButton(
+              label: _selectedIp == '全部' ? 'IP' : _selectedIp,
+              icon: Icons.videogame_asset_outlined,
+              isActive: _selectedIp != '全部',
+              onTap: () => _openFilterPanel(FilterType.ip),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterButton({
+    required String label,
+    required IconData icon,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          gradient: isActive
+              ? const LinearGradient(
+                  colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
+              : LinearGradient(
+                  colors: [Colors.white, Colors.grey[100]!],
+                ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isActive
+                ? const Color(0xFFEC4899)
+                : Colors.grey[300]!,
+            width: isActive ? 0 : 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isActive ? 0.2 : 0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: isActive ? Colors.white : const Color(0xFFEC4899),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: isActive ? Colors.white : const Color(0xFFEC4899),
+                shadows: isActive
+                    ? [
+                        const Shadow(
+                          blurRadius: 2,
+                          color: Colors.black26,
+                          offset: Offset(1, 1),
+                        ),
+                      ]
+                    : null,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 构建筛选状态显示（仅全部标签显示）
   Widget _buildFilterStatus() {
-    if (_selectedCategory == '全部' && _selectedIp == '全部') {
+    if (_selectedTopTab != 0 ||
+        (_selectedCategory == '全部' && _selectedIp == '全部')) {
       return const SizedBox.shrink();
     }
 
@@ -454,320 +880,50 @@ class _HomeCosTabState extends State<HomeCosTab> {
     return '已筛选: ${parts.join(' | ')}';
   }
 
-  // 构建筛选按钮
-  Widget _buildFilterButtons() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          // 类型筛选按钮
-          Expanded(
-            child: _buildFilterButton(
-              label: _selectedCategory == '全部' ? '类型' : _selectedCategory,
-              icon: Icons.category_outlined,
-              isActive: _selectedCategory != '全部',
-              onTap: () => _openFilterPanel(FilterType.category),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // IP筛选按钮
-          Expanded(
-            child: _buildFilterButton(
-              label: _selectedIp == '全部' ? 'IP' : _selectedIp,
-              icon: Icons.videogame_asset_outlined,
-              isActive: _selectedIp != '全部',
-              onTap: () => _openFilterPanel(FilterType.ip),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterButton({
-    required String label,
-    required IconData icon,
-    required bool isActive,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 44,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color:
-              isActive ? Theme.of(context).colorScheme.primary : Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isActive
-                ? Theme.of(context).colorScheme.primary
-                : Colors.grey[300]!,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isActive ? Colors.white : Colors.grey[600],
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: isActive ? Colors.white : Colors.grey[700],
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // 构建 COS 帖子卡片
-  // Widget _buildCosPostCard(Map<String, dynamic> post) {
-  //   final author = post['author'] as Map<String, dynamic>?;
-  //   final postMedia = post['post_media'] as List<dynamic>?;
-  //   final tags = post['tags'] as List<dynamic>?;
-
-  //   return Card(
-  //     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-  //     child: InkWell(
-  //       onTap: _showComingSoonDialog,
-  //       child: Padding(
-  //         padding: const EdgeInsets.all(16),
-  //         child: Column(
-  //           crossAxisAlignment: CrossAxisAlignment.start,
-  //           children: [
-  //             // 作者信息
-  //             Row(
-  //               children: [
-  //                 if (author != null) ...[
-  //                   CircleAvatar(
-  //                     radius: 12,
-  //                     backgroundColor: Colors.grey[300],
-  //                     child: author['avatar_url'] != null
-  //                         ? ClipOval(
-  //                             child: Image.network(
-  //                               author['avatar_url'].toString(),
-  //                               width: 24,
-  //                               height: 24,
-  //                               fit: BoxFit.cover,
-  //                             ),
-  //                           )
-  //                         : Text(
-  //                             author['nickname']?.toString().substring(0, 1) ??
-  //                                 'U',
-  //                             style: const TextStyle(fontSize: 10),
-  //                           ),
-  //                   ),
-  //                   const SizedBox(width: 8),
-  //                   Text(
-  //                     author['nickname']?.toString() ?? '未知用户',
-  //                     style: const TextStyle(
-  //                       fontSize: 14,
-  //                       fontWeight: FontWeight.w500,
-  //                     ),
-  //                   ),
-  //                 ],
-  //               ],
-  //             ),
-  //             const SizedBox(height: 12),
-  //             // 标题
-  //             Text(
-  //               post['title']?.toString() ?? '无标题',
-  //               style: const TextStyle(
-  //                 fontSize: 16,
-  //                 fontWeight: FontWeight.bold,
-  //               ),
-  //               maxLines: 2,
-  //               overflow: TextOverflow.ellipsis,
-  //             ),
-  //             const SizedBox(height: 8),
-  //             // 分类和 IP 标签
-  //             Wrap(
-  //               spacing: 8,
-  //               runSpacing: 4,
-  //               children: [
-  //                 // 分类标签
-  //                 if (post['main_category'] != null)
-  //                   Container(
-  //                     padding: const EdgeInsets.symmetric(
-  //                         horizontal: 8, vertical: 4),
-  //                     decoration: BoxDecoration(
-  //                       color: Colors.blue[50],
-  //                       borderRadius: BorderRadius.circular(12),
-  //                       border: Border.all(color: Colors.blue[200]!),
-  //                     ),
-  //                     child: Text(
-  //                       _postService
-  //                           .getCategoryDisplayName(post['main_category']),
-  //                       style: const TextStyle(
-  //                         fontSize: 10,
-  //                         color: Colors.blue,
-  //                         fontWeight: FontWeight.w500,
-  //                       ),
-  //                     ),
-  //                   ),
-  //                 // IP 标签
-  //                 if (tags != null) ...[
-  //                   ...tags.where((tagRelation) {
-  //                     final tag = tagRelation['tag'] as Map<String, dynamic>?;
-  //                     return tag != null && tag['type'] == 'ip';
-  //                   }).map((tagRelation) {
-  //                     final tag = tagRelation['tag'] as Map<String, dynamic>;
-  //                     return Container(
-  //                       padding: const EdgeInsets.symmetric(
-  //                           horizontal: 8, vertical: 4),
-  //                       decoration: BoxDecoration(
-  //                         color: Colors.purple[50],
-  //                         borderRadius: BorderRadius.circular(12),
-  //                         border: Border.all(color: Colors.purple[200]!),
-  //                       ),
-  //                       child: Text(
-  //                         tag['name'] as String? ?? '',
-  //                         style: const TextStyle(
-  //                           fontSize: 10,
-  //                           color: Colors.purple,
-  //                           fontWeight: FontWeight.w500,
-  //                         ),
-  //                       ),
-  //                     );
-  //                   }),
-  //                 ],
-  //               ],
-  //             ),
-  //             const SizedBox(height: 8),
-  //             // 图片预览
-  //             if (postMedia?.isNotEmpty == true)
-  //               ClipRRect(
-  //                 borderRadius: BorderRadius.circular(8),
-  //                 child: Image.network(
-  //                   postMedia![0]['media_url'] as String,
-  //                   width: double.infinity,
-  //                   height: 200,
-  //                   fit: BoxFit.cover,
-  //                   errorBuilder: (context, error, stackTrace) => Container(
-  //                     width: double.infinity,
-  //                     height: 200,
-  //                     color: Colors.grey[200],
-  //                     child: const Icon(Icons.broken_image, color: Colors.grey),
-  //                   ),
-  //                 ),
-  //               ),
-  //             const SizedBox(height: 12),
-  //             // 互动数据
-  //             Row(
-  //               children: [
-  //                 const Icon(Icons.favorite_border,
-  //                     size: 16, color: Colors.grey),
-  //                 const SizedBox(width: 4),
-  //                 Text(
-  //                   (post['like_count'] ?? 0).toString(),
-  //                   style: const TextStyle(fontSize: 12, color: Colors.grey),
-  //                 ),
-  //                 const SizedBox(width: 16),
-  //                 const Icon(Icons.chat_bubble_outline,
-  //                     size: 16, color: Colors.grey),
-  //                 const SizedBox(width: 4),
-  //                 Text(
-  //                   (post['comment_count'] ?? 0).toString(),
-  //                   style: const TextStyle(fontSize: 12, color: Colors.grey),
-  //                 ),
-  //                 const SizedBox(width: 16),
-  //                 const Icon(Icons.bookmark_border,
-  //                     size: 16, color: Colors.grey),
-  //                 const SizedBox(width: 4),
-  //                 Text(
-  //                   (post['favorite_count'] ?? 0).toString(),
-  //                   style: const TextStyle(fontSize: 12, color: Colors.grey),
-  //                 ),
-  //                 const Spacer(),
-  //                 Text(
-  //                   _formatTime(post['created_at']),
-  //                   style: const TextStyle(fontSize: 12, color: Colors.grey),
-  //                 ),
-  //               ],
-  //             ),
-  //           ],
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
-
-  String _formatTime(String dateString) {
-    try {
-      final date = DateTime.parse(dateString);
-      final now = DateTime.now();
-      final difference = now.difference(date);
-
-      if (difference.inMinutes < 1) {
-        return '刚刚';
-      } else if (difference.inMinutes < 60) {
-        return '${difference.inMinutes}分钟前';
-      } else if (difference.inHours < 24) {
-        return '${difference.inHours}小时前';
-      } else if (difference.inDays < 30) {
-        return '${difference.inDays}天前';
-      } else {
-        return '${date.month}-${date.day}';
-      }
-    } catch (e) {
-      return '未知时间';
-    }
-  }
-
   // 构建空状态
   Widget _buildEmptyState() {
+    String message;
+
+    if (_selectedTopTab == 0) {
+      // 全部标签的空状态
+      if (_selectedCategory != '全部' && _selectedIp != '全部') {
+        message = '暂无$_selectedCategory类型的$_selectedIp COS作品';
+      } else if (_selectedCategory != '全部') {
+        message = '暂无$_selectedCategory类型的COS作品';
+      } else if (_selectedIp != '全部') {
+        message = '暂无$_selectedIp相关的COS作品';
+      } else {
+        message = '暂无COS作品';
+      }
+    } else {
+      // 关注标签的空状态
+      if (!_authService.isLoggedIn) {
+        message = '请先登录查看关注内容';
+      } else {
+        message = '还没有关注任何人\n快去发现有趣的创作者吧！';
+      }
+    }
+
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.image_search, size: 64, color: Colors.grey),
+          Icon(
+            _selectedTopTab == 0 ? Icons.image_search : Icons.people_outline,
+            size: 64,
+            color: Colors.grey,
+          ),
           const SizedBox(height: 16),
           Text(
-            _buildEmptyStateText(),
+            message,
             style: const TextStyle(fontSize: 16, color: Colors.grey),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           ElevatedButton(
-            onPressed: _loadPosts,
+            onPressed: () => _loadPosts(isRefresh: true),
             child: const Text('重新加载'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _buildEmptyStateText() {
-    if (_selectedCategory != '全部' && _selectedIp != '全部') {
-      return '暂无$_selectedCategory类型的$_selectedIp COS作品';
-    } else if (_selectedCategory != '全部') {
-      return '暂无$_selectedCategory类型的COS作品';
-    } else if (_selectedIp != '全部') {
-      return '暂无$_selectedIp相关的COS作品';
-    } else {
-      return '暂无COS作品';
-    }
-  }
-
-  void _showComingSoonDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('功能开发中'),
-        content: const Text('COS帖子详情功能即将上线，敬请期待！'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('确定'),
           ),
         ],
       ),
@@ -776,32 +932,64 @@ class _HomeCosTabState extends State<HomeCosTab> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // 筛选按钮
-        _buildFilterButtons(),
-        // 筛选面板
-        _buildFilterPanel(),
-        // 筛选状态栏
-        _buildFilterStatus(),
-        // 帖子列表
-        Expanded(
-          child: _isLoading
-              ? const LoadingView()
-              : _error != null
-                  ? ErrorView(error: _error!)
-                  : _posts.isEmpty
-                      ? _buildEmptyState()
-                      : RefreshIndicator(
-                          onRefresh: _loadPosts,
-                          child: ListView.builder(
-                            controller: _scrollController,
-                            itemCount: _posts.length,
-                            itemBuilder: (context, index) => PostCard(post: _posts[index]),
+    return Scaffold(
+      backgroundColor: AnimeColors.backgroundLight,
+      appBar: _buildAppBar(),
+      body: Column(
+        children: [
+          // 筛选按钮（仅全部标签）
+          _buildFilterButtons(),
+          // 筛选面板（仅全部标签）
+          _buildFilterPanel(),
+          // 筛选状态栏（仅全部标签）
+          _buildFilterStatus(),
+          // 帖子列表 - 双瀑布流
+          Expanded(
+            child: _isLoading
+                ? const LoadingView()
+                : _error != null
+                    ? ErrorView(
+                        error: _error!,
+                        onRetry: () => _loadPosts(isRefresh: true))
+                    : _posts.isEmpty
+                        ? _buildEmptyState()
+                        : RefreshIndicator(
+                            onRefresh: () => _loadPosts(isRefresh: true),//下拉刷新
+                            child: CustomScrollView(
+                              controller: _scrollController,
+                              slivers: [
+                                // 瀑布流网格 - 优化布局，缩小空隙
+                                SliverToBoxAdapter(
+                                  child: MasonryGridView.builder(
+                                    gridDelegate:
+                                        const SliverSimpleGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                    ),
+                                    mainAxisSpacing: 4, // 缩小垂直间距
+                                    crossAxisSpacing: 4, // 缩小水平间距
+                                    padding: const EdgeInsets.all(4), // 缩小整体边距
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    shrinkWrap: true,
+                                    itemCount: _posts.length,
+                                    itemBuilder: (context, index) {
+                                      return PostCard(
+                                        post: _posts[index],
+                                        isLeftColumn: index.isEven, // 传递列位置信息
+                                      );
+                                    },
+                                  ),
+                                ),
+                                // 加载更多指示器
+                                SliverToBoxAdapter(
+                                  child: _buildLoadMoreIndicator(),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }

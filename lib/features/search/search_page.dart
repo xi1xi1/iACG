@@ -98,6 +98,7 @@
 import 'package:flutter/material.dart';
 import 'package:iacg/features/search/tabs/search_all_tab.dart';
 import 'package:iacg/features/search/tabs/search_cos_tab.dart';
+import 'package:iacg/features/search/tabs/search_events_tab.dart';
 import 'package:iacg/features/search/tabs/search_island_tab.dart';
 import 'package:iacg/features/search/tabs/search_tags_tab.dart';
 import 'package:iacg/features/search/tabs/search_users_tab.dart';
@@ -105,7 +106,7 @@ import 'package:iacg/services/search_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({Key? key}) : super(key: key);
+  const SearchPage({super.key});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -333,7 +334,7 @@ class _SearchPageState extends State<SearchPage> {
   // 构建搜索结果界面
   Widget _buildSearchResults() {
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Column(
         children: [
           // Tab栏
@@ -348,6 +349,7 @@ class _SearchPageState extends State<SearchPage> {
                 Tab(text: '全部'),
                 Tab(text: 'COS'),
                 Tab(text: '群岛'),
+                Tab(text: '活动'), 
                 Tab(text: '标签'),
                 Tab(text: '用户'),
               ],
@@ -370,6 +372,11 @@ class _SearchPageState extends State<SearchPage> {
                 ),
                 // 群岛搜索
                 SearchIslandTab(
+                  searchService: _searchService,
+                  keyword: _currentQuery,
+                ),
+                // ✅ 新增：活动搜索
+                SearchEventsTab(
                   searchService: _searchService,
                   keyword: _currentQuery,
                 ),

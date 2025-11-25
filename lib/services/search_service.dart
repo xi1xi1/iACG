@@ -304,4 +304,46 @@ class SearchService {
         offset: offset, 
         orderBy: orderBy
       );
+
+
+      // ---------- 活动搜索（分页） ----------
+Future<List<Map<String, dynamic>>> searchEvents({
+  required String query,
+  int limit = 20,
+  int offset = 0,
+  String orderBy = 'hot', // 'hot' | 'latest'
+}) async {
+  final q = query.trim();
+  if (q.isEmpty) return [];
+
+  // 添加author关联查询
+  var filter = _client
+      .from('posts')
+      .select('''
+        id, author_id, channel, title, content, 
+        event_start_time, event_end_time, event_location, event_city, event_ticket_url,
+        like_count, favorite_count, comment_count, view_count, created_at,
+        author:profiles!posts_author_id_fkey(id, nickname, avatar_url, is_coser),
+        post_media(media_url, media_type, sort_order)
+      ''')
+      .eq('channel', 'event') // 只搜索活动帖子
+      .eq('is_deleted', false)
+      .eq('status', 'normal')
+      .or('title.ilike.%$q%,content.ilike.%$q%,event_location.ilike.%$q%,event_city.ilike.%$q%');
+
+  // 排序逻辑
+  final ordered = (orderBy == 'latest')
+      ? filter.order('created_at', ascending: false)
+      : filter
+          .order('like_count', ascending: false)
+          .order('comment_count', ascending: false)
+          .order('view_count', ascending: false)
+          .order('created_at', ascending: false);
+
+  final rows = await ordered.range(offset, offset + limit - 1);
+
+  return (rows as List)
+      .map((e) => Map<String, dynamic>.from(e as Map))
+      .toList(growable: false);
+}
 }

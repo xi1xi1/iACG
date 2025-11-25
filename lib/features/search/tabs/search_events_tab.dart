@@ -1,23 +1,22 @@
-// lib/pages/search/tabs/search_island_tab.dart
 import 'package:flutter/material.dart';
 import 'package:iacg/services/search_service.dart';
 import 'package:iacg/widgets/post_card.dart';
 
-class SearchIslandTab extends StatefulWidget {
+class SearchEventsTab extends StatefulWidget {
   final SearchService searchService;
   final String keyword;
 
-  const SearchIslandTab({
+  const SearchEventsTab({
     super.key,
     required this.searchService,
     required this.keyword,
   });
 
   @override
-  State<SearchIslandTab> createState() => _SearchIslandTabState();
+  State<SearchEventsTab> createState() => _SearchEventsTabState();
 }
 
-class _SearchIslandTabState extends State<SearchIslandTab> with AutomaticKeepAliveClientMixin {
+class _SearchEventsTabState extends State<SearchEventsTab> with AutomaticKeepAliveClientMixin {
   late Future<List<Map<String, dynamic>>> _searchFuture;
   String _orderBy = 'hot';
   bool _isLoading = false;
@@ -59,7 +58,7 @@ class _SearchIslandTabState extends State<SearchIslandTab> with AutomaticKeepAli
     setState(() => _isLoading = true);
     
     try {
-      final result = await widget.searchService.searchIslandPosts(
+      final result = await widget.searchService.searchEvents(
         query: widget.keyword,
         limit: _limit,
         offset: _offset + _limit,
@@ -77,7 +76,7 @@ class _SearchIslandTabState extends State<SearchIslandTab> with AutomaticKeepAli
   }
 
   @override
-  void didUpdateWidget(SearchIslandTab oldWidget) {
+  void didUpdateWidget(SearchEventsTab oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.keyword != widget.keyword) {
       _refreshSearch();
@@ -92,7 +91,7 @@ class _SearchIslandTabState extends State<SearchIslandTab> with AutomaticKeepAli
     });
 
     try {
-      final result = await widget.searchService.searchIslandPosts(
+      final result = await widget.searchService.searchEvents(
         query: widget.keyword,
         orderBy: _orderBy,
         limit: _limit,
@@ -228,10 +227,10 @@ class _SearchIslandTabState extends State<SearchIslandTab> with AutomaticKeepAli
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.search_off, size: 64, color: Colors.grey[400]),
+                      Icon(Icons.event_busy, size: 64, color: Colors.grey[400]),
                       const SizedBox(height: 16),
                       Text(
-                        '没有找到相关群岛内容',
+                        '没有找到相关活动',
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.grey[600],
@@ -286,7 +285,7 @@ class _SearchIslandTabState extends State<SearchIslandTab> with AutomaticKeepAli
         ),
       ),
       selected: isSelected,
-      selectedColor: Colors.green,
+      selectedColor: Theme.of(context).primaryColor,
       backgroundColor: Colors.grey[200],
       onSelected: (selected) => _changeOrderBy(value),
       shape: RoundedRectangleBorder(

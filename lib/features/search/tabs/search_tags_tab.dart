@@ -9,10 +9,10 @@ class SearchTagsTab extends StatefulWidget {
   final String keyword;
 
   const SearchTagsTab({
-    Key? key,
+    super.key,
     required this.searchService,
     required this.keyword,
-  }) : super(key: key);
+  });
 
   @override
   State<SearchTagsTab> createState() => _SearchTagsTabState();
@@ -25,7 +25,7 @@ class _SearchTagsTabState extends State<SearchTagsTab> with AutomaticKeepAliveCl
   bool _hasMore = true;
   int _currentPage = 1;
   final int _pageSize = 20;
-  ScrollController _scrollController = ScrollController();
+  final ScrollController _scrollController = ScrollController();
 
   @override
   bool get wantKeepAlive => true;

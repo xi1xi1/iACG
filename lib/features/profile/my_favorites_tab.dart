@@ -6,7 +6,7 @@ import '../../widgets/loading_view.dart';
 
 class MyFavoritesTab extends StatefulWidget {
   final String userId;
-  const MyFavoritesTab({Key? key, required this.userId}) : super(key: key);
+  const MyFavoritesTab({super.key, required this.userId});
 
   @override
   State<MyFavoritesTab> createState() => _MyFavoritesTabState();
@@ -14,7 +14,7 @@ class MyFavoritesTab extends StatefulWidget {
 
 class _MyFavoritesTabState extends State<MyFavoritesTab> {
   final SupabaseClient _client = Supabase.instance.client;
-  List<Map<String, dynamic>> _posts = [];
+  final List<Map<String, dynamic>> _posts = [];
   bool _isLoading = false; // 改为 false
   String? _error;
   int _page = 0;

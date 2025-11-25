@@ -1,6 +1,5 @@
 // lib/utils/chat_helper.dart
 import 'package:flutter/material.dart';
-import '../models/conversation.dart';
 import '../services/message_service.dart';
 import '../features/messages/chat_page.dart';
 

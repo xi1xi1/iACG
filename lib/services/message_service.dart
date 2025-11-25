@@ -150,7 +150,7 @@ class MessageService {
         ''')
         .or('and(user_a.eq.$userId,user_b.eq.$otherUserId),and(user_a.eq.$otherUserId,user_b.eq.$userId)');
 
-    if (response != null && response.isNotEmpty) {
+    if (response.isNotEmpty) {
       return Conversation.fromJson(Map<String, dynamic>.from(response[0]));
     }
 
