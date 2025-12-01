@@ -1,4 +1,3 @@
-// lib/features/profile/browse_history_tab.dart
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -21,7 +20,6 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
     _loadHistory();
   }
 
-  /// 从本地加载浏览历史
   Future<void> _loadHistory() async {
     setState(() => _isLoading = true);
 
@@ -43,7 +41,6 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
     }
   }
 
-  /// 清空浏览历史
   Future<void> _clearHistory() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -57,7 +54,10 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('确定', style: TextStyle(color: Colors.red)),
+            child: const Text(
+              '确定',
+              style: TextStyle(color: Color(0xFFEC4899)),
+            ),
           ),
         ],
       ),
@@ -74,20 +74,25 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('已清空浏览记录')),
+            const SnackBar(
+              content: Text('已清空浏览记录'),
+              backgroundColor: Color(0xFFEC4899),
+            ),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('清空失败: $e')),
+            SnackBar(
+              content: Text('清空失败: $e'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
     }
   }
 
-  /// 删除单条记录
   Future<void> _deleteHistoryItem(int postId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -99,13 +104,19 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已删除')),
+          const SnackBar(
+            content: Text('已删除'),
+            backgroundColor: Color(0xFFEC4899),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('删除失败: $e')),
+          SnackBar(
+            content: Text('删除失败: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -134,100 +145,127 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
       }
     }
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => PostDetailPage(postId: postId),
-            ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // 封面图或占位符
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: SizedBox(
-                  width: 80,
-                  height: 80,
-                  child: coverUrl != null && coverUrl.isNotEmpty
-                      ? Image.network(
-                          coverUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: Colors.grey.shade200,
-                            child: const Icon(Icons.image, color: Colors.grey),
-                          ),
-                        )
-                      : Container(
-                          color: Colors.grey.shade200,
-                          child: const Icon(Icons.image, color: Colors.grey),
-                        ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // 标题和时间
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      formatTime(),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // 删除按钮
-              IconButton(
-                icon: const Icon(Icons.close, size: 20),
-                onPressed: () => _deleteHistoryItem(postId),
-                color: Colors.grey,
-              ),
-            ],
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PostDetailPage(postId: postId),
           ),
+        );
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 1),
+            ),
+          ],
+          border: Border.all(
+            color: Colors.grey.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            // 封面图
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: 70,
+                height: 70,
+                color: Colors.grey[200],
+                child: coverUrl != null && coverUrl.isNotEmpty
+                    ? Image.network(
+                  coverUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Icon(
+                    Icons.image,
+                    color: Colors.grey[400],
+                    size: 24,
+                  ),
+                )
+                    : Icon(
+                  Icons.image,
+                  color: Colors.grey[400],
+                  size: 24,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // 内容区域
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    formatTime(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 删除按钮
+            IconButton(
+              icon: Icon(Icons.close, size: 18, color: Colors.grey[600]),
+              onPressed: () => _deleteHistoryItem(postId),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildLoading() {
-    return const SizedBox(
-      height: 300,
-      child: Center(child: CircularProgressIndicator()),
+    return Container(
+      color: Colors.white,
+      child: const Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
+        ),
+      ),
     );
   }
 
   Widget _buildEmpty() {
-    return const SizedBox(
-      height: 300,
+    return Container(
+      color: Colors.white,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.history, size: 64, color: Colors.grey),
-            SizedBox(height: 16),
-            Text('暂无浏览记录', style: TextStyle(fontSize: 16, color: Colors.grey)),
-            SizedBox(height: 8),
-            Text(
+            Icon(Icons.history, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            const Text(
+              '暂无浏览记录',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            const Text(
               '你浏览过的帖子会显示在这里',
               style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
@@ -239,20 +277,23 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
-      return _buildLoading();
-    }
-
-    if (_historyList.isEmpty) {
-      return _buildEmpty();
-    }
-
-    return CustomScrollView(
-      slivers: [
-        // 清空按钮栏
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
+    return Container(
+      color: Colors.white,
+      child: _isLoading
+          ? _buildLoading()
+          : _historyList.isEmpty
+          ? _buildEmpty()
+          : Column(
+        children: [
+          // 清空按钮栏
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.withOpacity(0.1)),
+              ),
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -260,36 +301,35 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
                   '共 ${_historyList.length} 条记录',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey.shade600,
+                    color: Colors.grey[600],
                   ),
                 ),
                 TextButton.icon(
                   onPressed: _clearHistory,
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('清空'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.red,
+                  icon: Icon(Icons.delete_outline, size: 16, color: Colors.red),
+                  label: Text(
+                    '清空',
+                    style: TextStyle(color: Colors.red, fontSize: 14),
                   ),
                 ),
               ],
             ),
           ),
-        ),
-        // 历史记录列表
-        SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) => _buildHistoryCard(_historyList[index]),
-            childCount: _historyList.length,
+
+          // 历史记录列表
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              itemCount: _historyList.length,
+              itemBuilder: (context, index) => _buildHistoryCard(_historyList[index]),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
 
-/// ====================================================================
-/// 工具方法：记录浏览历史（在帖子详情页调用）
-/// ====================================================================
 Future<void> saveBrowseHistory({
   required int postId,
   required String title,
@@ -300,10 +340,8 @@ Future<void> saveBrowseHistory({
     final historyJson = prefs.getString('browse_history') ?? '[]';
     List<dynamic> history = jsonDecode(historyJson);
 
-    // 移除旧记录（如果存在）
     history.removeWhere((item) => item['postId'] == postId);
 
-    // 添加到开头
     history.insert(0, {
       'postId': postId,
       'title': title,
@@ -311,7 +349,6 @@ Future<void> saveBrowseHistory({
       'timestamp': DateTime.now().toIso8601String(),
     });
 
-    // 限制最多保存100条
     if (history.length > 100) {
       history = history.sublist(0, 100);
     }

@@ -95,6 +95,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
         }
       },
       type: BottomNavigationBarType.fixed,
+      backgroundColor: Color(0xFFF8F8F8),
       items: [
         // 首页
         BottomNavigationBarItem(

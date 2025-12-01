@@ -9,9 +9,8 @@ import 'home_following_tab.dart'; // 新增关注标签页
 import 'package:iacg/features/post/post_compose_page.dart';
 import 'package:iacg/features/post/post_detail_page.dart';
 
-// 二次元风格颜色定义
 class AnimeColors {
-  static const Color primaryPink = Color(0xFFEC4899); // 粉色
+  static const Color primaryPink = Color(0xFFEC719A); // 粉色
   static const Color secondaryPurple = Color(0xFF8B5CF6); // 紫色
   static const Color accentCyan = Color(0xFF06B6D4); // 青色
   static const Color backgroundLight = Color(0xFFF8FAFC); // 浅灰背景
@@ -502,33 +501,11 @@ class _HomePageState extends State<HomePage>
         elevation: 0,
         title: Row(
           children: [
-            // Logo部分 - 二次元风格
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AnimeColors.gradientStart, AnimeColors.gradientEnd],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: AnimeColors.primaryPink.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Text(
-                'iACG',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 1.2,
-                ),
-              ),
+            // Logo图片部分
+            Image.asset(
+              'assets/images/IACG_L.PNG',
+              height: 32,
+              fit: BoxFit.contain,
             ),
             const SizedBox(width: 16),
             // 搜索框 - 二次元风格
@@ -536,10 +513,10 @@ class _HomePageState extends State<HomePage>
               child: Container(
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AnimeColors.backgroundLight,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AnimeColors.primaryPink.withOpacity(0.2),
+                    color: Colors.grey.withOpacity(0.2),
                     width: 1.5,
                   ),
                   boxShadow: [
@@ -562,10 +539,10 @@ class _HomePageState extends State<HomePage>
                     hintStyle: TextStyle(color: AnimeColors.textLight),
                     border: InputBorder.none,
                     contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
                     prefixIcon: Icon(
                       Icons.search,
-                      color: AnimeColors.primaryPink,
+                      color: Colors.grey,
                       size: 20,
                     ),
                   ),
@@ -582,18 +559,11 @@ class _HomePageState extends State<HomePage>
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AnimeColors.gradientStart,
-                      AnimeColors.gradientEnd
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: AnimeColors.primaryPink,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: AnimeColors.primaryPink.withOpacity(0.3),
+                      color: AnimeColors.primaryPink.withValues(alpha: 0.3),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),

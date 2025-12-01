@@ -1,4 +1,3 @@
-// lib/features/profile/following_list_page.dart
 import 'package:flutter/material.dart';
 import '../../models/user_profile.dart';
 import '../../services/profile_service.dart';
@@ -24,7 +23,6 @@ class _FollowingListPageState extends State<FollowingListPage> {
   }
 
   Future<List<UserProfile>> _load() {
-    // 调用 ProfileService 中的"获取关注列表"方法
     return _profileService.fetchFollowing(widget.userId);
   }
 
@@ -37,32 +35,76 @@ class _FollowingListPageState extends State<FollowingListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('我的关注')),
-      body: FutureBuilder<List<UserProfile>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return _ErrorRetry(
-              message: '加载关注列表失败: ${snapshot.error}',
-              onRetry: _reload,
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text(
+          '我的关注',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
+      body: Container(
+        color: Colors.white,
+        child: FutureBuilder<List<UserProfile>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
+                ),
+              );
+            }
+            if (snapshot.hasError) {
+              return _ErrorRetry(
+                message: '加载关注列表失败: ${snapshot.error}',
+                onRetry: _reload,
+              );
+            }
+            final list = snapshot.data ?? <UserProfile>[];
+            if (list.isEmpty) {
+              return _buildEmptyState('你还没有关注任何人');
+            }
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: list.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final user = list[index];
+                return _UserRow(profile: user);
+              },
             );
-          }
-          final list = snapshot.data ?? <UserProfile>[];
-          if (list.isEmpty) {
-            return const Center(child: Text('你还没有关注任何人'));
-          }
-          return ListView.separated(
-            itemCount: list.length,
-            separatorBuilder: (_, __) => const Divider(height: 0),
-            itemBuilder: (context, index) {
-              final user = list[index];
-              return _UserRow(profile: user);
-            },
-          );
-        },
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Container(
+      color: Colors.white,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.people_outline, size: 64, color: Color(0xFFEC4899)),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -87,7 +129,6 @@ class _FollowersListPageState extends State<FollowersListPage> {
   }
 
   Future<List<UserProfile>> _load() {
-    // 调用 ProfileService 中的"获取粉丝列表"方法
     return _profileService.fetchFollowers(widget.userId);
   }
 
@@ -100,32 +141,76 @@ class _FollowersListPageState extends State<FollowersListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('我的粉丝')),
-      body: FutureBuilder<List<UserProfile>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return _ErrorRetry(
-              message: '加载粉丝列表失败: ${snapshot.error}',
-              onRetry: _reload,
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        title: const Text(
+          '我的粉丝',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.black),
+      ),
+      body: Container(
+        color: Colors.white,
+        child: FutureBuilder<List<UserProfile>>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
+                ),
+              );
+            }
+            if (snapshot.hasError) {
+              return _ErrorRetry(
+                message: '加载粉丝列表失败: ${snapshot.error}',
+                onRetry: _reload,
+              );
+            }
+            final list = snapshot.data ?? <UserProfile>[];
+            if (list.isEmpty) {
+              return _buildEmptyState('还没有粉丝呢');
+            }
+            return ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: list.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final user = list[index];
+                return _UserRow(profile: user);
+              },
             );
-          }
-          final list = snapshot.data ?? <UserProfile>[];
-          if (list.isEmpty) {
-            return const Center(child: Text('还没有粉丝呢'));
-          }
-          return ListView.separated(
-            itemCount: list.length,
-            separatorBuilder: (_, __) => const Divider(height: 0),
-            itemBuilder: (context, index) {
-              final user = list[index];
-              return _UserRow(profile: user);
-            },
-          );
-        },
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Container(
+      color: Colors.white,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.people_outline, size: 64, color: Color(0xFFEC4899)),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -138,64 +223,7 @@ class _UserRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      // 使用头像组件
-      leading: AvatarWidget(
-        imageUrl: profile.avatarUrl,
-        size: 44,
-      ),
-      title: Text(
-        profile.nickname,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Row(
-        children: [
-          if (profile.city != null && profile.city!.isNotEmpty) ...[
-            const Icon(Icons.location_on, size: 12, color: Colors.grey),
-            const SizedBox(width: 4),
-            Text(
-              profile.city!,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-          ],
-          if (profile.isCoser) ...[
-            const SizedBox(width: 8),
-            // 认证图标
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.pink,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.verified,
-                size: 12,
-                color: Colors.white,
-              ),
-            ),
-            // 只有当有等级信息时才显示等级标签
-            if (profile.displayCosLevel.isNotEmpty) ...[
-              const SizedBox(width: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.pink.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  profile.displayCosLevel,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.pink,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ],
-      ),
-      // 点击整行，跳转到他人的个人主页
+    return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -205,6 +233,145 @@ class _UserRow extends StatelessWidget {
           ),
         );
       },
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 1),
+            ),
+          ],
+          border: Border.all(
+            color: Colors.grey.withOpacity(0.1),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            // 头像
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(25),
+                border: Border.all(
+                  color: const Color(0xFFEC4899),
+                  width: 1.5,
+                ),
+              ),
+              child: CircleAvatar(
+                radius: 23,
+                backgroundColor: Colors.grey[200],
+                backgroundImage: profile.avatarUrl != null
+                    ? NetworkImage(profile.avatarUrl!)
+                    : null,
+                child: profile.avatarUrl == null
+                    ? Text(
+                  profile.nickname.isNotEmpty ? profile.nickname[0] : '?',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+                    : null,
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // 用户信息
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          profile.nickname,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (profile.isCoser) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEC4899),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.verified,
+                                size: 10,
+                                color: Colors.white,
+                              ),
+                              SizedBox(width: 2),
+                              Text(
+                                'Coser',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (profile.city != null && profile.city!.isNotEmpty) ...[
+                        Icon(Icons.location_on, size: 12, color: Colors.grey[600]),
+                        const SizedBox(width: 4),
+                        Text(
+                          profile.city!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+                      if (profile.displayCosLevel.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEC4899).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            profile.displayCosLevel,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Color(0xFFEC4899),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -221,22 +388,30 @@ class _ErrorRetry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, size: 48, color: Colors.red),
-          const SizedBox(height: 12),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: onRetry,
-            child: const Text('重试'),
-          ),
-        ],
+    return Container(
+      color: Colors.white,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Color(0xFFEC4899)),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFFEC4899)),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: onRetry,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEC4899),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('重试'),
+            ),
+          ],
+        ),
       ),
     );
   }
