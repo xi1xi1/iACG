@@ -7,7 +7,11 @@ import '../../widgets/loading_view.dart';
 class MyIslandTab extends StatefulWidget {
   final String userId;
 
+<<<<<<< HEAD
   const MyIslandTab({super.key, required this.userId});
+=======
+  const MyIslandTab({Key? key, required this.userId}) : super(key: key);
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 
   @override
   State<MyIslandTab> createState() => _MyIslandTabState();
@@ -16,7 +20,11 @@ class MyIslandTab extends StatefulWidget {
 class _MyIslandTabState extends State<MyIslandTab> {
   final SupabaseClient _client = Supabase.instance.client;
 
+<<<<<<< HEAD
   final List<Map<String, dynamic>> _posts = [];
+=======
+  List<Map<String, dynamic>> _posts = [];
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
   bool _isLoading = false; // 改为 false
   String? _error;
   int _page = 0;

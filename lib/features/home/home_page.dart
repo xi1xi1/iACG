@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 import 'dart:async';
+=======
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 import 'package:flutter/material.dart';
 import 'package:iacg/features/search/search_page.dart';
 import '../../services/auth_service.dart';
@@ -9,6 +12,7 @@ import 'home_following_tab.dart'; // 新增关注标签页
 import 'package:iacg/features/post/post_compose_page.dart';
 import 'package:iacg/features/post/post_detail_page.dart';
 
+<<<<<<< HEAD
 class AnimeColors {
   static const Color primaryPink = Color(0xFFEC719A); // 粉色
   static const Color secondaryPurple = Color(0xFF8B5CF6); // 紫色
@@ -21,6 +25,8 @@ class AnimeColors {
   static const Color gradientEnd = Color(0xFF8B5CF6); // 渐变结束
 }
 
+=======
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -33,7 +39,11 @@ class _HomePageState extends State<HomePage>
   late TabController _tabController;
   final _authService = AuthService();
   final PageController _eventPageController =
+<<<<<<< HEAD
       PageController(viewportFraction: 0.95);
+=======
+      PageController(viewportFraction: 0.9);
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
   int _currentEventPage = 0;
 
   // 活动数据状态
@@ -102,17 +112,27 @@ class _HomePageState extends State<HomePage>
     }
   }
 
+<<<<<<< HEAD
   // 重构的活动卡片设计 - 二次元风格，优化左右空隙
   Widget _buildEventCard(Map<String, dynamic> event) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
+=======
+  // 重构的活动卡片设计
+  Widget _buildEventCard(Map<String, dynamic> event) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
         child: Stack(
           children: [
             // 活动背景图片 - 占满整个容器
             Container(
               width: double.infinity,
+<<<<<<< HEAD
               height: 360,
               color: AnimeColors.backgroundLight,
               child: _getEventImage(event),
@@ -122,20 +142,40 @@ class _HomePageState extends State<HomePage>
             Container(
               width: double.infinity,
               height: 360,
+=======
+              height: 200,
+              color: Colors.grey[200],
+              child: _getEventImage(event),
+            ),
+
+            // 渐变遮罩层
+            Container(
+              width: double.infinity,
+              height: 200,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                   colors: [
+<<<<<<< HEAD
                     Colors.black.withOpacity(0.7),
                     Colors.black.withOpacity(0.4),
                     Colors.transparent,
                   ],
                   stops: const [0.0, 0.6, 1.0],
+=======
+                    Colors.black.withOpacity(0.55),
+                    Colors.black.withOpacity(0.28),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.45, 1.0],
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                 ),
               ),
             ),
 
+<<<<<<< HEAD
             // 活动名称 - 二次元风格
             Positioned(
               left: 16,
@@ -183,6 +223,25 @@ class _HomePageState extends State<HomePage>
                       ),
                     ),
                 ],
+=======
+            // 活动名称
+            Positioned(
+              left: 16,
+              bottom: 16,
+              child: SizedBox(
+                width: MediaQuery.of(context).size.width * 0.55,
+                child: Text(
+                  event['name']?.toString() ?? '未知活动',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    height: 1.2,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
               ),
             ),
 
@@ -191,12 +250,19 @@ class _HomePageState extends State<HomePage>
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
+<<<<<<< HEAD
                   borderRadius: BorderRadius.circular(20),
+=======
+                  borderRadius: BorderRadius.circular(16),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                   onTap: () {
                     // 跳转到活动对应的帖子详情页
                     _navigateToEventPostDetail(event);
                   },
+<<<<<<< HEAD
                   splashColor: AnimeColors.primaryPink.withOpacity(0.3),
+=======
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                 ),
               ),
             ),
@@ -206,8 +272,11 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
   // 新增：跳转到活动帖子详情页的方法
   void _navigateToEventPostDetail(Map<String, dynamic> event) {
     // 从活动数据中获取关联的帖子ID
@@ -284,6 +353,7 @@ class _HomePageState extends State<HomePage>
     return _buildEventPlaceholder('暂无图片');
   }
 
+<<<<<<< HEAD
   // 构建网络图片组件 - 自适应版本
   Widget _buildNetworkImage(String imageUrl) {
     return FutureBuilder<ImageInfo>(
@@ -333,10 +403,30 @@ class _HomePageState extends State<HomePage>
             color: Colors.grey[200],
             child: const Center(
               child: CircularProgressIndicator(),
+=======
+  // 构建网络图片组件
+  Widget _buildNetworkImage(String imageUrl) {
+    return Image.network(
+      imageUrl,
+      width: double.infinity,
+      height: 200,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          color: Colors.grey[200],
+          child: Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded /
+                      loadingProgress.expectedTotalBytes!
+                  : null,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
             ),
           ),
         );
       },
+<<<<<<< HEAD
     );
   }
 
@@ -356,6 +446,15 @@ class _HomePageState extends State<HomePage>
     return completer.future;
   }
 
+=======
+      errorBuilder: (context, error, stackTrace) {
+        print('图片加载失败: $error - URL: $imageUrl');
+        return _buildEventPlaceholder('图片加载失败');
+      },
+    );
+  }
+
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
   // 活动占位图
   Widget _buildEventPlaceholder(String message) {
     return Container(
@@ -372,7 +471,11 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+<<<<<<< HEAD
   // 修改：将活动预览部分重构为独立的组件，优化布局和分页指示器
+=======
+  // 修改：将活动预览部分重构为独立的组件
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
   Widget _buildEventsPreview() {
     if (_isEventsLoading) {
       return const SizedBox(
@@ -420,9 +523,38 @@ class _HomePageState extends State<HomePage>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+<<<<<<< HEAD
         const SizedBox(height: 8),
         SizedBox(
           height: 260,
+=======
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                '热门活动',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  _tabController.animateTo(1); // 跳转到活动页
+                },
+                child: const Text(
+                  '查看全部',
+                  style: TextStyle(fontSize: 14, color: Colors.blue),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 220,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
           child: Stack(
             children: [
               PageView.builder(
@@ -437,6 +569,7 @@ class _HomePageState extends State<HomePage>
                   return _buildEventCard(_events[index]);
                 },
               ),
+<<<<<<< HEAD
               
               // 分页指示器 - 放在图片右下角
               if (_events.length > 1)
@@ -470,6 +603,100 @@ class _HomePageState extends State<HomePage>
           ),
         ),
         const SizedBox(height: 8),
+=======
+              if (_events.length > 1) ...[
+                Positioned(
+                  left: 4,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_currentEventPage > 0) {
+                          _eventPageController.previousPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        }
+                      },
+                      child: AnimatedOpacity(
+                        opacity: _currentEventPage > 0 ? 1.0 : 0.3,
+                        duration: const Duration(milliseconds: 200),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.arrow_back_ios_rounded,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  right: 4,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        if (_currentEventPage < _events.length - 1) {
+                          _eventPageController.nextPage(
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeInOut,
+                          );
+                        }
+                      },
+                      child: AnimatedOpacity(
+                        opacity:
+                            _currentEventPage < _events.length - 1 ? 1.0 : 0.3,
+                        duration: const Duration(milliseconds: 200),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(_events.length, (index) {
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: _currentEventPage == index ? 20 : 6,
+              height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(3),
+                color:
+                    _currentEventPage == index ? Colors.blue : Colors.grey[300],
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 16),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       ],
     );
   }
@@ -492,6 +719,7 @@ class _HomePageState extends State<HomePage>
 
   @override
   Widget build(BuildContext context) {
+<<<<<<< HEAD
     final tabs = ['推荐', '活动', '关注'];
 
     return Scaffold(
@@ -509,10 +737,28 @@ class _HomePageState extends State<HomePage>
             ),
             const SizedBox(width: 16),
             // 搜索框 - 二次元风格
+=======
+    // 修改：标签改为3个
+    final tabs = ['推荐', '活动', '关注'];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Row(
+          children: [
+            const Text(
+              'iACG',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(width: 16),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
             Expanded(
               child: Container(
                 height: 40,
                 decoration: BoxDecoration(
+<<<<<<< HEAD
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
@@ -526,6 +772,10 @@ class _HomePageState extends State<HomePage>
                       offset: const Offset(0, 2),
                     ),
                   ],
+=======
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(20),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                 ),
                 child: TextField(
                   readOnly: true,
@@ -536,6 +786,7 @@ class _HomePageState extends State<HomePage>
                   },
                   decoration: InputDecoration(
                     hintText: '搜索内容...',
+<<<<<<< HEAD
                     hintStyle: TextStyle(color: AnimeColors.textLight),
                     border: InputBorder.none,
                     contentPadding:
@@ -545,6 +796,13 @@ class _HomePageState extends State<HomePage>
                       color: Colors.grey,
                       size: 20,
                     ),
+=======
+                    hintStyle: TextStyle(color: Colors.grey[600]),
+                    border: InputBorder.none,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                   ),
                 ),
               ),
@@ -552,6 +810,7 @@ class _HomePageState extends State<HomePage>
           ],
         ),
         actions: [
+<<<<<<< HEAD
           // 发布按钮 - 二次元风格
           Container(
             margin: const EdgeInsets.only(right: 8),
@@ -640,6 +899,30 @@ class _HomePageState extends State<HomePage>
               isScrollable: false,
             ),
           ),
+=======
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PostComposePage()),
+              );
+            },
+            tooltip: '发布',
+          ),
+          if (!_authService.isLoggedIn)
+            TextButton(
+              onPressed: () => Navigator.of(context).pushNamed('/login'),
+              child: const Text(
+                '登录',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: tabs.map((tab) => Tab(text: tab)).toList(),
+          isScrollable: true,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
         ),
       ),
       body: TabBarView(

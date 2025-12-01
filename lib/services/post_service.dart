@@ -81,7 +81,11 @@ class PostService {
       }).eq('id', postId);
     } catch (e) {
       print('软删除帖子失败: $e');
+<<<<<<< HEAD
       rethrow;
+=======
+      throw e;
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     }
   }
 
@@ -113,7 +117,11 @@ class PostService {
       }).eq('id', postId);
     } catch (e) {
       print('恢复帖子失败: $e');
+<<<<<<< HEAD
       rethrow;
+=======
+      throw e;
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     }
   }
 
@@ -529,7 +537,11 @@ class PostService {
         .maybeSingle();
 
     if (res == null) return null;
+<<<<<<< HEAD
     return res;
+=======
+    return res as Map<String, dynamic>;
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
   }
 
   // —— 互动动作：点赞/收藏/评论 —— //

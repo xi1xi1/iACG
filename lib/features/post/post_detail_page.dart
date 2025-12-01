@@ -275,7 +275,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
     final previewContent =
         content.length > 25 ? '${content.substring(0, 25)}...' : content;
 
+<<<<<<< HEAD
     return SizedBox(
+=======
+    return Container(
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       width: 280, // 固定卡片宽度
       child: Card(
         elevation: 1,
@@ -1567,7 +1571,11 @@ class _CommentThreadState extends State<CommentThread> {
     final liked = _myLiked.contains(cid);
     final likeCount = (c['like_count'] ?? 0) as int;
 
+<<<<<<< HEAD
     void goUser(String? uid) {
+=======
+    void _goUser(String? uid) {
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       if (uid == null || uid.isEmpty) return;
       Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => UserProfilePage(userId: uid)),
@@ -1581,7 +1589,11 @@ class _CommentThreadState extends State<CommentThread> {
         children: [
           // 头像可点
           InkWell(
+<<<<<<< HEAD
             onTap: () => goUser(userId),
+=======
+            onTap: () => _goUser(userId),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
             child: AvatarWidget(imageUrl: avatar, size: isRoot ? 36 : 28),
           ),
           const SizedBox(width: 8),
@@ -1594,7 +1606,11 @@ class _CommentThreadState extends State<CommentThread> {
                   children: [
                     Flexible(
                       child: InkWell(
+<<<<<<< HEAD
                         onTap: () => goUser(userId),
+=======
+                        onTap: () => _goUser(userId),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                         child: Text(
                           nickname,
                           style: const TextStyle(
@@ -1620,7 +1636,11 @@ class _CommentThreadState extends State<CommentThread> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       InkWell(
+<<<<<<< HEAD
                         onTap: () => goUser(userId),
+=======
+                        onTap: () => _goUser(userId),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                         child: Text(
                           nickname,
                           style: const TextStyle(fontWeight: FontWeight.w600),
@@ -1630,7 +1650,11 @@ class _CommentThreadState extends State<CommentThread> {
                       if (parentNickname != null)
                         (parentUserId != null && parentUserId.isNotEmpty)
                             ? InkWell(
+<<<<<<< HEAD
                                 onTap: () => goUser(parentUserId),
+=======
+                                onTap: () => _goUser(parentUserId),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                                 child: Text(
                                   parentNickname,
                                   style: const TextStyle(

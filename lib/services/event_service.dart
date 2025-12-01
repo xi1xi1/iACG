@@ -41,7 +41,11 @@ class EventService {
       return (response as List).cast<Map<String, dynamic>>();
     } catch (e) {
       print('获取活动列表失败: $e');
+<<<<<<< HEAD
       rethrow;
+=======
+      throw e;
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     }
   }
 
@@ -77,7 +81,11 @@ class EventService {
       return (response as List).cast<Map<String, dynamic>>();
     } catch (e) {
       print('获取所有活动失败: $e');
+<<<<<<< HEAD
       rethrow;
+=======
+      throw e;
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     }
   }
 
@@ -116,7 +124,11 @@ class EventService {
       return (response as List).cast<Map<String, dynamic>>();
     } catch (e) {
       print('按城市获取活动失败: $e');
+<<<<<<< HEAD
       rethrow;
+=======
+      throw e;
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     }
   }
 
@@ -154,7 +166,11 @@ class EventService {
       return (response as List).cast<Map<String, dynamic>>();
     } catch (e) {
       print('获取热门活动失败: $e');
+<<<<<<< HEAD
       rethrow;
+=======
+      throw e;
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     }
   }
 
@@ -209,7 +225,11 @@ class EventService {
       return events;
     } catch (e) {
       print('获取首页活动数据失败: $e');
+<<<<<<< HEAD
       rethrow;
+=======
+      throw e;
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     }
   }
 
@@ -312,6 +332,10 @@ class EventService {
           organizer:profiles!events_organizer_id_fkey(id, nickname, avatar_url)
         ''').eq('id', eventId).maybeSingle();
 
+<<<<<<< HEAD
     return event;
+=======
+    return event as Map<String, dynamic>?;
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
   }
 }

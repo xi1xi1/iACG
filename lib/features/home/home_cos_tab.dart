@@ -86,8 +86,12 @@ class _HomeCosTabState extends State<HomeCosTab>
         _currentPage = 1;
         _hasMore = true;
       });
+<<<<<<< HEAD
 
       _loadPosts(isRefresh: true);
+=======
+      _loadPosts();
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 
       // 如果是"全部"标签，加载IP标签
       if (_tabController.index == 0) {
@@ -97,7 +101,11 @@ class _HomeCosTabState extends State<HomeCosTab>
   }
 
   Future<void> _loadInitialData() async {
+<<<<<<< HEAD
     await _loadPosts(isRefresh: true);
+=======
+    await _loadPosts();
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     if (_selectedTopTab == 0) {
       await _loadIpTags();
     }
@@ -162,7 +170,10 @@ class _HomeCosTabState extends State<HomeCosTab>
 
       if (kDebugMode) {
         debugPrint('加载完成: ${result.length} 条');
+<<<<<<< HEAD
         print(isRefresh);
+=======
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       }
 
       setState(() {
@@ -355,6 +366,7 @@ class _HomeCosTabState extends State<HomeCosTab>
         : const SizedBox.shrink();
   }
 
+<<<<<<< HEAD
   // 构建顶部导航栏 - 二次元风格
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
@@ -370,10 +382,26 @@ class _HomeCosTabState extends State<HomeCosTab>
           ),
           const SizedBox(width: 16),
           // 搜索框 - 二次元风格
+=======
+  // 构建顶部导航栏 - 返回 PreferredSizeWidget
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Row(
+        children: [
+          const Text(
+            'iACG',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 16),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
           Expanded(
             child: Container(
               height: 40,
               decoration: BoxDecoration(
+<<<<<<< HEAD
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
@@ -387,6 +415,10 @@ class _HomeCosTabState extends State<HomeCosTab>
                     offset: const Offset(0, 2),
                   ),
                 ],
+=======
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(20),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
               ),
               child: TextField(
                 readOnly: true,
@@ -397,6 +429,7 @@ class _HomeCosTabState extends State<HomeCosTab>
                 },
                 decoration: InputDecoration(
                   hintText: '搜索内容...',
+<<<<<<< HEAD
                   hintStyle: TextStyle(color: AnimeColors.textLight),
                   border: InputBorder.none,
                   contentPadding:
@@ -406,6 +439,13 @@ class _HomeCosTabState extends State<HomeCosTab>
                     color: Colors.grey,
                     size: 20,
                   ),
+=======
+                  hintStyle: TextStyle(color: Colors.grey[600]),
+                  border: InputBorder.none,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                 ),
               ),
             ),
@@ -413,6 +453,7 @@ class _HomeCosTabState extends State<HomeCosTab>
         ],
       ),
       actions: [
+<<<<<<< HEAD
         // 发布按钮 - 二次元风格
         Container(
           margin: const EdgeInsets.only(right: 8),
@@ -500,11 +541,45 @@ class _HomeCosTabState extends State<HomeCosTab>
             tabs: _topTabs.map((tab) => Tab(text: tab)).toList(),
             isScrollable: false,
           ),
+=======
+        IconButton(
+          icon: const Icon(Icons.add_circle_outline),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PostComposePage()),
+            );
+          },
+          tooltip: '发布',
+        ),
+        if (!_authService.isLoggedIn)
+          TextButton(
+            onPressed: () => Navigator.of(context).pushNamed('/login'),
+            child: const Text(
+              '登录',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+      ],
+      bottom: TabBar(
+        controller: _tabController,
+        tabs: _topTabs.map((tab) => Tab(text: tab)).toList(),
+        indicatorColor: Theme.of(context).colorScheme.primary,
+        labelColor: Theme.of(context).colorScheme.primary,
+        unselectedLabelColor: Colors.grey[600],
+        labelStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+        ),
+        unselectedLabelStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
         ),
       ),
     );
   }
 
+<<<<<<< HEAD
   // 构建筛选面板（仅全部标签显示）- 增强二次元风格
   Widget _buildFilterPanel() {
     if (_selectedTopTab != 0 || !_showFilterPanel) {
@@ -535,10 +610,32 @@ class _HomeCosTabState extends State<HomeCosTab>
         //   color: AnimeColors.primaryPink.withValues(alpha: 0.1),
         //   width: 1,
         // ),
+=======
+  // 构建筛选面板（仅全部标签显示）
+  Widget _buildFilterPanel() {
+    if (_selectedTopTab != 0 || !_showFilterPanel)
+      return const SizedBox.shrink();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey[300]!),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+<<<<<<< HEAD
           // 面板标题 - 二次元风格
           Row(
             children: [
@@ -615,6 +712,51 @@ class _HomeCosTabState extends State<HomeCosTab>
                     ),
                   ),
                 ],
+=======
+          // 面板标题
+          Row(
+            children: [
+              Text(
+                _currentFilterType == FilterType.category ? '选择类型' : '选择IP',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              // 关闭按钮
+              IconButton(
+                onPressed: _closeFilterPanel,
+                icon: const Icon(Icons.close, size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          // 筛选内容
+          _buildFilterOptions(),
+          const SizedBox(height: 16),
+          // 应用按钮
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton(
+              onPressed: _applyFilters,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                '应用筛选',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
               ),
             ),
           ),
@@ -632,11 +774,19 @@ class _HomeCosTabState extends State<HomeCosTab>
     }
   }
 
+<<<<<<< HEAD
   // 构建类型选项 - 增强二次元风格
   Widget _buildCategoryOptions() {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
+=======
+  // 构建类型选项
+  Widget _buildCategoryOptions() {
+    return Wrap(
+      spacing: 12,
+      runSpacing: 12,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       children: _cosCategories.map((category) {
         final isSelected = _selectedCategory == category;
         return GestureDetector(
@@ -650,6 +800,7 @@ class _HomeCosTabState extends State<HomeCosTab>
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
+<<<<<<< HEAD
               color: isSelected ? AnimeColors.primaryPink : Colors.white,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
@@ -673,10 +824,22 @@ class _HomeCosTabState extends State<HomeCosTab>
                         offset: const Offset(0, 1),
                       ),
                     ],
+=======
+              color: isSelected
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.grey[100],
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey[300]!,
+              ),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
             ),
             child: Text(
               category,
               style: TextStyle(
+<<<<<<< HEAD
                 color: isSelected ? Colors.white : AnimeColors.primaryPink,
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
@@ -689,6 +852,10 @@ class _HomeCosTabState extends State<HomeCosTab>
                         ),
                       ]
                     : null,
+=======
+                color: isSelected ? Colors.white : Colors.grey[700],
+                fontWeight: FontWeight.w500,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
               ),
             ),
           ),
@@ -697,6 +864,7 @@ class _HomeCosTabState extends State<HomeCosTab>
     );
   }
 
+<<<<<<< HEAD
   // 构建 IP 选项 - 增强二次元风格
   Widget _buildIpOptions() {
     return _isLoadingTags
@@ -721,6 +889,15 @@ class _HomeCosTabState extends State<HomeCosTab>
         : Wrap(
             spacing: 10,
             runSpacing: 10,
+=======
+  // 构建 IP 选项
+  Widget _buildIpOptions() {
+    return _isLoadingTags
+        ? const Center(child: CircularProgressIndicator())
+        : Wrap(
+            spacing: 12,
+            runSpacing: 12,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
             children: [
               // "全部"选项
               GestureDetector(
@@ -730,6 +907,7 @@ class _HomeCosTabState extends State<HomeCosTab>
                   });
                 },
                 child: Container(
+<<<<<<< HEAD
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: _selectedIp == '全部' ? AnimeColors.primaryPink : Colors.white,
@@ -755,10 +933,24 @@ class _HomeCosTabState extends State<HomeCosTab>
                               offset: const Offset(0, 1),
                             ),
                           ],
+=======
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color:
+                        _selectedIp == '全部' ? Colors.purple : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _selectedIp == '全部'
+                          ? Colors.purple
+                          : Colors.grey[300]!,
+                    ),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                   ),
                   child: Text(
                     '全部',
                     style: TextStyle(
+<<<<<<< HEAD
                       color: _selectedIp == '全部' ? Colors.white : AnimeColors.primaryPink,
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
@@ -771,6 +963,11 @@ class _HomeCosTabState extends State<HomeCosTab>
                               ),
                             ]
                           : null,
+=======
+                      color:
+                          _selectedIp == '全部' ? Colors.white : Colors.grey[700],
+                      fontWeight: FontWeight.w500,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                     ),
                   ),
                 ),
@@ -786,6 +983,7 @@ class _HomeCosTabState extends State<HomeCosTab>
                     });
                   },
                   child: Container(
+<<<<<<< HEAD
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
                       color: isSelected ? AnimeColors.primaryPink : Colors.white,
@@ -811,10 +1009,21 @@ class _HomeCosTabState extends State<HomeCosTab>
                                 offset: const Offset(0, 1),
                               ),
                             ],
+=======
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected ? Colors.purple : Colors.grey[100],
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? Colors.purple : Colors.grey[300]!,
+                      ),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                     ),
                     child: Text(
                       tagName,
                       style: TextStyle(
+<<<<<<< HEAD
                         color: isSelected ? Colors.white : AnimeColors.primaryPink,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -827,6 +1036,10 @@ class _HomeCosTabState extends State<HomeCosTab>
                                 ),
                               ]
                             : null,
+=======
+                        color: isSelected ? Colors.white : Colors.grey[700],
+                        fontWeight: FontWeight.w500,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                       ),
                     ),
                   ),
@@ -842,7 +1055,10 @@ class _HomeCosTabState extends State<HomeCosTab>
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+<<<<<<< HEAD
       color: Color(0xFFF7F7F7),
+=======
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       child: Row(
         children: [
           // 类型筛选按钮
@@ -881,6 +1097,7 @@ class _HomeCosTabState extends State<HomeCosTab>
         height: 44,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
+<<<<<<< HEAD
           color: isActive ? AnimeColors.primaryPink : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
@@ -896,6 +1113,16 @@ class _HomeCosTabState extends State<HomeCosTab>
               offset: const Offset(0, 2),
             ),
           ],
+=======
+          color:
+              isActive ? Theme.of(context).colorScheme.primary : Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isActive
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey[300]!,
+          ),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -903,13 +1130,18 @@ class _HomeCosTabState extends State<HomeCosTab>
             Icon(
               icon,
               size: 18,
+<<<<<<< HEAD
               color: isActive ? Colors.white : AnimeColors.primaryPink,
+=======
+              color: isActive ? Colors.white : Colors.grey[600],
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
             ),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
                 fontSize: 14,
+<<<<<<< HEAD
                 fontWeight: FontWeight.w600,
                 color: isActive ? Colors.white : AnimeColors.primaryPink,
                 shadows: isActive
@@ -921,6 +1153,10 @@ class _HomeCosTabState extends State<HomeCosTab>
                         ),
                       ]
                     : null,
+=======
+                fontWeight: FontWeight.w500,
+                color: isActive ? Colors.white : Colors.grey[700],
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -1001,7 +1237,10 @@ class _HomeCosTabState extends State<HomeCosTab>
       }
     }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1030,6 +1269,7 @@ class _HomeCosTabState extends State<HomeCosTab>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+<<<<<<< HEAD
       backgroundColor: AnimeColors.backgroundLight,
       appBar: _buildAppBar(),
       body: Column(
@@ -1039,6 +1279,16 @@ class _HomeCosTabState extends State<HomeCosTab>
           // 筛选面板
           _buildFilterPanel(),
           // 筛选状态栏
+=======
+      appBar: _buildAppBar(),
+      body: Column(
+        children: [
+          // 筛选按钮（仅全部标签）
+          _buildFilterButtons(),
+          // 筛选面板（仅全部标签）
+          _buildFilterPanel(),
+          // 筛选状态栏（仅全部标签）
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
           _buildFilterStatus(),
           // 帖子列表 - 双瀑布流
           Expanded(
@@ -1051,20 +1301,34 @@ class _HomeCosTabState extends State<HomeCosTab>
                     : _posts.isEmpty
                         ? _buildEmptyState()
                         : RefreshIndicator(
+<<<<<<< HEAD
                             onRefresh: () => _loadPosts(isRefresh: true),//下拉刷新
                             child: CustomScrollView(
                               controller: _scrollController,
                               slivers: [
                                 // 瀑布流网格 - 优化布局，缩小空隙
+=======
+                            onRefresh: () => _loadPosts(isRefresh: true),
+                            child: CustomScrollView(
+                              controller: _scrollController,
+                              slivers: [
+                                // 瀑布流网格
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                                 SliverToBoxAdapter(
                                   child: MasonryGridView.builder(
                                     gridDelegate:
                                         const SliverSimpleGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: 2,
                                     ),
+<<<<<<< HEAD
                                     mainAxisSpacing: 4, // 缩小垂直间距
                                     crossAxisSpacing: 4, // 缩小水平间距
                                     padding: const EdgeInsets.all(4), // 缩小整体边距
+=======
+                                    mainAxisSpacing: 8,
+                                    crossAxisSpacing: 8,
+                                    padding: const EdgeInsets.all(8),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                                     physics:
                                         const NeverScrollableScrollPhysics(),
                                     shrinkWrap: true,
@@ -1072,7 +1336,10 @@ class _HomeCosTabState extends State<HomeCosTab>
                                     itemBuilder: (context, index) {
                                       return PostCard(
                                         post: _posts[index],
+<<<<<<< HEAD
                                         isLeftColumn: index.isEven, // 传递列位置信息
+=======
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                                       );
                                     },
                                   ),

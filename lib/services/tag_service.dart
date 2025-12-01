@@ -236,7 +236,11 @@ class TagService {
     int limit = 20,
     int offset = 0,
   }) async {
+<<<<<<< HEAD
     const selColumns = '''
+=======
+    final selColumns = '''
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       posts!inner(
         id, author_id, channel, title, content, main_category, main_ip_tag_id,
         like_count, favorite_count, comment_count, view_count, created_at,

@@ -95,7 +95,10 @@ class _AppBottomNavState extends State<AppBottomNav> {
         }
       },
       type: BottomNavigationBarType.fixed,
+<<<<<<< HEAD
       backgroundColor: Color(0xFFF8F8F8),
+=======
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       items: [
         // 首页
         BottomNavigationBarItem(
@@ -138,7 +141,11 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/home.svg' : 'assets/icons/home.svg',
       width: 24,
       height: 24,
+<<<<<<< HEAD
       color: isActive ? const Color(0xFFEC4899) : Colors.grey,
+=======
+      color: isActive ? Color(0xFFEC4899) : Colors.grey,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     );
   }
 
@@ -149,7 +156,11 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/island.svg' : 'assets/icons/island.svg',
       width: 24,
       height: 24,
+<<<<<<< HEAD
       color: isActive ? const Color(0xFFEC4899) : Colors.grey,
+=======
+      color: isActive ? Color(0xFFEC4899) : Colors.grey,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     );
   }
 
@@ -160,7 +171,11 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/cos.svg' : 'assets/icons/cos.svg',
       width: 24,
       height: 24,
+<<<<<<< HEAD
       color: isActive ? const Color(0xFFEC4899) : Colors.grey,
+=======
+      color: isActive ? Color(0xFFEC4899) : Colors.grey,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     );
   }
 
@@ -171,7 +186,11 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/message.svg' : 'assets/icons/message.svg',
       width: 24,
       height: 24,
+<<<<<<< HEAD
       color: isActive ? const Color(0xFFEC4899) : Colors.grey,
+=======
+      color: isActive ? Color(0xFFEC4899) : Colors.grey,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     );
   }
   /// 构建消息图标（带未读角标）
@@ -226,9 +245,17 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/me.svg' : 'assets/icons/me.svg',
       width: 24,
       height: 24,
+<<<<<<< HEAD
       color: isActive ? const Color(0xFFEC4899) : Colors.grey,
+=======
+      color: isActive ? Color(0xFFEC4899) : Colors.grey,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     );
   }
 
 
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1

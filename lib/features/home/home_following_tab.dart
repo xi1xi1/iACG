@@ -4,6 +4,10 @@ import '../../services/post_service.dart';
 import '../../widgets/post_card.dart';
 import '../../widgets/loading_view.dart';
 import '../../widgets/error_view.dart';
+<<<<<<< HEAD
+=======
+import '../../widgets/empty_view.dart';
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 import '../../services/auth_service.dart';
 
 class HomeFollowingTab extends StatefulWidget {
@@ -232,9 +236,15 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
                   const SliverSimpleGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
               ),
+<<<<<<< HEAD
               mainAxisSpacing: 1,
               crossAxisSpacing: 1,
               padding: const EdgeInsets.all(1),
+=======
+              mainAxisSpacing: 8,
+              crossAxisSpacing: 8,
+              padding: const EdgeInsets.all(8),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
               physics: const NeverScrollableScrollPhysics(),
               shrinkWrap: true,
               itemCount: _displayPosts.length,

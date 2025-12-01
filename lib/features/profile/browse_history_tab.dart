@@ -1,10 +1,18 @@
+<<<<<<< HEAD
+=======
+// lib/features/profile/browse_history_tab.dart
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../post/post_detail_page.dart';
 
 class BrowseHistoryTab extends StatefulWidget {
+<<<<<<< HEAD
   const BrowseHistoryTab({super.key});
+=======
+  const BrowseHistoryTab({Key? key}) : super(key: key);
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 
   @override
   State<BrowseHistoryTab> createState() => _BrowseHistoryTabState();
@@ -20,6 +28,10 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
     _loadHistory();
   }
 
+<<<<<<< HEAD
+=======
+  /// 从本地加载浏览历史
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
   Future<void> _loadHistory() async {
     setState(() => _isLoading = true);
 
@@ -41,6 +53,10 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
     }
   }
 
+<<<<<<< HEAD
+=======
+  /// 清空浏览历史
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
   Future<void> _clearHistory() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -54,10 +70,14 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
+<<<<<<< HEAD
             child: const Text(
               '确定',
               style: TextStyle(color: Color(0xFFEC4899)),
             ),
+=======
+            child: const Text('确定', style: TextStyle(color: Colors.red)),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
           ),
         ],
       ),
@@ -74,25 +94,37 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
+<<<<<<< HEAD
             const SnackBar(
               content: Text('已清空浏览记录'),
               backgroundColor: Color(0xFFEC4899),
             ),
+=======
+            const SnackBar(content: Text('已清空浏览记录')),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
+<<<<<<< HEAD
             SnackBar(
               content: Text('清空失败: $e'),
               backgroundColor: Colors.red,
             ),
+=======
+            SnackBar(content: Text('清空失败: $e')),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
           );
         }
       }
     }
   }
 
+<<<<<<< HEAD
+=======
+  /// 删除单条记录
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
   Future<void> _deleteHistoryItem(int postId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -104,19 +136,27 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
+<<<<<<< HEAD
           const SnackBar(
             content: Text('已删除'),
             backgroundColor: Color(0xFFEC4899),
           ),
+=======
+          const SnackBar(content: Text('已删除')),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
+<<<<<<< HEAD
           SnackBar(
             content: Text('删除失败: $e'),
             backgroundColor: Colors.red,
           ),
+=======
+          SnackBar(content: Text('删除失败: $e')),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
         );
       }
     }
@@ -145,6 +185,7 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
       }
     }
 
+<<<<<<< HEAD
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -235,12 +276,85 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
               constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
             ),
           ],
+=======
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PostDetailPage(postId: postId),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              // 封面图或占位符
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: coverUrl != null && coverUrl.isNotEmpty
+                      ? Image.network(
+                          coverUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: Colors.grey.shade200,
+                            child: const Icon(Icons.image, color: Colors.grey),
+                          ),
+                        )
+                      : Container(
+                          color: Colors.grey.shade200,
+                          child: const Icon(Icons.image, color: Colors.grey),
+                        ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // 标题和时间
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      formatTime(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // 删除按钮
+              IconButton(
+                icon: const Icon(Icons.close, size: 20),
+                onPressed: () => _deleteHistoryItem(postId),
+                color: Colors.grey,
+              ),
+            ],
+          ),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
         ),
       ),
     );
   }
 
   Widget _buildLoading() {
+<<<<<<< HEAD
     return Container(
       color: Colors.white,
       child: const Center(
@@ -248,10 +362,16 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
           valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
         ),
       ),
+=======
+    return const SizedBox(
+      height: 300,
+      child: Center(child: CircularProgressIndicator()),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     );
   }
 
   Widget _buildEmpty() {
+<<<<<<< HEAD
     return Container(
       color: Colors.white,
       child: Center(
@@ -266,6 +386,19 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
             ),
             const SizedBox(height: 8),
             const Text(
+=======
+    return SizedBox(
+      height: 300,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(Icons.history, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('暂无浏览记录', style: TextStyle(fontSize: 16, color: Colors.grey)),
+            SizedBox(height: 8),
+            Text(
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
               '你浏览过的帖子会显示在这里',
               style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
@@ -277,6 +410,7 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
 
   @override
   Widget build(BuildContext context) {
+<<<<<<< HEAD
     return Container(
       color: Colors.white,
       child: _isLoading
@@ -294,6 +428,22 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
                 bottom: BorderSide(color: Colors.grey.withOpacity(0.1)),
               ),
             ),
+=======
+    if (_isLoading) {
+      return _buildLoading();
+    }
+
+    if (_historyList.isEmpty) {
+      return _buildEmpty();
+    }
+
+    return CustomScrollView(
+      slivers: [
+        // 清空按钮栏
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -301,20 +451,32 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
                   '共 ${_historyList.length} 条记录',
                   style: TextStyle(
                     fontSize: 14,
+<<<<<<< HEAD
                     color: Colors.grey[600],
+=======
+                    color: Colors.grey.shade600,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                   ),
                 ),
                 TextButton.icon(
                   onPressed: _clearHistory,
+<<<<<<< HEAD
                   icon: Icon(Icons.delete_outline, size: 16, color: Colors.red),
                   label: Text(
                     '清空',
                     style: TextStyle(color: Colors.red, fontSize: 14),
+=======
+                  icon: const Icon(Icons.delete_outline, size: 18),
+                  label: const Text('清空'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.red,
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                   ),
                 ),
               ],
             ),
           ),
+<<<<<<< HEAD
 
           // 历史记录列表
           Expanded(
@@ -326,10 +488,27 @@ class _BrowseHistoryTabState extends State<BrowseHistoryTab> {
           ),
         ],
       ),
+=======
+        ),
+        // 历史记录列表
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) => _buildHistoryCard(_historyList[index]),
+            childCount: _historyList.length,
+          ),
+        ),
+      ],
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     );
   }
 }
 
+<<<<<<< HEAD
+=======
+/// ====================================================================
+/// 工具方法：记录浏览历史（在帖子详情页调用）
+/// ====================================================================
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 Future<void> saveBrowseHistory({
   required int postId,
   required String title,
@@ -340,8 +519,15 @@ Future<void> saveBrowseHistory({
     final historyJson = prefs.getString('browse_history') ?? '[]';
     List<dynamic> history = jsonDecode(historyJson);
 
+<<<<<<< HEAD
     history.removeWhere((item) => item['postId'] == postId);
 
+=======
+    // 移除旧记录（如果存在）
+    history.removeWhere((item) => item['postId'] == postId);
+
+    // 添加到开头
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     history.insert(0, {
       'postId': postId,
       'title': title,
@@ -349,6 +535,10 @@ Future<void> saveBrowseHistory({
       'timestamp': DateTime.now().toIso8601String(),
     });
 
+<<<<<<< HEAD
+=======
+    // 限制最多保存100条
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     if (history.length > 100) {
       history = history.sublist(0, 100);
     }

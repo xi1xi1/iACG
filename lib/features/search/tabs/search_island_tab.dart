@@ -8,10 +8,17 @@ class SearchIslandTab extends StatefulWidget {
   final String keyword;
 
   const SearchIslandTab({
+<<<<<<< HEAD
     super.key,
     required this.searchService,
     required this.keyword,
   });
+=======
+    Key? key,
+    required this.searchService,
+    required this.keyword,
+  }) : super(key: key);
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 
   @override
   State<SearchIslandTab> createState() => _SearchIslandTabState();

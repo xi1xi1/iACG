@@ -106,7 +106,11 @@ import 'package:iacg/services/search_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class SearchPage extends StatefulWidget {
+<<<<<<< HEAD
   const SearchPage({super.key});
+=======
+  const SearchPage({Key? key}) : super(key: key);
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 
   @override
   State<SearchPage> createState() => _SearchPageState();

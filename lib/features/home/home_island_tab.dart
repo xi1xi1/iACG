@@ -26,6 +26,7 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
   // 分页相关变量
   int _currentPage = 1;
   bool _hasMore = true;
+<<<<<<< HEAD
   final int _pageSize = 20;
 
   // 群岛类型选项 - 增强二次元风格
@@ -38,6 +39,12 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
     {'type': '约拍', 'icon': Icons.photo_camera_outlined, 'color': Color(0xFFEF4444)},
     {'type': '其他', 'icon': Icons.more_horiz, 'color': Color(0xFF6B7280)},
   ];
+=======
+  final int _pageSize = 10;
+
+  // 群岛类型选项 - 只显示数据库中实际存在的类型
+  final List<String> _islandTypes = ['全部', '求助', '分享', '吐槽', '找搭子', '约拍', '其他'];
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 
   final ScrollController _scrollController = ScrollController();
   final PostService _postService = PostService();
@@ -163,6 +170,7 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
     }
   }
 
+<<<<<<< HEAD
   // 构建加载更多指示器 - 增强二次元风格
   Widget _buildLoadMoreIndicator() {
     if (!_hasMore && _posts.isNotEmpty) {
@@ -180,11 +188,27 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
               ),
             ),
           ],
+=======
+  // 构建加载更多指示器
+  Widget _buildLoadMoreIndicator() {
+    if (!_hasMore && _posts.isNotEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 20),
+        child: Center(
+          child: Text(
+            '已经到底了～',
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 14,
+            ),
+          ),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
         ),
       );
     }
 
     return _isLoadingMore
+<<<<<<< HEAD
         ? Padding(
             padding: const EdgeInsets.symmetric(vertical: 24),
             child: Column(
@@ -215,6 +239,12 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
                   ),
                 ),
               ],
+=======
+        ? const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Center(
+              child: CircularProgressIndicator(),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
             ),
           )
         : const SizedBox.shrink();
@@ -231,6 +261,7 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
     }
   }
 
+<<<<<<< HEAD
   // 构建顶部导航栏 - 增强二次元风格
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
@@ -246,10 +277,26 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
           ),
           const SizedBox(width: 16),
           // 搜索框 - 二次元风格
+=======
+  // 构建顶部导航栏
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      title: Row(
+        children: [
+          const Text(
+            'iACG',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(width: 16),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
           Expanded(
             child: Container(
               height: 40,
               decoration: BoxDecoration(
+<<<<<<< HEAD
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
@@ -263,6 +310,10 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
                     offset: const Offset(0, 2),
                   ),
                 ],
+=======
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(20),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
               ),
               child: TextField(
                 readOnly: true,
@@ -273,6 +324,7 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
                 },
                 decoration: InputDecoration(
                   hintText: '搜索内容...',
+<<<<<<< HEAD
                   hintStyle: TextStyle(color: AnimeColors.textLight),
                   border: InputBorder.none,
                   contentPadding:
@@ -282,6 +334,13 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
                     color: Colors.grey,
                     size: 20,
                   ),
+=======
+                  hintStyle: TextStyle(color: Colors.grey[600]),
+                  border: InputBorder.none,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                 ),
               ),
             ),
@@ -289,6 +348,7 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
         ],
       ),
       actions: [
+<<<<<<< HEAD
         // 发布按钮 - 二次元风格
         Container(
           margin: const EdgeInsets.only(right: 8),
@@ -342,12 +402,30 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
                   fontSize: 14,
                 ),
               ),
+=======
+        IconButton(
+          icon: const Icon(Icons.add_circle_outline),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PostComposePage()),
+            );
+          },
+          tooltip: '发布',
+        ),
+        if (!_authService.isLoggedIn)
+          TextButton(
+            onPressed: () => Navigator.of(context).pushNamed('/login'),
+            child: const Text(
+              '登录',
+              style: TextStyle(color: Colors.white),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
             ),
           ),
       ],
     );
   }
 
+<<<<<<< HEAD
   // 构建类型筛选器 - 修改为首页样式
   Widget _buildTypeFilter() {
     return Container(
@@ -369,6 +447,19 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
         itemBuilder: (context, index) {
           final typeData = _islandTypes[index];
           final type = typeData['type'] as String;
+=======
+  // 构建类型筛选器
+  Widget _buildTypeFilter() {
+    return Container(
+      height: 50,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: _islandTypes.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final type = _islandTypes[index];
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
           final isSelected = _selectedType == type;
 
           return GestureDetector(
@@ -379,6 +470,7 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
               }
             },
             child: Container(
+<<<<<<< HEAD
               constraints: const BoxConstraints(
                 minWidth: 60,
               ),
@@ -406,6 +498,21 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
                     ),
                   ),
                 ],
+=======
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Theme.of(context).colorScheme.primary
+                    : Colors.grey[200],
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                type,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.grey[700],
+                  fontWeight: FontWeight.w500,
+                ),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
               ),
             ),
           );
@@ -414,12 +521,17 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
     );
   }
 
+<<<<<<< HEAD
   // 构建空状态 - 增强二次元风格
+=======
+  // 构建空状态
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
   Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+<<<<<<< HEAD
           Container(
             width: 120,
             height: 120,
@@ -506,6 +618,18 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
           // 加载更多指示器
           SliverToBoxAdapter(
             child: _buildLoadMoreIndicator(),
+=======
+          const Icon(Icons.forum_outlined, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          Text(
+            _selectedType == '全部' ? '暂无群岛帖子' : '暂无$_selectedType类型的帖子',
+            style: const TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton(
+            onPressed: () => _loadPosts(isRefresh: true),
+            child: const Text('重新加载'),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
           ),
         ],
       ),
@@ -516,7 +640,10 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(),
+<<<<<<< HEAD
       backgroundColor: AnimeColors.backgroundLight,// 背景颜色
+=======
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       body: Column(
         children: [
           // 类型筛选器
@@ -532,6 +659,7 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
                         onRetry: () => _loadPosts(isRefresh: true))
                     : _posts.isEmpty
                         ? _buildEmptyState()
+<<<<<<< HEAD
                         : _buildSingleColumnLayout(),
           ),
         ],
@@ -547,6 +675,24 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
               child: const Icon(Icons.arrow_upward_rounded),
             )
           : null,
+=======
+                        : RefreshIndicator(
+                            onRefresh: () => _loadPosts(isRefresh: true),
+                            child: ListView.builder(
+                              controller: _scrollController,
+                              itemCount: _posts.length + 1,
+                              itemBuilder: (context, index) {
+                                if (index == _posts.length) {
+                                  return _buildLoadMoreIndicator();
+                                }
+                                return PostCard(post: _posts[index]);
+                              },
+                            ),
+                          ),
+          ),
+        ],
+      ),
+>>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     );
   }
 }
