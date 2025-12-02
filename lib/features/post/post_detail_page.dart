@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:iacg/features/post/post_compose_page.dart';
 import 'package:iacg/features/post/repost_compose_page.dart';
 import 'package:iacg/widgets/avatar_widget.dart';
 import 'package:intl/intl.dart';
@@ -46,7 +47,9 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
   // 新增：是否是作者状态
   bool _isAuthor = false;
-
+  // 在类的顶部，其他状态变量之后添加：
+  bool _showEventFab = false;
+  String? _eventTagName;
   @override
   void initState() {
     super.initState();
@@ -123,6 +126,293 @@ class _PostDetailPageState extends State<PostDetailPage> {
     }
   }
 
+
+// ✅ 新增：跳转到发布页面并自动填充活动标签
+void _navigateToEventPostCompose() {
+  if (_eventTagName == null || _eventTagName!.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('活动标签获取失败'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+    return;
+  }
+  
+  print('跳转到发布页面，活动标签: $_eventTagName');
+ // ✅ 新增：弹出选择对话框
+showDialog(
+  context: context,
+  builder: (context) => Dialog(
+    backgroundColor: Colors.transparent,
+    elevation: 0,
+    child: Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            const Color(0xFFFCF1F5), // 顶部浅粉色
+            Colors.white,            // 底部白色
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFED7099).withOpacity(0.1),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFED7099),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  '选择发布类型',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          // COS作品选项
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: Colors.grey.shade200,
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  Navigator.pop(context);
+                  _goToPostCompose('cos', _eventTagName!);
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // 图标
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFED7099).withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Color(0xFFED7099),
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      
+                      // 文字内容
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'COS作品',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '发布COS照片作品',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // 箭头
+                      Icon(
+                        Icons.chevron_right,
+                        size: 20,
+                        color: Colors.grey[500],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          // 群岛帖子选项
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: Colors.grey.shade200,
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  Navigator.pop(context);
+                  _goToPostCompose('island', _eventTagName!);
+                },
+                borderRadius: BorderRadius.circular(14),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      // 图标 - 也使用粉色
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFED7099).withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.forum,
+                          color: Color(0xFFED7099), // 同样用粉色
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      
+                      // 文字内容
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              '群岛帖子',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '发布讨论、求助、分享',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // 箭头
+                      Icon(
+                        Icons.chevron_right,
+                        size: 20,
+                        color: Colors.grey[500],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+          
+          // 取消按钮 - 不使用整行灰色
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Center(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => Navigator.pop(context),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 10),
+                    child: const Text(
+                      '取消',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Color.fromARGB(255, 139, 139, 139),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  ),
+);
+}
+
+// ✅ 新增：实际跳转到发布页面的方法
+void _goToPostCompose(String channel, String eventTag) {
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => PostComposePage(
+        initialChannel: channel, // 根据选择传入频道
+        autoFillTag: eventTag,
+      ),
+    ),
+  );
+}
   // 新增：构建更多操作菜单
   Widget _buildMoreActionsMenu() {
     return PopupMenuButton<String>(
@@ -275,11 +565,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
     final previewContent =
         content.length > 25 ? '${content.substring(0, 25)}...' : content;
 
-<<<<<<< HEAD
     return SizedBox(
-=======
-    return Container(
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       width: 280, // 固定卡片宽度
       child: Card(
         elevation: 1,
@@ -409,7 +695,15 @@ class _PostDetailPageState extends State<PostDetailPage> {
       setState(() {
         _post = data;
         _currentIndex = 0;
-      });
+      // ✅ 新增：检查是否是活动帖子，并获取活动标签
+ if (data != null && data['channel'] == 'event') {
+        _showEventFab = true;
+        _eventTagName = _getEventTagFromPost(data);
+      } else {
+        _showEventFab = false;
+        _eventTagName = null;
+      }
+    });
 
       // 查询已点赞/收藏状态（仅登录用户）
       final uid = Supabase.instance.client.auth.currentUser?.id;
@@ -900,6 +1194,35 @@ class _PostDetailPageState extends State<PostDetailPage> {
         // 修改：如果是作者，在右上角显示更多操作菜单
         actions: _isAuthor ? [_buildMoreActionsMenu()] : null,
       ),
+      // ✅ 新增：悬浮发布按钮（只在活动帖子显示）
+    floatingActionButton: _showEventFab
+        ? Container(
+            margin: const EdgeInsets.only(bottom: 70, right: 16), // 避免被底部输入栏遮挡
+            child: FloatingActionButton(
+              onPressed: _navigateToEventPostCompose,
+              backgroundColor: const Color(0xFFED7099), // 粉色主题色
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.add, size: 20),
+                  SizedBox(height: 2),
+                  Text(
+                    '发布',
+                    style: TextStyle(fontSize: 10),
+                  ),
+                ],
+              ),
+            ),
+          )
+        : null,
+    
+    floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+
       bottomNavigationBar: AnimatedPadding(
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOut,
@@ -1571,11 +1894,7 @@ class _CommentThreadState extends State<CommentThread> {
     final liked = _myLiked.contains(cid);
     final likeCount = (c['like_count'] ?? 0) as int;
 
-<<<<<<< HEAD
     void goUser(String? uid) {
-=======
-    void _goUser(String? uid) {
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       if (uid == null || uid.isEmpty) return;
       Navigator.of(context).push(
         MaterialPageRoute(builder: (_) => UserProfilePage(userId: uid)),
@@ -1589,11 +1908,7 @@ class _CommentThreadState extends State<CommentThread> {
         children: [
           // 头像可点
           InkWell(
-<<<<<<< HEAD
             onTap: () => goUser(userId),
-=======
-            onTap: () => _goUser(userId),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
             child: AvatarWidget(imageUrl: avatar, size: isRoot ? 36 : 28),
           ),
           const SizedBox(width: 8),
@@ -1606,11 +1921,7 @@ class _CommentThreadState extends State<CommentThread> {
                   children: [
                     Flexible(
                       child: InkWell(
-<<<<<<< HEAD
                         onTap: () => goUser(userId),
-=======
-                        onTap: () => _goUser(userId),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                         child: Text(
                           nickname,
                           style: const TextStyle(
@@ -1636,11 +1947,7 @@ class _CommentThreadState extends State<CommentThread> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       InkWell(
-<<<<<<< HEAD
                         onTap: () => goUser(userId),
-=======
-                        onTap: () => _goUser(userId),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                         child: Text(
                           nickname,
                           style: const TextStyle(fontWeight: FontWeight.w600),
@@ -1650,11 +1957,7 @@ class _CommentThreadState extends State<CommentThread> {
                       if (parentNickname != null)
                         (parentUserId != null && parentUserId.isNotEmpty)
                             ? InkWell(
-<<<<<<< HEAD
                                 onTap: () => goUser(parentUserId),
-=======
-                                onTap: () => _goUser(parentUserId),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                                 child: Text(
                                   parentNickname,
                                   style: const TextStyle(
