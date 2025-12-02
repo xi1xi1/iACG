@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:iacg/widgets/avatar_widget.dart';
 import '../features/post/post_detail_page.dart';
-
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 // 二次元风格颜色定义
 class AnimeColors {
-  static const Color primaryPink = Color(0xFFEC4899); // 粉色
+  static const Color primaryPink = Color(0xFFEC719A); // 粉色
   static const Color secondaryPurple = Color(0xFF8B5CF6); // 紫色
   static const Color accentCyan = Color(0xFF06B6D4); // 青色
   static const Color backgroundLight = Color(0xFFF8FAFC); // 浅灰背景
@@ -17,26 +17,31 @@ class AnimeColors {
   static const Color gradientEnd = Color(0xFF8B5CF6); // 渐变结束
 }
 
-class PostCard extends StatelessWidget {
+class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
-  final bool isLeftColumn; // 新增：标识是左列还是右列
+  final bool isLeftColumn;
 
   const PostCard({
     super.key,
     required this.post,
-    this.isLeftColumn = true, // 默认左列
+    this.isLeftColumn = true,
   });
 
   @override
+  State<PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends State<PostCard> {
+  @override
   Widget build(BuildContext context) {
-    final int postId = (post['id'] as num).toInt();
-    final String channel = (post['channel'] ?? 'cos') as String;
-    final String title = (post['title'] ?? '') as String;
-    final String content = (post['content'] ?? '') as String;
-    final dynamic createdAtRaw = post['created_at'];
+    final int postId = (widget.post['id'] as num).toInt();
+    final String channel = (widget.post['channel'] ?? 'cos') as String;
+    final String title = (widget.post['title'] ?? '') as String;
+    final String content = (widget.post['content'] ?? '') as String;
+    final dynamic createdAtRaw = widget.post['created_at'];
 
     Map<String, dynamic> author = <String, dynamic>{};
-    final authorData = post['author'];
+    final authorData = widget.post['author'];
     if (authorData is Map) {
       author = Map<String, dynamic>.from(authorData);
     }
@@ -44,13 +49,13 @@ class PostCard extends StatelessWidget {
     final String authorName = (author['nickname'] ?? '佚名') as String;
     final String? authorAvatar = (author['avatar_url'] as String?)?.trim();
 
-    final int likeCount = (post['like_count'] as num?)?.toInt() ?? 0;
-    final int favCount = (post['favorite_count'] as num?)?.toInt() ?? 0;
-    final int cmtCount = (post['comment_count'] as num?)?.toInt() ?? 0;
-    final int viewCount = (post['view_count'] as num?)?.toInt() ?? 0;
+    final int likeCount = (widget.post['like_count'] as num?)?.toInt() ?? 0;
+    final int favCount = (widget.post['favorite_count'] as num?)?.toInt() ?? 0;
+    final int cmtCount = (widget.post['comment_count'] as num?)?.toInt() ?? 0;
+    final int viewCount = (widget.post['view_count'] as num?)?.toInt() ?? 0;
 
     List<dynamic> medias = [];
-    final mediasData = post['post_media'];
+    final mediasData = widget.post['post_media'];
     if (mediasData is List) {
       medias = mediasData;
     }
@@ -66,147 +71,139 @@ class PostCard extends StatelessWidget {
     final bool hasCover = (coverUrl != null && coverUrl.isNotEmpty);
     final String summary = _snippet(content, 20);
 
-    return Container(
-      margin: EdgeInsets.only(
-        bottom: 8,
-        left: isLeftColumn ? 4 : 2,
-        right: isLeftColumn ? 2 : 4,
-      ),
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => PostDetailPage(postId: postId)),
-          );
-        },
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AnimeColors.cardWhite,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AnimeColors.primaryPink.withOpacity(0.1),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final screenWidth = constraints.maxWidth;
+        final isNarrowScreen = screenWidth < 360;
+        
+        return Container(
+          margin: EdgeInsets.only(
+            bottom: 8,
+            left: widget.isLeftColumn ? 4 : 2,
+            right: widget.isLeftColumn ? 2 : 4,
           ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 封面图片 - 自适应比例
-              if (hasCover)
-                _buildAdaptiveImage(coverUrl!),
+          child: InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => PostDetailPage(postId: postId)),
+              );
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              constraints: BoxConstraints(
+                minHeight: 0,
+                maxHeight: double.infinity,
+              ),
+              decoration: BoxDecoration(
+                color: AnimeColors.cardWhite,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.grey.withOpacity(0.1),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (hasCover)
+                    _buildAdaptiveImage(coverUrl!),
 
-              // 内容区域
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 标题
-                    if (title.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: AnimeColors.textDark,
-                            height: 1.3,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-
-                    // 正文摘要
-                    if (summary.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Text(
-                          summary,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AnimeColors.textLight,
-                            height: 1.4,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-
-                    // 作者信息行
-                    Row(
+                  Padding(
+                    padding: EdgeInsets.all(isNarrowScreen ? 12 : 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        AvatarWidget(
-                          imageUrl: authorAvatar,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                authorName,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AnimeColors.textDark,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                        if (title.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: isNarrowScreen ? 14 : 16,
+                                fontWeight: FontWeight.bold,
+                                color: AnimeColors.textDark,
+                                height: 1.3,
                               ),
-                              const SizedBox(height: 1),
-                              // Text(
-                              //   _formatTime(createdAtRaw),
-                              //   style: TextStyle(
-                              //     fontSize: 12,
-                              //     color: AnimeColors.textLight,
-                              //   ),
-                              // ),
-                            ],
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
+
+                        if (summary.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Text(
+                              summary,
+                              style: TextStyle(
+                                fontSize: isNarrowScreen ? 12 : 14,
+                                color: AnimeColors.textLight,
+                                height: 1.4,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+
+                        Row(
+                          children: [
+                            AvatarWidget(
+                              imageUrl: authorAvatar,
+                              size: isNarrowScreen ? 16 : 18,
+                            ),
+                            SizedBox(width: isNarrowScreen ? 6 : 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    authorName,
+                                    style: TextStyle(
+                                      fontSize: isNarrowScreen ? 11 : 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AnimeColors.textDark,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 1),
+                                ],
+                              ),
+                            ),
+                            _ChannelChip(channel: channel, isNarrowScreen: isNarrowScreen),
+                          ],
                         ),
-                        _ChannelChip(channel: channel),
+
+                        const SizedBox(height: 8),
+
+                        _buildAdaptiveInteractionBar(
+                          likeCount: likeCount,
+                          favCount: favCount,
+                          cmtCount: cmtCount,
+                          viewCount: viewCount,
+                          isNarrowScreen: isNarrowScreen,
+                        ),
                       ],
                     ),
-
-                    const SizedBox(height: 8),
-
-                    // 互动栏 - 改回原来的水平布局
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(1, 0, 12, 0),
-                      child: Row(
-                        children: [
-                          _CompactIconText(icon: Icons.favorite_border, text: _k(likeCount)),
-                          const SizedBox(width: 5),
-                          _CompactIconText(icon: Icons.bookmark_border, text: _k(favCount)),
-                          const SizedBox(width: 5),
-                          _CompactIconText(icon: Icons.mode_comment_outlined, text: _k(cmtCount)),
-                          const SizedBox(width: 5),
-                          _CompactIconText(icon: Icons.visibility_outlined, text: _k(viewCount)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  // 自适应图片组件
   Widget _buildAdaptiveImage(String imageUrl) {
     return FutureBuilder<ImageInfo>(
       future: _getImageInfo(imageUrl),
@@ -217,30 +214,48 @@ class PostCard extends StatelessWidget {
           final height = imageInfo.image.height.toDouble();
           final aspectRatio = width / height;
           
-          // 限制宽高比范围，避免极端比例
           final clampedAspectRatio = aspectRatio.clamp(0.5, 2.0);
           
-          return AspectRatio(
-            aspectRatio: clampedAspectRatio,
-            child: CachedNetworkImage(
-              imageUrl: imageUrl,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => _buildImagePlaceholder(),
-              errorWidget: (context, url, error) => _buildImageError(),
-            ),
-          );
+return AspectRatio(
+  aspectRatio: clampedAspectRatio,
+  child: CachedNetworkImage(
+    imageUrl: imageUrl,
+    fit: BoxFit.cover,
+    // ✅ 正确参数名：
+    memCacheWidth: (MediaQuery.of(context).size.width * 1.5).toInt(),
+    maxWidthDiskCache: (MediaQuery.of(context).size.width * 1.5).toInt(),
+    
+    placeholder: (context, url) => _buildImagePlaceholder(),
+    
+    errorWidget: (context, url, error) {
+      Future.delayed(const Duration(milliseconds: 300), () async {
+        try {
+          await DefaultCacheManager().removeFile(url);
+          if (mounted) {
+            setState(() {});
+          }
+        } catch (_) {}
+      });
+      
+      return Container(
+        color: Colors.grey[100],
+        child: Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    },
+  ),
+);
         }
         
-        // 加载中或出错时使用默认比例
         return AspectRatio(
-          aspectRatio: 3/4,
+          aspectRatio: 3/2,
           child: _buildImagePlaceholder(),
         );
       },
     );
   }
 
-  // 获取图片信息
   Future<ImageInfo> _getImageInfo(String imageUrl) async {
     final completer = Completer<ImageInfo>();
     final imageProvider = CachedNetworkImageProvider(imageUrl);
@@ -254,7 +269,6 @@ class PostCard extends StatelessWidget {
     return completer.future;
   }
 
-  // 图片占位符
   Widget _buildImagePlaceholder() {
     return Container(
       color: AnimeColors.backgroundLight,
@@ -268,7 +282,6 @@ class PostCard extends StatelessWidget {
     );
   }
 
-  // 图片错误占位符
   Widget _buildImageError() {
     return Container(
       color: AnimeColors.backgroundLight,
@@ -282,7 +295,46 @@ class PostCard extends StatelessWidget {
     );
   }
 
-  // 原有的工具方法保持不变
+  Widget _buildAdaptiveInteractionBar({
+    required int likeCount,
+    required int favCount,
+    required int cmtCount,
+    required int viewCount,
+    required bool isNarrowScreen,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(1, 0, 12, 0),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _CompactIconText(
+            icon: Icons.favorite_border, 
+            text: _k(likeCount),
+            isNarrowScreen: isNarrowScreen,
+          ),
+          SizedBox(width: isNarrowScreen ? 3 : 5),
+          _CompactIconText(
+            icon: Icons.bookmark_border, 
+            text: _k(favCount),
+            isNarrowScreen: isNarrowScreen,
+          ),
+          SizedBox(width: isNarrowScreen ? 3 : 5),
+          _CompactIconText(
+            icon: Icons.mode_comment_outlined, 
+            text: _k(cmtCount),
+            isNarrowScreen: isNarrowScreen,
+          ),
+          SizedBox(width: isNarrowScreen ? 3 : 5),
+          _CompactIconText(
+            icon: Icons.visibility_outlined, 
+            text: _k(viewCount),
+            isNarrowScreen: isNarrowScreen,
+          ),
+        ],
+      ),
+    );
+  }
+
   String _snippet(String raw, int n) {
     final s = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (s.isEmpty) return '';
@@ -316,7 +368,8 @@ class PostCard extends StatelessWidget {
     return n.toString();
   }
 }
-// 二次元风格图标文本组件
+
+// 以下所有辅助Widget保持不变
 class _AnimeIconText extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -364,29 +417,39 @@ class _AnimeIconText extends StatelessWidget {
   }
 }
 
-// 新的紧凑图标文本组件
 class _CompactIconText extends StatelessWidget {
   final IconData icon;
   final String text;
-  const _CompactIconText({required this.icon, required this.text});
+  final bool isNarrowScreen;
+  const _CompactIconText({
+    required this.icon, 
+    required this.text,
+    this.isNarrowScreen = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min, // 重要：避免占用过多空间
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: Colors.grey[700]), // 缩小图标
-        const SizedBox(width: 4),
+        Icon(
+          icon, 
+          size: isNarrowScreen ? 14 : 16, 
+          color: Colors.grey[700]
+        ),
+        SizedBox(width: isNarrowScreen ? 2 : 4),
         Text(
           text,
-          style: TextStyle(fontSize: 11, color: Colors.grey[700]), // 缩小字体
+          style: TextStyle(
+            fontSize: isNarrowScreen ? 10 : 11, 
+            color: Colors.grey[700]
+          ),
         ),
       ],
     );
   }
 }
 
-// 原有的 _IconText 和 _ChannelChip 类保持不变
 class _IconText extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -404,64 +467,46 @@ class _IconText extends StatelessWidget {
   }
 }
 
-// 调整频道芯片大小
 class _ChannelChip extends StatelessWidget {
-
   final String channel;
-  const _ChannelChip({required this.channel});
+  final bool isNarrowScreen;
+  const _ChannelChip({
+    required this.channel,
+    this.isNarrowScreen = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final isCos = channel == 'cos';
-    final isEvent = channel == 'event'; // ✅ 新增：活动判断
+    final isEvent = channel == 'event';
     Color getColor() {
       if (isCos) return Colors.deepPurple;
-      if (isEvent) return Colors.orange; // ✅ 新增：活动用橙色
+      if (isEvent) return Colors.orange;
       return Colors.blueGrey;
     }
-        String getLabel() {
+    String getLabel() {
       if (isCos) return 'COS';
-      if (isEvent) return '活动'; // ✅ 新增：活动标签
+      if (isEvent) return '活动';
       return '群岛';
     }
     return Container(
-      //padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), // 减少内边距
+      padding: EdgeInsets.symmetric(
+        horizontal: isNarrowScreen ? 4 : 6, 
+        vertical: isNarrowScreen ? 1 : 2,
+      ),
       decoration: BoxDecoration(
-        // color: getColor().withOpacity(0.1),
-        // borderRadius: BorderRadius.circular(999),
-        // border: Border.all(color: getColor().withOpacity(0.25)),
-        color: (isCos ? Colors.deepPurple : Colors.blueGrey).withOpacity(0.1),
+        color: getColor().withOpacity(0.1),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: (isCos ? Colors.deepPurple : Colors.blueGrey).withOpacity(0.25)),
+        border: Border.all(color: getColor().withOpacity(0.25)),
       ),
       child: Text(
         getLabel(),
         style: TextStyle(
-          fontSize: 10,
+          fontSize: isNarrowScreen ? 8 : 10,
           fontWeight: FontWeight.w600,
           color: getColor(),
         ),
       ),
     );
-  // @override
-  // Widget build(BuildContext context) {
-  //   final isCos = channel == 'cos';
-  //   return Container(
-  //     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-  //     decoration: BoxDecoration(
-  //       color: (isCos ? Colors.deepPurple : Colors.blueGrey).withOpacity(0.1),
-  //       borderRadius: BorderRadius.circular(999),
-  //       border: Border.all(color: (isCos ? Colors.deepPurple : Colors.blueGrey).withOpacity(0.25)),
-  //     ),
-  //     child: Text(
-  //       isCos ? 'COS' : '群岛',
-  //       style: TextStyle(
-  //         fontSize: 11,
-  //         fontWeight: FontWeight.w600,
-  //         color: isCos ? Colors.deepPurple : Colors.blueGrey,
-  //       ),
-  //     ),
-  //   );
   }
 }
