@@ -1,13 +1,9 @@
-<<<<<<< HEAD
 import 'dart:async';
-=======
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:iacg/widgets/avatar_widget.dart';
 import '../features/post/post_detail_page.dart';
-
-<<<<<<< HEAD
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 // 二次元风格颜色定义
 class AnimeColors {
   static const Color primaryPink = Color(0xFFEC719A); // 粉色
@@ -21,32 +17,31 @@ class AnimeColors {
   static const Color gradientEnd = Color(0xFF8B5CF6); // 渐变结束
 }
 
-=======
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
-class PostCard extends StatelessWidget {
+class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
-  final bool isLeftColumn; // 新增：标识是左列还是右列
+  final bool isLeftColumn;
 
   const PostCard({
     super.key,
     required this.post,
-    this.isLeftColumn = true, // 默认左列
+    this.isLeftColumn = true,
   });
 
   @override
+  State<PostCard> createState() => _PostCardState();
+}
+
+class _PostCardState extends State<PostCard> {
+  @override
   Widget build(BuildContext context) {
-<<<<<<< HEAD
-=======
-    // 原有的数据提取逻辑保持不变
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
-    final int postId = (post['id'] as num).toInt();
-    final String channel = (post['channel'] ?? 'cos') as String;
-    final String title = (post['title'] ?? '') as String;
-    final String content = (post['content'] ?? '') as String;
-    final dynamic createdAtRaw = post['created_at'];
+    final int postId = (widget.post['id'] as num).toInt();
+    final String channel = (widget.post['channel'] ?? 'cos') as String;
+    final String title = (widget.post['title'] ?? '') as String;
+    final String content = (widget.post['content'] ?? '') as String;
+    final dynamic createdAtRaw = widget.post['created_at'];
 
     Map<String, dynamic> author = <String, dynamic>{};
-    final authorData = post['author'];
+    final authorData = widget.post['author'];
     if (authorData is Map) {
       author = Map<String, dynamic>.from(authorData);
     }
@@ -54,13 +49,13 @@ class PostCard extends StatelessWidget {
     final String authorName = (author['nickname'] ?? '佚名') as String;
     final String? authorAvatar = (author['avatar_url'] as String?)?.trim();
 
-    final int likeCount = (post['like_count'] as num?)?.toInt() ?? 0;
-    final int favCount = (post['favorite_count'] as num?)?.toInt() ?? 0;
-    final int cmtCount = (post['comment_count'] as num?)?.toInt() ?? 0;
-    final int viewCount = (post['view_count'] as num?)?.toInt() ?? 0;
+    final int likeCount = (widget.post['like_count'] as num?)?.toInt() ?? 0;
+    final int favCount = (widget.post['favorite_count'] as num?)?.toInt() ?? 0;
+    final int cmtCount = (widget.post['comment_count'] as num?)?.toInt() ?? 0;
+    final int viewCount = (widget.post['view_count'] as num?)?.toInt() ?? 0;
 
     List<dynamic> medias = [];
-    final mediasData = post['post_media'];
+    final mediasData = widget.post['post_media'];
     if (mediasData is List) {
       medias = mediasData;
     }
@@ -76,18 +71,16 @@ class PostCard extends StatelessWidget {
     final bool hasCover = (coverUrl != null && coverUrl.isNotEmpty);
     final String summary = _snippet(content, 20);
 
-<<<<<<< HEAD
     return LayoutBuilder(
       builder: (context, constraints) {
-        // 根据屏幕宽度动态调整布局
         final screenWidth = constraints.maxWidth;
-        final isNarrowScreen = screenWidth < 360; // 窄屏幕判断
+        final isNarrowScreen = screenWidth < 360;
         
         return Container(
           margin: EdgeInsets.only(
             bottom: 8,
-            left: isLeftColumn ? 4 : 2,
-            right: isLeftColumn ? 2 : 4,
+            left: widget.isLeftColumn ? 4 : 2,
+            right: widget.isLeftColumn ? 2 : 4,
           ),
           child: InkWell(
             onTap: () {
@@ -98,7 +91,7 @@ class PostCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             child: Container(
               constraints: BoxConstraints(
-                minHeight: 0, // 允许内容收缩
+                minHeight: 0,
                 maxHeight: double.infinity,
               ),
               decoration: BoxDecoration(
@@ -119,20 +112,17 @@ class PostCard extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min, // 重要：允许内容收缩
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // 封面图片 - 自适应比例
                   if (hasCover)
                     _buildAdaptiveImage(coverUrl!),
 
-                  // 内容区域
                   Padding(
                     padding: EdgeInsets.all(isNarrowScreen ? 12 : 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min, // 重要：允许内容收缩
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        // 标题
                         if (title.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8),
@@ -149,7 +139,6 @@ class PostCard extends StatelessWidget {
                             ),
                           ),
 
-                        // 正文摘要
                         if (summary.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 12),
@@ -165,7 +154,6 @@ class PostCard extends StatelessWidget {
                             ),
                           ),
 
-                        // 作者信息行
                         Row(
                           children: [
                             AvatarWidget(
@@ -197,7 +185,6 @@ class PostCard extends StatelessWidget {
 
                         const SizedBox(height: 8),
 
-                        // 互动栏 - 自适应布局
                         _buildAdaptiveInteractionBar(
                           likeCount: likeCount,
                           favCount: favCount,
@@ -217,7 +204,6 @@ class PostCard extends StatelessWidget {
     );
   }
 
-  // 自适应图片组件
   Widget _buildAdaptiveImage(String imageUrl) {
     return FutureBuilder<ImageInfo>(
       future: _getImageInfo(imageUrl),
@@ -228,30 +214,48 @@ class PostCard extends StatelessWidget {
           final height = imageInfo.image.height.toDouble();
           final aspectRatio = width / height;
           
-          // 限制宽高比范围，避免极端比例
           final clampedAspectRatio = aspectRatio.clamp(0.5, 2.0);
           
-          return AspectRatio(
-            aspectRatio: clampedAspectRatio,
-            child: CachedNetworkImage(
-              imageUrl: imageUrl,
-              fit: BoxFit.cover,
-              placeholder: (context, url) => _buildImagePlaceholder(),
-              errorWidget: (context, url, error) => _buildImageError(),
-            ),
-          );
+return AspectRatio(
+  aspectRatio: clampedAspectRatio,
+  child: CachedNetworkImage(
+    imageUrl: imageUrl,
+    fit: BoxFit.cover,
+    // ✅ 正确参数名：
+    memCacheWidth: (MediaQuery.of(context).size.width * 1.5).toInt(),
+    maxWidthDiskCache: (MediaQuery.of(context).size.width * 1.5).toInt(),
+    
+    placeholder: (context, url) => _buildImagePlaceholder(),
+    
+    errorWidget: (context, url, error) {
+      Future.delayed(const Duration(milliseconds: 300), () async {
+        try {
+          await DefaultCacheManager().removeFile(url);
+          if (mounted) {
+            setState(() {});
+          }
+        } catch (_) {}
+      });
+      
+      return Container(
+        color: Colors.grey[100],
+        child: Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    },
+  ),
+);
         }
         
-        // 加载中或出错时使用默认比例
         return AspectRatio(
-          aspectRatio: 3/4,
+          aspectRatio: 3/2,
           child: _buildImagePlaceholder(),
         );
       },
     );
   }
 
-  // 获取图片信息
   Future<ImageInfo> _getImageInfo(String imageUrl) async {
     final completer = Completer<ImageInfo>();
     final imageProvider = CachedNetworkImageProvider(imageUrl);
@@ -265,7 +269,6 @@ class PostCard extends StatelessWidget {
     return completer.future;
   }
 
-  // 图片占位符
   Widget _buildImagePlaceholder() {
     return Container(
       color: AnimeColors.backgroundLight,
@@ -274,135 +277,11 @@ class PostCard extends StatelessWidget {
           Icons.photo_library_outlined,
           size: 40,
           color: AnimeColors.textLight.withOpacity(0.5),
-=======
-    return Container(
-      // 修改：移除原有的底部间距，改为在父级控制
-      margin: EdgeInsets.only(
-        bottom: 16,
-        left: isLeftColumn ? 8 : 4,   // 左列左边距大，右边距小
-        right: isLeftColumn ? 4 : 8,  // 右列右边距大，左边距小
-      ),
-      child: InkWell(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => PostDetailPage(postId: postId)),
-          );
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.withOpacity(0.15)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 封面图片
-              if (hasCover)
-                AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: CachedNetworkImage(
-                    imageUrl: coverUrl!,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(color: Colors.grey[100]),
-                    errorWidget: (context, url, error) => Container(
-                      color: Colors.grey[100],
-                      alignment: Alignment.center,
-                      child: Icon(Icons.broken_image_outlined, color: Colors.grey[400]),
-                    ),
-                  ),
-                ),
-
-              // 标题
-              if (title.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-                  child: Text(
-                    title,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                    maxLines: 2, // 改为2行，适应更长的标题
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-
-              // 正文摘要
-              if (summary.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-                  child: Text(
-                    summary,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.4),
-                    maxLines: 3, // 改为3行，显示更多内容
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-
-              const SizedBox(height: 8),
-
-              // 作者 + 时间 + 频道
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(
-                  children: [
-                    AvatarWidget(
-                      imageUrl: authorAvatar,
-                      size: 32,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        authorName,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _formatTime(createdAtRaw),
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                    const SizedBox(width: 8),
-                    _ChannelChip(channel: channel),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 8),
-
-              // 互动栏
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-                child: Row(
-                  children: [
-                    _IconText(icon: Icons.favorite_border, text: _k(likeCount)),
-                    const SizedBox(width: 12),
-                    _IconText(icon: Icons.bookmark_border, text: _k(favCount)),
-                    const SizedBox(width: 12),
-                    _IconText(icon: Icons.mode_comment_outlined, text: _k(cmtCount)),
-                    const Spacer(),
-                    _IconText(icon: Icons.visibility_outlined, text: _k(viewCount)),
-                  ],
-                ),
-              ),
-            ],
-          ),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
         ),
       ),
     );
   }
 
-<<<<<<< HEAD
-  // 图片错误占位符
   Widget _buildImageError() {
     return Container(
       color: AnimeColors.backgroundLight,
@@ -416,7 +295,6 @@ class PostCard extends StatelessWidget {
     );
   }
 
-  // 自适应互动栏
   Widget _buildAdaptiveInteractionBar({
     required int likeCount,
     required int favCount,
@@ -457,9 +335,6 @@ class PostCard extends StatelessWidget {
     );
   }
 
-=======
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
-  // 原有的工具方法保持不变
   String _snippet(String raw, int n) {
     final s = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (s.isEmpty) return '';
@@ -493,8 +368,8 @@ class PostCard extends StatelessWidget {
     return n.toString();
   }
 }
-<<<<<<< HEAD
-// 二次元风格图标文本组件
+
+// 以下所有辅助Widget保持不变
 class _AnimeIconText extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -542,7 +417,6 @@ class _AnimeIconText extends StatelessWidget {
   }
 }
 
-// 新的紧凑图标文本组件
 class _CompactIconText extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -556,7 +430,7 @@ class _CompactIconText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min, // 重要：避免占用过多空间
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(
           icon, 
@@ -575,10 +449,7 @@ class _CompactIconText extends StatelessWidget {
     );
   }
 }
-=======
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 
-// 原有的 _IconText 和 _ChannelChip 类保持不变
 class _IconText extends StatelessWidget {
   final IconData icon;
   final String text;
@@ -596,8 +467,6 @@ class _IconText extends StatelessWidget {
   }
 }
 
-<<<<<<< HEAD
-// 调整频道芯片大小
 class _ChannelChip extends StatelessWidget {
   final String channel;
   final bool isNarrowScreen;
@@ -606,38 +475,25 @@ class _ChannelChip extends StatelessWidget {
     this.isNarrowScreen = false,
   });
 
-=======
-class _ChannelChip extends StatelessWidget {
-  final String channel;
-  const _ChannelChip({required this.channel});
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
   @override
   Widget build(BuildContext context) {
     final isCos = channel == 'cos';
-    final isEvent = channel == 'event'; // ✅ 新增：活动判断
+    final isEvent = channel == 'event';
     Color getColor() {
       if (isCos) return Colors.deepPurple;
-      if (isEvent) return Colors.orange; // ✅ 新增：活动用橙色
+      if (isEvent) return Colors.orange;
       return Colors.blueGrey;
     }
-<<<<<<< HEAD
     String getLabel() {
-=======
-        String getLabel() {
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       if (isCos) return 'COS';
-      if (isEvent) return '活动'; // ✅ 新增：活动标签
+      if (isEvent) return '活动';
       return '群岛';
     }
     return Container(
-<<<<<<< HEAD
       padding: EdgeInsets.symmetric(
         horizontal: isNarrowScreen ? 4 : 6, 
         vertical: isNarrowScreen ? 1 : 2,
       ),
-=======
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       decoration: BoxDecoration(
         color: getColor().withOpacity(0.1),
         borderRadius: BorderRadius.circular(999),
@@ -646,39 +502,11 @@ class _ChannelChip extends StatelessWidget {
       child: Text(
         getLabel(),
         style: TextStyle(
-<<<<<<< HEAD
           fontSize: isNarrowScreen ? 8 : 10,
-=======
-          fontSize: 11,
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
           fontWeight: FontWeight.w600,
           color: getColor(),
         ),
       ),
     );
-<<<<<<< HEAD
   }
 }
-=======
-  // @override
-  // Widget build(BuildContext context) {
-  //   final isCos = channel == 'cos';
-  //   return Container(
-  //     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-  //     decoration: BoxDecoration(
-  //       color: (isCos ? Colors.deepPurple : Colors.blueGrey).withOpacity(0.1),
-  //       borderRadius: BorderRadius.circular(999),
-  //       border: Border.all(color: (isCos ? Colors.deepPurple : Colors.blueGrey).withOpacity(0.25)),
-  //     ),
-  //     child: Text(
-  //       isCos ? 'COS' : '群岛',
-  //       style: TextStyle(
-  //         fontSize: 11,
-  //         fontWeight: FontWeight.w600,
-  //         color: isCos ? Colors.deepPurple : Colors.blueGrey,
-  //       ),
-  //     ),
-  //   );
-  }
-}
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
