@@ -17,12 +17,16 @@ class _MyPostsTabState extends State<MyPostsTab> {
   final SupabaseClient _client = Supabase.instance.client;
 
   final List<Map<String, dynamic>> _posts = [];
-  bool _isLoading = false; // 改为 false
+  bool _isLoading = false;
   String? _error;
   int _page = 0;
   final int _pageSize = 10;
   bool _hasMore = true;
   late ScrollController _scrollController;
+
+  // 主色调常量
+  static const Color _primaryColor = Color(0xFFED7099);
+  static const Color _secondaryColor = Color(0xFFF9A8C9);
 
   @override
   void initState() {
@@ -40,7 +44,7 @@ class _MyPostsTabState extends State<MyPostsTab> {
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 200 &&
+        _scrollController.position.maxScrollExtent - 200 &&
         !_isLoading &&
         _hasMore) {
       _loadPosts();
@@ -53,10 +57,8 @@ class _MyPostsTabState extends State<MyPostsTab> {
     setState(() => _isLoading = true);
 
     try {
-      print('开始加载COS作品，用户ID: ${widget.userId}, 页码: $_page');
-
       final end = _page * _pageSize + _pageSize - 1;
-      
+
       final response = await _client
           .from('posts')
           .select('''
@@ -72,8 +74,6 @@ class _MyPostsTabState extends State<MyPostsTab> {
           .order('created_at', ascending: false)
           .range(_page * _pageSize, end);
 
-      print('查询成功，返回数据: ${response.length} 条');
-
       setState(() {
         _posts.addAll((response as List).cast<Map<String, dynamic>>());
         _page++;
@@ -81,11 +81,7 @@ class _MyPostsTabState extends State<MyPostsTab> {
         _isLoading = false;
         _error = null;
       });
-
-      print('数据加载完成，当前共 ${_posts.length} 条');
     } catch (e, stackTrace) {
-      print('加载失败: $e');
-      print('堆栈: $stackTrace');
       setState(() {
         _error = e.toString();
         _isLoading = false;
@@ -105,68 +101,220 @@ class _MyPostsTabState extends State<MyPostsTab> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _onRefresh,
-      child: _buildBody(),
+    return _buildContent();
+  }
+
+  Widget _buildContent() {
+    return Container(
+      color: const Color(0xFFF5F5F8),
+      child: Column(
+        children: [
+
+
+
+          // 统计信息栏
+          _buildStatsBar(),
+
+          Expanded(
+            child: RefreshIndicator(
+              color: _primaryColor,
+              onRefresh: _onRefresh,
+              child: _buildBody(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
+  Widget _buildStatsBar() {
+    return Container(
+
+    );
+  }
+
+
+
   Widget _buildBody() {
     if (_isLoading && _posts.isEmpty) {
-      return const LoadingView();
-    }
-
-    if (_error != null && _posts.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            const Text('加载失败', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            Text(
-              _error!,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _onRefresh,
-              child: const Text('重试'),
-            ),
-          ],
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(_primaryColor),
         ),
       );
     }
 
+    if (_error != null && _posts.isEmpty) {
+      return _buildErrorView();
+    }
+
     if (_posts.isEmpty) {
-      return const EmptyView();
+      return _buildEmptyView();
     }
 
     return ListView.builder(
       controller: _scrollController,
       itemCount: _posts.length + 1,
+      physics: const AlwaysScrollableScrollPhysics(),
       itemBuilder: (context, index) {
         if (index == _posts.length) {
-          if (!_hasMore) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(
-                child: Text('没有更多了', style: TextStyle(color: Colors.grey)),
-              ),
-            );
-          }
-          if (_isLoading) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          return const SizedBox.shrink();
+          return _buildLoadMoreIndicator();
         }
-        return PostCard(post: _posts[index]);
+
+        // 添加卡片样式
+        return Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: PostCard(post: _posts[index]),
+            ),
+            if (index < _posts.length - 1)
+              const Divider(
+                height: 1,
+                thickness: 0.5,
+                color: Color(0xFFF0F0F0),
+                indent: 24,
+                endIndent: 24,
+              ),
+          ],
+        );
       },
     );
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  _primaryColor.withOpacity(0.1),
+                  _secondaryColor.withOpacity(0.1),
+                ],
+              ),
+            ),
+            child: Icon(
+              Icons.error_outline,
+              size: 40,
+              color: _primaryColor,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            '加载失败',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _error!,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF666666),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: _onRefresh,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryColor,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            ),
+            child: const Text(
+              '重新加载',
+              style: TextStyle(fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.photo_camera_outlined,
+            size: 72,
+            color: _primaryColor,
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            '暂无作品',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            '还没有发布过COS作品',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF666666),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadMoreIndicator() {
+    if (!_hasMore) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        child: const Center(
+          child: Text(
+            '没有更多作品了',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF999999),
+            ),
+          ),
+        ),
+      );
+    }
+    if (_isLoading) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(_primaryColor),
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 }

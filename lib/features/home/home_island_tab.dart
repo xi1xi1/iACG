@@ -26,10 +26,18 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
   // 分页相关变量
   int _currentPage = 1;
   bool _hasMore = true;
-  final int _pageSize = 10;
+  final int _pageSize = 20;
 
-  // 群岛类型选项 - 只显示数据库中实际存在的类型
-  final List<String> _islandTypes = ['全部', '求助', '分享', '吐槽', '找搭子', '约拍', '其他'];
+  // 群岛类型选项 - 增强二次元风格
+  final List<Map<String, dynamic>> _islandTypes = [
+    {'type': '全部', 'icon': Icons.all_inclusive, 'color': Color(0xFF8B5CF6)},
+    {'type': '求助', 'icon': Icons.help_outline, 'color': Color(0xFFEC4899)},
+    {'type': '分享', 'icon': Icons.share_outlined, 'color': Color(0xFF06B6D4)},
+    {'type': '吐槽', 'icon': Icons.sentiment_dissatisfied_outlined, 'color': Color(0xFFF59E0B)},
+    {'type': '找搭子', 'icon': Icons.group_add_outlined, 'color': Color(0xFF10B981)},
+    {'type': '约拍', 'icon': Icons.photo_camera_outlined, 'color': Color(0xFFEF4444)},
+    {'type': '其他', 'icon': Icons.more_horiz, 'color': Color(0xFF6B7280)},
+  ];
 
   final ScrollController _scrollController = ScrollController();
   final PostService _postService = PostService();
@@ -155,28 +163,58 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
     }
   }
 
-  // 构建加载更多指示器
+  // 构建加载更多指示器 - 增强二次元风格
   Widget _buildLoadMoreIndicator() {
     if (!_hasMore && _posts.isNotEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 20),
-        child: Center(
-          child: Text(
-            '已经到底了～',
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 14,
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Text(
+              '已经到底了～',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
+          ],
         ),
       );
     }
 
     return _isLoadingMore
-        ? const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
-            child: Center(
-              child: CircularProgressIndicator(),
+        ? Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Column(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
+                    strokeWidth: 2,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '加载中...',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           )
         : const SizedBox.shrink();
@@ -193,25 +231,38 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
     }
   }
 
-  // 构建顶部导航栏
+  // 构建顶部导航栏 - 增强二次元风格
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
+      backgroundColor: AnimeColors.cardWhite,
+      elevation: 0,
       title: Row(
         children: [
-          const Text(
-            'iACG',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+          // Logo图片部分
+          Image.asset(
+            'assets/images/IACG_L.PNG',
+            height: 32,
+            fit: BoxFit.contain,
           ),
           const SizedBox(width: 16),
+          // 搜索框 - 二次元风格
           Expanded(
             child: Container(
               height: 40,
               decoration: BoxDecoration(
-                color: Colors.grey[200],
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.grey.withOpacity(0.2),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: TextField(
                 readOnly: true,
@@ -222,11 +273,15 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
                 },
                 decoration: InputDecoration(
                   hintText: '搜索内容...',
-                  hintStyle: TextStyle(color: Colors.grey[600]),
+                  hintStyle: TextStyle(color: AnimeColors.textLight),
                   border: InputBorder.none,
                   contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
+                  const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: Colors.grey,
+                    size: 20,
+                  ),
                 ),
               ),
             ),
@@ -234,38 +289,86 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
         ],
       ),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.add_circle_outline),
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const PostComposePage()),
-            );
-          },
-          tooltip: '发布',
-        ),
-        if (!_authService.isLoggedIn)
-          TextButton(
-            onPressed: () => Navigator.of(context).pushNamed('/login'),
-            child: const Text(
-              '登录',
-              style: TextStyle(color: Colors.white),
+        // 发布按钮 - 二次元风格
+        Container(
+          margin: const EdgeInsets.only(right: 8),
+          child: IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AnimeColors.primaryPink,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AnimeColors.primaryPink.withValues(alpha: 0.3),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.add,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const PostComposePage()),
+              );
+            },
+            tooltip: '发布',
           ),
+        ),
+        // if (!_authService.isLoggedIn)
+        //   Container(
+        //     margin: const EdgeInsets.only(right: 16),
+        //     child: ElevatedButton(
+        //       onPressed: () => Navigator.of(context).pushNamed('/login'),
+        //       style: ElevatedButton.styleFrom(
+        //         backgroundColor: AnimeColors.primaryPink,
+        //         foregroundColor: Colors.white,
+        //         elevation: 2,
+        //         shape: RoundedRectangleBorder(
+        //           borderRadius: BorderRadius.circular(20),
+        //         ),
+        //         padding:
+        //         const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        //       ),
+        //       child: const Text(
+        //         '登录',
+        //         style: TextStyle(
+        //           fontWeight: FontWeight.bold,
+        //           fontSize: 14,
+        //         ),
+        //       ),
+        //     ),
+        //   ),
       ],
     );
   }
 
-  // 构建类型筛选器
+  // 构建类型筛选器 - 修改为首页样式
   Widget _buildTypeFilter() {
     return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 48,
+      decoration: BoxDecoration(
+        color: AnimeColors.cardWhite,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _islandTypes.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 12),
+        separatorBuilder: (context, index) => const SizedBox(width: 16),
         itemBuilder: (context, index) {
-          final type = _islandTypes[index];
+          final typeData = _islandTypes[index];
+          final type = typeData['type'] as String;
           final isSelected = _selectedType == type;
 
           return GestureDetector(
@@ -276,19 +379,33 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
               }
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey[200],
-                borderRadius: BorderRadius.circular(20),
+              constraints: const BoxConstraints(
+                minWidth: 60,
               ),
-              child: Text(
-                type,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.grey[700],
-                  fontWeight: FontWeight.w500,
-                ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    type,
+                    style: TextStyle(
+                      color: isSelected ? AnimeColors.primaryPink : AnimeColors.textLight,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontSize: isSelected ? 16 : 14,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  // 底部指示器
+                  Container(
+                    height: 3,
+                    width: 24,
+                    decoration: BoxDecoration(
+                      color: isSelected ? AnimeColors.primaryPink : Colors.transparent,
+                      borderRadius: BorderRadius.circular(1.5),
+                    ),
+                  ),
+                ],
               ),
             ),
           );
@@ -297,22 +414,98 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
     );
   }
 
-  // 构建空状态
+  // 构建空状态 - 增强二次元风格
   Widget _buildEmptyState() {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.forum_outlined, size: 64, color: Colors.grey),
-          const SizedBox(height: 16),
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: Colors.grey[50],
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: Colors.grey[200]!,
+                width: 2,
+              ),
+            ),
+            child: Icon(
+              Icons.forum_outlined,
+              size: 48,
+              color: Colors.grey[400],
+            ),
+          ),
+          const SizedBox(height: 24),
           Text(
             _selectedType == '全部' ? '暂无群岛帖子' : '暂无$_selectedType类型的帖子',
-            style: const TextStyle(fontSize: 16, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
+          Text(
+            '快来发布第一条帖子吧～',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[400],
+            ),
+          ),
+          const SizedBox(height: 20),
           ElevatedButton(
             onPressed: () => _loadPosts(isRefresh: true),
-            child: const Text('重新加载'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8B5CF6),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              elevation: 2,
+            ),
+            child: const Text(
+              '重新加载',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 构建单列布局
+  Widget _buildSingleColumnLayout() {
+    return RefreshIndicator(
+      onRefresh: () => _loadPosts(isRefresh: true),
+      child: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: PostCard(
+                      post: _posts[index],
+                      isLeftColumn: true, // 保持原有参数，但现在是单列
+                    ),
+                  );
+                },
+                childCount: _posts.length,
+              ),
+            ),
+          ),
+          // 加载更多指示器
+          SliverToBoxAdapter(
+            child: _buildLoadMoreIndicator(),
           ),
         ],
       ),
@@ -323,6 +516,7 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(),
+      backgroundColor: AnimeColors.backgroundLight,// 背景颜色
       body: Column(
         children: [
           // 类型筛选器
@@ -338,22 +532,21 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
                         onRetry: () => _loadPosts(isRefresh: true))
                     : _posts.isEmpty
                         ? _buildEmptyState()
-                        : RefreshIndicator(
-                            onRefresh: () => _loadPosts(isRefresh: true),
-                            child: ListView.builder(
-                              controller: _scrollController,
-                              itemCount: _posts.length + 1,
-                              itemBuilder: (context, index) {
-                                if (index == _posts.length) {
-                                  return _buildLoadMoreIndicator();
-                                }
-                                return PostCard(post: _posts[index]);
-                              },
-                            ),
-                          ),
+                        : _buildSingleColumnLayout(),
           ),
         ],
       ),
+      // 浮动回到顶部按钮
+      floatingActionButton: _scrollController.hasClients && 
+          _scrollController.offset > 300
+          ? FloatingActionButton(
+              onPressed: _scrollToTop,
+              backgroundColor: const Color(0xFF8B5CF6),
+              foregroundColor: Colors.white,
+              elevation: 4,
+              child: const Icon(Icons.arrow_upward_rounded),
+            )
+          : null,
     );
   }
 }

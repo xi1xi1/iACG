@@ -15,12 +15,16 @@ class MyCollabTab extends StatefulWidget {
 class _MyCollabTabState extends State<MyCollabTab> {
   final SupabaseClient _client = Supabase.instance.client;
   final List<Map<String, dynamic>> _posts = [];
-  bool _isLoading = false; // 改为 false，避免初始化时重复
+  bool _isLoading = false;
   String? _error;
   int _page = 0;
   final int _pageSize = 10;
   bool _hasMore = true;
   late ScrollController _scrollController;
+
+  // 主色调常量
+  static const Color _primaryColor = Color(0xFFED7099);
+  static const Color _secondaryColor = Color(0xFFF9A8C9);
 
   @override
   void initState() {
@@ -38,7 +42,7 @@ class _MyCollabTabState extends State<MyCollabTab> {
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 200 &&
+        _scrollController.position.maxScrollExtent - 200 &&
         !_isLoading &&
         _hasMore) {
       _fetchCollabPosts();
@@ -50,8 +54,6 @@ class _MyCollabTabState extends State<MyCollabTab> {
 
     setState(() => _isLoading = true);
     try {
-      print('开始加载共创作品，用户ID: ${widget.userId}, 页码: $_page');
-      
       final end = _page * _pageSize + _pageSize - 1;
       final resp = await _client
           .from('post_collaborators')
@@ -69,20 +71,16 @@ class _MyCollabTabState extends State<MyCollabTab> {
           .order('created_at', ascending: false)
           .range(_page * _pageSize, end);
 
-      print('查询返回: ${resp.length} 条记录');
-
       final List<Map<String, dynamic>> newPosts = [];
       for (var item in (resp as List)) {
         final postData = item['post'];
-        if (postData != null && 
-            postData is Map<String, dynamic> && 
-            postData['is_deleted'] == false && 
+        if (postData != null &&
+            postData is Map<String, dynamic> &&
+            postData['is_deleted'] == false &&
             postData['status'] == 'normal') {
           newPosts.add(postData);
         }
       }
-
-      print('过滤后有效帖子: ${newPosts.length} 条');
 
       setState(() {
         _posts.addAll(newPosts);
@@ -91,11 +89,7 @@ class _MyCollabTabState extends State<MyCollabTab> {
         _isLoading = false;
         _error = null;
       });
-
-      print('共创数据加载完成，当前共 ${_posts.length} 条');
     } catch (e, stackTrace) {
-      print('加载共创作品失败：$e');
-      print('堆栈跟踪：$stackTrace');
       setState(() {
         _error = '加载共创作品失败：${e.toString()}';
         _isLoading = false;
@@ -115,68 +109,207 @@ class _MyCollabTabState extends State<MyCollabTab> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _onRefresh,
-      child: _buildBody(),
+    return _buildContent();
+  }
+
+  Widget _buildContent() {
+    return Container(
+      color: const Color(0xFFF5F5F8),
+      child: Column(
+        children: [
+
+          Expanded(
+            child: RefreshIndicator(
+              color: _primaryColor,
+              onRefresh: _onRefresh,
+              child: _buildBody(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildBody() {
     if (_isLoading && _posts.isEmpty) {
-      return const LoadingView();
-    }
-
-    if (_error != null && _posts.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
-            const SizedBox(height: 16),
-            const Text('加载失败', style: TextStyle(fontSize: 16)),
-            const SizedBox(height: 8),
-            Text(
-              _error!,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _onRefresh,
-              child: const Text('重试'),
-            ),
-          ],
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(_primaryColor),
         ),
       );
     }
 
+    if (_error != null && _posts.isEmpty) {
+      return _buildErrorView();
+    }
+
     if (_posts.isEmpty) {
-      return const EmptyView();
+      return _buildEmptyView();
     }
 
     return ListView.builder(
       controller: _scrollController,
       itemCount: _posts.length + 1,
+      physics: const AlwaysScrollableScrollPhysics(),
       itemBuilder: (context, index) {
         if (index == _posts.length) {
-          if (!_hasMore) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(
-                child: Text('没有更多了', style: TextStyle(color: Colors.grey)),
-              ),
-            );
-          }
-          if (_isLoading) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          return const SizedBox.shrink();
+          return _buildLoadMoreIndicator();
         }
-        return PostCard(post: _posts[index]);
+
+        // 添加分隔线和样式
+        return Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: PostCard(post: _posts[index]),
+            ),
+            if (index < _posts.length - 1)
+              const Divider(
+                height: 1,
+                thickness: 0.5,
+                color: Color(0xFFF0F0F0),
+                indent: 24,
+                endIndent: 24,
+              ),
+          ],
+        );
       },
     );
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  _primaryColor.withOpacity(0.1),
+                  _secondaryColor.withOpacity(0.1),
+                ],
+              ),
+            ),
+            child: Icon(
+              Icons.error_outline,
+              size: 40,
+              color: _primaryColor,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            '加载失败',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _error!,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Color(0xFF666666),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: _onRefresh,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryColor,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            ),
+            child: const Text(
+              '重新加载',
+              style: TextStyle(fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.group_add_outlined,
+            size: 72,
+            color: _primaryColor,
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            '暂无共创作品',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            '还没有参与过共创项目',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF666666),
+            ),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadMoreIndicator() {
+    if (!_hasMore) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        child: const Center(
+          child: Text(
+            '没有更多共创作品了',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF999999),
+            ),
+          ),
+        ),
+      );
+    }
+    if (_isLoading) {
+      return Container(
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            valueColor: AlwaysStoppedAnimation<Color>(_primaryColor),
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 }

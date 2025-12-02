@@ -357,39 +357,16 @@ class _HomeCosTabState extends State<HomeCosTab>
 
   // 构建顶部导航栏 - 二次元风格
   PreferredSizeWidget _buildAppBar() {
-    backgroundColor: AnimeColors.backgroundLight;
     return AppBar(
       backgroundColor: AnimeColors.cardWhite,
       elevation: 0,
       title: Row(
         children: [
-          // Logo部分 - 二次元风格
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AnimeColors.gradientStart, AnimeColors.gradientEnd],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: AnimeColors.primaryPink.withOpacity(0.3),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: const Text(
-              'iACG',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                letterSpacing: 1.2,
-              ),
-            ),
+          // Logo图片部分
+          Image.asset(
+            'assets/images/IACG_L.PNG',
+            height: 32,
+            fit: BoxFit.contain,
           ),
           const SizedBox(width: 16),
           // 搜索框 - 二次元风格
@@ -397,10 +374,10 @@ class _HomeCosTabState extends State<HomeCosTab>
             child: Container(
               height: 40,
               decoration: BoxDecoration(
-                color: AnimeColors.backgroundLight,
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: AnimeColors.primaryPink.withOpacity(0.2),
+                  color: Colors.grey.withOpacity(0.2),
                   width: 1.5,
                 ),
                 boxShadow: [
@@ -423,10 +400,10 @@ class _HomeCosTabState extends State<HomeCosTab>
                   hintStyle: TextStyle(color: AnimeColors.textLight),
                   border: InputBorder.none,
                   contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
                   prefixIcon: Icon(
                     Icons.search,
-                    color: AnimeColors.primaryPink,
+                    color: Colors.grey,
                     size: 20,
                   ),
                 ),
@@ -443,18 +420,11 @@ class _HomeCosTabState extends State<HomeCosTab>
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    AnimeColors.gradientStart,
-                    AnimeColors.gradientEnd
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
+                color: AnimeColors.primaryPink,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AnimeColors.primaryPink.withOpacity(0.3),
+                    color: AnimeColors.primaryPink.withValues(alpha: 0.3),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
@@ -474,30 +444,30 @@ class _HomeCosTabState extends State<HomeCosTab>
             tooltip: '发布',
           ),
         ),
-        if (!_authService.isLoggedIn)
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            child: ElevatedButton(
-              onPressed: () => Navigator.of(context).pushNamed('/login'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AnimeColors.primaryPink,
-                foregroundColor: Colors.white,
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              ),
-              child: const Text(
-                '登录',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-            ),
-          ),
+        // if (!_authService.isLoggedIn)
+        //   Container(
+        //     margin: const EdgeInsets.only(right: 16),
+        //     child: ElevatedButton(
+        //       onPressed: () => Navigator.of(context).pushNamed('/login'),
+        //       style: ElevatedButton.styleFrom(
+        //         backgroundColor: AnimeColors.primaryPink,
+        //         foregroundColor: Colors.white,
+        //         elevation: 2,
+        //         shape: RoundedRectangleBorder(
+        //           borderRadius: BorderRadius.circular(20),
+        //         ),
+        //         padding:
+        //         const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        //       ),
+        //       child: const Text(
+        //         '登录',
+        //         style: TextStyle(
+        //           fontWeight: FontWeight.bold,
+        //           fontSize: 14,
+        //         ),
+        //       ),
+        //     ),
+        //   ),
       ],
       bottom: PreferredSize(
         preferredSize: const Size.fromHeight(48),
@@ -535,73 +505,116 @@ class _HomeCosTabState extends State<HomeCosTab>
     );
   }
 
-  // 构建筛选面板（仅全部标签显示）
+  // 构建筛选面板（仅全部标签显示）- 增强二次元风格
   Widget _buildFilterPanel() {
     if (_selectedTopTab != 0 || !_showFilterPanel) {
       return const SizedBox.shrink();
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[300]!),
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF7F7F7), //背景
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        // boxShadow: [
+        //   BoxShadow(
+        //     color: AnimeColors.primaryPink.withValues(alpha: 0.15),
+        //     blurRadius: 20,
+        //     offset: const Offset(0, 4),
+        //   ),
+        //   BoxShadow(
+        //     color: Colors.black.withValues(alpha: 0.1),
+        //     blurRadius: 8,
+        //     offset: const Offset(0, 2),
+        //   ),
+        // ],
+        // border: Border.all(
+        //   color: AnimeColors.primaryPink.withValues(alpha: 0.1),
+        //   width: 1,
+        // ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 面板标题
+          // 面板标题 - 二次元风格
           Row(
             children: [
-              Text(
-                _currentFilterType == FilterType.category ? '选择类型' : '选择IP',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AnimeColors.primaryPink,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _currentFilterType == FilterType.category ? '全部类型' : '全部类型',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               const Spacer(),
-              // 关闭按钮
-              IconButton(
-                onPressed: _closeFilterPanel,
-                icon: const Icon(Icons.close, size: 20),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+              // 关闭按钮 - 二次元风格
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AnimeColors.backgroundLight,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AnimeColors.primaryPink.withValues(alpha: 0.3),
+                    width: 1.5,
+                  ),
+                ),
+                child: IconButton(
+                  onPressed: _closeFilterPanel,
+                  icon: Icon(
+                    Icons.close,
+                    size: 18,
+                    color: AnimeColors.primaryPink,
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           // 筛选内容
           _buildFilterOptions(),
-          const SizedBox(height: 16),
-          // 应用按钮
+          const SizedBox(height: 20),
+          // 应用按钮 - 二次元风格
           SizedBox(
             width: double.infinity,
-            height: 44,
+            height: 48,
             child: ElevatedButton(
               onPressed: _applyFilters,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
+                backgroundColor: AnimeColors.primaryPink,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(12),
                 ),
+                elevation: 4,
+                shadowColor: AnimeColors.primaryPink.withValues(alpha: 0.3),
               ),
-              child: const Text(
-                '应用筛选',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle_outline, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    '应用筛选',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -619,11 +632,11 @@ class _HomeCosTabState extends State<HomeCosTab>
     }
   }
 
-  // 构建类型选项
+  // 构建类型选项 - 增强二次元风格
   Widget _buildCategoryOptions() {
     return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+      spacing: 10,
+      runSpacing: 10,
       children: _cosCategories.map((category) {
         final isSelected = _selectedCategory == category;
         return GestureDetector(
@@ -637,21 +650,45 @@ class _HomeCosTabState extends State<HomeCosTab>
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? Theme.of(context).colorScheme.primary
-                  : Colors.grey[100],
+              color: isSelected ? AnimeColors.primaryPink : Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isSelected
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey[300]!,
-              ),
+              // border: Border.all(
+              //   color: isSelected
+              //       ? AnimeColors.primaryPink.withValues(alpha: 0.3)
+              //       : AnimeColors.primaryPink.withValues(alpha: 0.2),
+              //   width: isSelected ? 0 : 1.5,
+              // ),
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: AnimeColors.primaryPink.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
             ),
             child: Text(
               category,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.grey[700],
-                fontWeight: FontWeight.w500,
+                color: isSelected ? Colors.white : AnimeColors.primaryPink,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+                shadows: isSelected
+                    ? [
+                        const Shadow(
+                          blurRadius: 2,
+                          color: Colors.black26,
+                          offset: Offset(1, 1),
+                        ),
+                      ]
+                    : null,
               ),
             ),
           ),
@@ -660,13 +697,30 @@ class _HomeCosTabState extends State<HomeCosTab>
     );
   }
 
-  // 构建 IP 选项
+  // 构建 IP 选项 - 增强二次元风格
   Widget _buildIpOptions() {
     return _isLoadingTags
-        ? const Center(child: CircularProgressIndicator())
+        ? Center(
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AnimeColors.primaryPink.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AnimeColors.primaryPink.withValues(alpha: 0.3),
+                  width: 1,
+                ),
+              ),
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AnimeColors.primaryPink),
+                strokeWidth: 2,
+              ),
+            ),
+          )
         : Wrap(
-            spacing: 12,
-            runSpacing: 12,
+            spacing: 10,
+            runSpacing: 10,
             children: [
               // "全部"选项
               GestureDetector(
@@ -676,24 +730,47 @@ class _HomeCosTabState extends State<HomeCosTab>
                   });
                 },
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color:
-                        _selectedIp == '全部' ? Colors.purple : Colors.grey[100],
+                    color: _selectedIp == '全部' ? AnimeColors.primaryPink : Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _selectedIp == '全部'
-                          ? Colors.purple
-                          : Colors.grey[300]!,
-                    ),
+                    // border: Border.all(
+                    //   color: _selectedIp == '全部'
+                    //       ? AnimeColors.primaryPink.withValues(alpha: 0.3)
+                    //       : AnimeColors.primaryPink.withValues(alpha: 0.2),
+                    //   width: _selectedIp == '全部' ? 0 : 1.5,
+                    // ),
+                    boxShadow: _selectedIp == '全部'
+                        ? [
+                            BoxShadow(
+                              color: AnimeColors.primaryPink.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
                   ),
                   child: Text(
                     '全部',
                     style: TextStyle(
-                      color:
-                          _selectedIp == '全部' ? Colors.white : Colors.grey[700],
-                      fontWeight: FontWeight.w500,
+                      color: _selectedIp == '全部' ? Colors.white : AnimeColors.primaryPink,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      shadows: _selectedIp == '全部'
+                          ? [
+                              const Shadow(
+                                blurRadius: 2,
+                                color: Colors.black26,
+                                offset: Offset(1, 1),
+                              ),
+                            ]
+                          : null,
                     ),
                   ),
                 ),
@@ -709,20 +786,47 @@ class _HomeCosTabState extends State<HomeCosTab>
                     });
                   },
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
-                      color: isSelected ? Colors.purple : Colors.grey[100],
+                      color: isSelected ? AnimeColors.primaryPink : Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected ? Colors.purple : Colors.grey[300]!,
-                      ),
+                      // border: Border.all(
+                      //   color: isSelected
+                      //       ? AnimeColors.primaryPink.withValues(alpha: 0.3)
+                      //       : AnimeColors.primaryPink.withValues(alpha: 0.2),
+                      //   width: isSelected ? 0 : 1.5,
+                      // ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: AnimeColors.primaryPink.withValues(alpha: 0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
                     ),
                     child: Text(
                       tagName,
                       style: TextStyle(
-                        color: isSelected ? Colors.white : Colors.grey[700],
-                        fontWeight: FontWeight.w500,
+                        color: isSelected ? Colors.white : AnimeColors.primaryPink,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        shadows: isSelected
+                            ? [
+                                const Shadow(
+                                  blurRadius: 2,
+                                  color: Colors.black26,
+                                  offset: Offset(1, 1),
+                                ),
+                              ]
+                            : null,
                       ),
                     ),
                   ),
@@ -738,6 +842,7 @@ class _HomeCosTabState extends State<HomeCosTab>
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      color: Color(0xFFF7F7F7),
       child: Row(
         children: [
           // 类型筛选按钮
@@ -776,25 +881,17 @@ class _HomeCosTabState extends State<HomeCosTab>
         height: 44,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-          gradient: isActive
-              ? const LinearGradient(
-                  colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                )
-              : LinearGradient(
-                  colors: [Colors.white, Colors.grey[100]!],
-                ),
+          color: isActive ? AnimeColors.primaryPink : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isActive
-                ? const Color(0xFFEC4899)
+                ? AnimeColors.primaryPink
                 : Colors.grey[300]!,
             width: isActive ? 0 : 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(isActive ? 0.2 : 0.1),
+              color: Colors.black.withValues(alpha: isActive ? 0.2 : 0.1),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -806,7 +903,7 @@ class _HomeCosTabState extends State<HomeCosTab>
             Icon(
               icon,
               size: 18,
-              color: isActive ? Colors.white : const Color(0xFFEC4899),
+              color: isActive ? Colors.white : AnimeColors.primaryPink,
             ),
             const SizedBox(width: 6),
             Text(
@@ -814,7 +911,7 @@ class _HomeCosTabState extends State<HomeCosTab>
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: isActive ? Colors.white : const Color(0xFFEC4899),
+                color: isActive ? Colors.white : AnimeColors.primaryPink,
                 shadows: isActive
                     ? [
                         const Shadow(
@@ -937,11 +1034,11 @@ class _HomeCosTabState extends State<HomeCosTab>
       appBar: _buildAppBar(),
       body: Column(
         children: [
-          // 筛选按钮（仅全部标签）
+          // 筛选按钮
           _buildFilterButtons(),
-          // 筛选面板（仅全部标签）
+          // 筛选面板
           _buildFilterPanel(),
-          // 筛选状态栏（仅全部标签）
+          // 筛选状态栏
           _buildFilterStatus(),
           // 帖子列表 - 双瀑布流
           Expanded(

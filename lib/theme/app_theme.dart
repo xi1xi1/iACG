@@ -6,11 +6,11 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       fontFamily: fontFamily,
-      primaryColor: const Color(0xFF6366F1), // 主色调
+      primaryColor: const Color(0xFFED7099), // 主色调
       colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF6366F1),
-        primary: const Color(0xFF6366F1),
-        secondary: const Color(0xFFEC4899), // ACG 粉色
+        seedColor: const Color(0xFFED7099),
+        primary: const Color(0xFFED7099),
+        secondary: const Color(0xFFED7099), // ACG 粉色
       ),
       scaffoldBackgroundColor: Colors.white,
       appBarTheme: const AppBarTheme(

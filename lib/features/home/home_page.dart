@@ -3,22 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:iacg/features/search/search_page.dart';
 import '../../services/auth_service.dart';
 import '../../services/event_service.dart';
+import '../../services/profile_service.dart';
 import 'home_recommend_tab.dart';
 import 'home_events_tab.dart';
 import 'home_following_tab.dart'; // 新增关注标签页
 import 'package:iacg/features/post/post_compose_page.dart';
 import 'package:iacg/features/post/post_detail_page.dart';
 
-// 二次元风格颜色定义
 class AnimeColors {
-  static const Color primaryPink = Color(0xFFEC4899); // 粉色
+  static const Color primaryPink = Color(0xFFED7099); // 粉色 - 修改为ED7099
   static const Color secondaryPurple = Color(0xFF8B5CF6); // 紫色
   static const Color accentCyan = Color(0xFF06B6D4); // 青色
   static const Color backgroundLight = Color(0xFFF8FAFC); // 浅灰背景
   static const Color textDark = Color(0xFF1F2937); // 深色文字
   static const Color textLight = Color(0xFF6B7280); // 浅色文字
   static const Color cardWhite = Color(0xFFFFFFFF); // 卡片白色
-  static const Color gradientStart = Color(0xFFEC4899); // 渐变开始
+  static const Color gradientStart = Color(0xFFED7099); // 渐变开始 - 修改为ED7099
   static const Color gradientEnd = Color(0xFF8B5CF6); // 渐变结束
 }
 
@@ -42,12 +42,17 @@ class _HomePageState extends State<HomePage>
   bool _isEventsLoading = true;
   String? _eventsError;
 
+  // 用户身份状态
+  bool _isOrganizer = false;
+  bool _loadingUserRole = true;
+
   @override
   void initState() {
     super.initState();
     // 修改：长度改为3，包含推荐、活动、关注
     _tabController = TabController(length: 3, vsync: this);
     _loadEvents();
+    _checkUserRole();
   }
 
   @override
@@ -100,6 +105,35 @@ class _HomePageState extends State<HomePage>
       setState(() {
         _isEventsLoading = false;
       });
+    }
+  }
+
+  // 检查用户是否是活动组织者
+  Future<void> _checkUserRole() async {
+    try {
+      // 首先检查用户是否登录
+      if (!_authService.isLoggedIn) {
+        setState(() {
+          _isOrganizer = false;
+          _loadingUserRole = false;
+        });
+        return;
+      }
+
+      // 获取用户资料并检查角色
+      final profile = await ProfileService().fetchMyProfile();
+      if (profile != null) {
+        setState(() {
+          _isOrganizer = profile.role == 'organizer';
+          _loadingUserRole = false;
+        });
+        print('用户身份检查完成: isOrganizer = $_isOrganizer, role = ${profile.role}');
+      } else {
+        setState(() => _loadingUserRole = false);
+      }
+    } catch (e) {
+      print('检查用户身份失败: $e');
+      setState(() => _loadingUserRole = false);
     }
   }
 
@@ -491,6 +525,195 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  // 显示频道选择底部弹窗
+  void _showChannelSelectionBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) {
+        return GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            color: Colors.black.withOpacity(0.4),
+            child: DraggableScrollableSheet(
+              initialChildSize: 0.55, // 增加初始高度到55%
+              minChildSize: 0.4, // 最小高度40%
+              maxChildSize: 0.55, // 最大高度70%
+              snap: true,
+              snapSizes: const [0.54, 0.55], // 设置吸附点
+              builder: (context, scrollController) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: AnimeColors.cardWhite,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        spreadRadius: 2,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // 顶部拖拽指示器
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      
+                      // 标题
+                      Padding(
+                        padding: const EdgeInsets.only(top: 24, bottom: 20),
+                        child: Text(
+                          '请选择发布频道',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AnimeColors.textDark,
+                          ),
+                        ),
+                      ),
+                      
+                      // 频道选项 - 使用固定高度确保完全显示
+                      SizedBox(
+                        height: 280, // 固定高度确保三个选项完全显示
+                        child: ListView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          physics: const ClampingScrollPhysics(), // 禁用弹性效果
+                          children: [
+                            // COS作品
+                            _buildChannelOption(
+                              label: 'COS作品',
+                              icon: Icons.photo_camera,
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => PostComposePage(initialChannel: 'cos'),
+                                  ),
+                                );
+                              },
+                            ),
+                            
+                            const SizedBox(height: 16),
+                            
+                            // 群岛社区
+                            _buildChannelOption(
+                              label: '群岛社区',
+                              icon: Icons.people,
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => PostComposePage(initialChannel: 'island'),
+                                  ),
+                                );
+                              },
+                            ),
+                            
+                            // 活动 - 只在用户是活动组织者时显示
+                            if (_isOrganizer) ...[
+                              const SizedBox(height: 16),
+                              _buildChannelOption(
+                                label: '活动',
+                                icon: Icons.event,
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => PostComposePage(initialChannel: 'event'),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                            
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // 构建频道选项
+  Widget _buildChannelOption({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Colors.grey.shade200,
+          width: 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AnimeColors.primaryPink.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: AnimeColors.primaryPink,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AnimeColors.textDark,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: Colors.grey.shade400,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tabs = ['推荐', '活动', '关注'];
@@ -502,33 +725,11 @@ class _HomePageState extends State<HomePage>
         elevation: 0,
         title: Row(
           children: [
-            // Logo部分 - 二次元风格
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AnimeColors.gradientStart, AnimeColors.gradientEnd],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: AnimeColors.primaryPink.withOpacity(0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Text(
-                'iACG',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 1.2,
-                ),
-              ),
+            // Logo图片部分
+            Image.asset(
+              'assets/images/IACG_L.PNG',
+              height: 32,
+              fit: BoxFit.contain,
             ),
             const SizedBox(width: 16),
             // 搜索框 - 二次元风格
@@ -536,10 +737,10 @@ class _HomePageState extends State<HomePage>
               child: Container(
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AnimeColors.backgroundLight,
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AnimeColors.primaryPink.withOpacity(0.2),
+                    color: Colors.grey.withOpacity(0.2),
                     width: 1.5,
                   ),
                   boxShadow: [
@@ -562,10 +763,10 @@ class _HomePageState extends State<HomePage>
                     hintStyle: TextStyle(color: AnimeColors.textLight),
                     border: InputBorder.none,
                     contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
                     prefixIcon: Icon(
                       Icons.search,
-                      color: AnimeColors.primaryPink,
+                      color: Colors.grey,
                       size: 20,
                     ),
                   ),
@@ -582,18 +783,11 @@ class _HomePageState extends State<HomePage>
               icon: Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AnimeColors.gradientStart,
-                      AnimeColors.gradientEnd
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
+                  color: AnimeColors.primaryPink,
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: AnimeColors.primaryPink.withOpacity(0.3),
+                      color: AnimeColors.primaryPink.withValues(alpha: 0.3),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
@@ -605,38 +799,34 @@ class _HomePageState extends State<HomePage>
                   size: 20,
                 ),
               ),
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const PostComposePage()),
-                );
-              },
+              onPressed: _showChannelSelectionBottomSheet,
               tooltip: '发布',
             ),
           ),
-          if (!_authService.isLoggedIn)
-            Container(
-              margin: const EdgeInsets.only(right: 16),
-              child: ElevatedButton(
-                onPressed: () => Navigator.of(context).pushNamed('/login'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AnimeColors.primaryPink,
-                  foregroundColor: Colors.white,
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                ),
-                child: const Text(
-                  '登录',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ),
+          // if (!_authService.isLoggedIn)
+          //   Container(
+          //     margin: const EdgeInsets.only(right: 16),
+          //     child: ElevatedButton(
+          //       onPressed: () => Navigator.of(context).pushNamed('/login'),
+          //       style: ElevatedButton.styleFrom(
+          //         backgroundColor: AnimeColors.primaryPink,
+          //         foregroundColor: Colors.white,
+          //         elevation: 2,
+          //         shape: RoundedRectangleBorder(
+          //           borderRadius: BorderRadius.circular(20),
+          //         ),
+          //         padding:
+          //             const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          //       ),
+          //       child: const Text(
+          //         '登录',
+          //         style: TextStyle(
+          //           fontWeight: FontWeight.bold,
+          //           fontSize: 14,
+          //         ),
+          //       ),
+          //     ),
+          //   ),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48),

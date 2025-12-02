@@ -237,6 +237,10 @@ class SearchService {
     final q = query.trim();
     if (q.isEmpty) return [];
 
+    // 获取当前用户ID用于检查关注状态
+    final currentUserId = _client.auth.currentUser?.id;
+
+    // 第一步：获取基本用户信息
     final rows = await _client
         .from('profiles')
         .select('id, nickname, avatar_url')
@@ -244,9 +248,95 @@ class SearchService {
         .order('nickname', ascending: true)
         .range(offset, offset + limit - 1);
 
-    return (rows as List)
+    // 转换结果
+    final List<Map<String, dynamic>> users = (rows as List)
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList(growable: false);
+
+    // 第二步：为每个用户获取粉丝数、作品数和关注状态
+    if (currentUserId != null) {
+      for (final user in users) {
+        final userId = user['id']?.toString();
+        if (userId != null) {
+          // 并发获取粉丝数、作品数和关注状态
+          final results = await Future.wait([
+            _getFollowerCount(userId),
+            _getPostCount(userId),
+            _checkIfFollowing(currentUserId, userId),
+          ]);
+          
+          user['follower_count'] = results[0];
+          user['post_count'] = results[1];
+          user['is_following'] = results[2];
+        }
+      }
+    } else {
+      // 用户未登录，只获取粉丝数和作品数
+      for (final user in users) {
+        final userId = user['id']?.toString();
+        if (userId != null) {
+          final results = await Future.wait([
+            _getFollowerCount(userId),
+            _getPostCount(userId),
+          ]);
+          
+          user['follower_count'] = results[0];
+          user['post_count'] = results[1];
+          user['is_following'] = false; // 未登录用户默认未关注
+        }
+      }
+    }
+
+    return users;
+  }
+
+  // 获取粉丝数
+  Future<int> _getFollowerCount(String userId) async {
+    try {
+      final result = await _client
+          .from('follows')
+          .select('id')
+          .eq('following_id', userId);
+      
+      return (result as List).length;
+    } catch (e) {
+      print('❌ 获取粉丝数失败: $e');
+      return 0;
+    }
+  }
+
+  // 获取作品数
+  Future<int> _getPostCount(String userId) async {
+    try {
+      final result = await _client
+          .from('posts')
+          .select('id')
+          .eq('author_id', userId)
+          .eq('is_deleted', false)
+          .eq('status', 'normal');
+      
+      return (result as List).length;
+    } catch (e) {
+      print('❌ 获取作品数失败: $e');
+      return 0;
+    }
+  }
+
+  // 检查是否已关注某个用户
+  Future<bool> _checkIfFollowing(String followerId, String followingId) async {
+    try {
+      final result = await _client
+          .from('follows')
+          .select('id')
+          .eq('follower_id', followerId)
+          .eq('following_id', followingId)
+          .maybeSingle();
+      
+      return result != null;
+    } catch (e) {
+      print('❌ 检查关注状态失败: $e');
+      return false;
+    }
   }
 
   // ---------- 聚合搜索：posts / tags / users 各取 N 条 ----------

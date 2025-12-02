@@ -252,7 +252,7 @@ class _SearchIslandTabState extends State<SearchIslandTab> with AutomaticKeepAli
 
               return ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(8),
                 itemCount: _posts.length + (_hasMore ? 1 : 0),
                 itemBuilder: (context, index) {
                   if (index == _posts.length) {
@@ -264,7 +264,10 @@ class _SearchIslandTabState extends State<SearchIslandTab> with AutomaticKeepAli
                         : const SizedBox();
                   }
                   final post = _posts[index];
-                  return PostCard(post: post);
+                  return PostCard(
+                    post: post,
+                    compactMode: true, // 使用紧凑模式
+                  );
                 },
               );
             },

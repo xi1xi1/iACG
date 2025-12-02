@@ -11,7 +11,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PostComposePage extends StatefulWidget {
-  const PostComposePage({super.key});
+  final String? initialChannel;
+  final String? autoFillTag; // ✅ 新增：自动填充的标签名称
+  const PostComposePage({
+    super.key, 
+    this.initialChannel,
+    this.autoFillTag, // ✅ 新增
+  });
 
   @override
   State<PostComposePage> createState() => _PostComposePageState();
@@ -25,11 +31,14 @@ class _PostComposePageState extends State<PostComposePage> {
   final _client = Supabase.instance.client;
   final _profileService = ProfileService();
 
-  String _channel = 'cos'; // cos | island | event
+  late String _channel; // cos | island | event
   bool _isOrganizer = false;
   bool _loadingUserRole = true;
   final _titleCtrl = TextEditingController();
   final _contentCtrl = TextEditingController();
+
+  // ✅ 新增：存储自动填充的标签
+  String? _autoFilledTag;
 
   // COS only
   String? _cosCategory; // anime/game/comic/novel/other
@@ -75,15 +84,42 @@ class _PostComposePageState extends State<PostComposePage> {
 
   bool _publishing = false;
 
-  // 二次元风格颜色
-  final Color _primaryColor = const Color(0xFFEC4899); // 粉色
+  // 二次元风格颜色 - 修改为ED7099粉色
+  final Color _primaryColor = const Color(0xFFED7099); // 粉色 - 与首页发作品按钮一致
   final Color _secondaryColor = const Color(0xFF8B5CF6); // 紫色
-  final Color _accentColor = const Color(0xFF06B6D4); // 青色
+  final Color _accentColor = const Color(0xFFED7099); // 青色改为粉色，用于选择图片按钮
   final Color _backgroundColor = const Color(0xFFF8FAFC); // 浅灰背景
 
   @override
   void initState() {
     super.initState();
+    // 初始化频道，如果有传入的初始频道则使用，否则默认cos
+    _channel = widget.initialChannel ?? 'cos';
+     // ✅ 新增：处理自动填充的标签
+  if (widget.autoFillTag != null && widget.autoFillTag!.trim().isNotEmpty) {
+    _autoFilledTag = widget.autoFillTag!.trim();
+    
+    // 自动将活动标签添加到标签输入框
+    if (_tagsCtrl.text.trim().isEmpty) {
+      _tagsCtrl.text = _autoFilledTag!;
+    } else {
+      // 检查是否已经包含该标签（简单的检查）
+      final currentTags = _tagsCtrl.text
+          .split(RegExp(r'[，, ]'))
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      
+      if (!currentTags.contains(_autoFilledTag!)) {
+        _tagsCtrl.text = '${_tagsCtrl.text}, ${_autoFilledTag!}';
+      }
+    }
+    
+    // （可选）自动设置标题前缀
+    if (_titleCtrl.text.isEmpty) {
+      _titleCtrl.text = '参加${_autoFilledTag!}活动';
+    }
+  }
     _checkUserRole();
   }
 
@@ -377,7 +413,94 @@ class _PostComposePageState extends State<PostComposePage> {
       if (mounted) setState(() => _publishing = false);
     }
   }
+// ✅ 新增：构建标签部分（包含活动标签提示）
+Widget _buildTagsSection() {
+  return _buildAnimeCard(
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ✅ 新增：如果是从活动页来的，显示提示
+        if (_autoFilledTag != null && _autoFilledTag!.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFED7099).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFED7099).withOpacity(0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.event_note,
+                  color: Colors.pink[600],
+                  size: 16,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '已自动添加活动标签 #$_autoFilledTag',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.pink[600],
+                    ),
+                  ),
+                ),
+                // 可选：添加移除按钮
+                GestureDetector(
+                  onTap: () {
+                    _removeAutoFilledTag();
+                  },
+                  child: Icon(
+                    Icons.close,
+                    color: Colors.grey[500],
+                    size: 16,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        
+        const Text(
+          '标签',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _tagsCtrl,
+          decoration: InputDecoration(
+            hintText: '例：原神，崩铁（用逗号分隔）',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: _primaryColor, width: 2),
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 
+// ✅ 新增：移除自动填充的标签
+void _removeAutoFilledTag() {
+  if (_autoFilledTag == null) return;
+  // 只是隐藏提示，不删除输入框中的标签
+  setState(() {
+    _autoFilledTag = null;
+  });
+  
+  // 可以给用户一个提示
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('活动标签提示已隐藏，如需删除请手动编辑标签'),
+      duration: const Duration(seconds: 2),
+    ),
+  );
+}
   // 构建二次元风格卡片
   Widget _buildAnimeCard({required Widget child, EdgeInsetsGeometry? padding}) {
     return Container(
@@ -422,51 +545,39 @@ class _PostComposePageState extends State<PostComposePage> {
     );
   }
 
-  // 构建频道选择芯片
+  // 构建频道选择芯片 - 修改为更小的按钮尺寸
   Widget _buildChannelChip({
     required String label,
     required bool isSelected,
     required VoidCallback onSelected,
-    required IconData icon,
   }) {
     return Card(
-      elevation: isSelected ? 2 : 0,
+      elevation: isSelected ? 1 : 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         side: BorderSide(
           color: isSelected ? _primaryColor : Colors.grey.shade300,
-          width: isSelected ? 2 : 1,
+          width: isSelected ? 1.5 : 1,
         ),
       ),
       child: InkWell(
         onTap: onSelected,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: isSelected ? _primaryColor.withOpacity(0.1) : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  icon,
-                  color: isSelected ? _primaryColor : Colors.grey.shade600,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  color: isSelected ? _primaryColor : Colors.grey.shade700,
-                ),
-              ),
-            ],
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          constraints: const BoxConstraints(
+            minWidth: 80, // 更小的最小宽度
+            maxWidth: 120, // 更小的最大宽度
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13, // 更小的字体
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              color: isSelected ? _primaryColor : Colors.grey.shade700,
+            ),
+            textAlign: TextAlign.center,
           ),
         ),
       ),
@@ -527,139 +638,128 @@ class _PostComposePageState extends State<PostComposePage> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // 频道选择
-            _buildAnimeCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '选择频道',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
-                  ),
-                  const SizedBox(height: 12),
-                  if (_loadingUserRole)
-                    const Center(
-                      child: CircularProgressIndicator(),
-                    )
-                  else
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildChannelChip(
-                            label: 'COS作品',
-                            isSelected: _channel == 'cos',
-                            onSelected: () => setState(() => _channel = 'cos'),
-                            icon: Icons.photo_camera,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildChannelChip(
-                            label: '群岛社区',
-                            isSelected: _channel == 'island',
-                            onSelected: () => setState(() => _channel = 'island'),
-                            icon: Icons.people,
-                          ),
-                        ),
-                        if (_isOrganizer) ...[
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildChannelChip(
-                              label: '活动',
-                              isSelected: _channel == 'event',
-                              onSelected: () => setState(() => _channel = 'event'),
-                              icon: Icons.event,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  // if (!_isOrganizer && !_loadingUserRole)
-                  //   Container(
-                  //     margin: const EdgeInsets.only(top: 8),
-                  //     padding: const EdgeInsets.all(12),
-                  //     decoration: BoxDecoration(
-                  //       color: Colors.orange.shade50,
-                  //       borderRadius: BorderRadius.circular(8),
-                  //       border: Border.all(color: Colors.orange.shade200),
-                  //     ),
-                  //     child: Row(
-                  //       children: [
-                  //         Icon(Icons.info_outline, color: Colors.orange.shade600, size: 16),
-                  //         const SizedBox(width: 8),
-                  //         Expanded(
-                  //           child: Text(
-                  //             '只有活动组织者才能发布活动',
-                  //             style: TextStyle(
-                  //               fontSize: 12,
-                  //               color: Colors.orange.shade700,
-                  //             ),
-                  //           ),
-                  //         ),
-                  //       ],
-                  //     ),
-                  //   ),
-                ],
-              ),
-            ),
+            // // 频道选择
+            // _buildAnimeCard(
+            //   child: Column(
+            //     crossAxisAlignment: CrossAxisAlignment.start,
+            //     children: [
+            //       const Text(
+            //         '选择频道',
+            //         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+            //       ),
+            //       const SizedBox(height: 12),
+            //       if (_loadingUserRole)
+            //         const Center(
+            //           child: CircularProgressIndicator(),
+            //         )
+            //       else
+            //         Column(
+            //           children: [
+            //             // 使用 Wrap 或 Row 配合 MainAxisAlignment.center 来防止按钮过度拉长
+            //
+            //             Wrap(
+            //               spacing: 4,
+            //               runSpacing: 4,
+            //               alignment: WrapAlignment.center,
+            //               children: [
+            //                 _buildChannelChip(
+            //                   label: 'COS作品',
+            //                   isSelected: _channel == 'cos',
+            //                   onSelected: () => setState(() => _channel = 'cos'),
+            //                 ),
+            //                 _buildChannelChip(
+            //                   label: '群岛社区',
+            //                   isSelected: _channel == 'island',
+            //                   onSelected: () => setState(() => _channel = 'island'),
+            //                 ),
+            //                 if (_isOrganizer)
+            //                   _buildChannelChip(
+            //                     label: '活动',
+            //                     isSelected: _channel == 'event',
+            //                     onSelected: () => setState(() => _channel = 'event'),
+            //                   ),
+            //               ],
+            //             ),
+            //           ],
+            //         ),
+            //       // if (!_isOrganizer && !_loadingUserRole)
+            //       //   Container(
+            //       //     margin: const EdgeInsets.only(top: 8),
+            //       //     padding: const EdgeInsets.all(12),
+            //       //     decoration: BoxDecoration(
+            //       //       color: Colors.orange.shade50,
+            //       //       borderRadius: BorderRadius.circular(8),
+            //       //       border: Border.all(color: Colors.orange.shade200),
+            //       //     ),
+            //       //     child: Row(
+            //       //       children: [
+            //       //         Icon(Icons.info_outline, color: Colors.orange.shade600, size: 16),
+            //       //         const SizedBox(width: 8),
+            //       //         Expanded(
+            //       //           child: Text(
+            //       //             '只有活动组织者才能发布活动',
+            //       //             style: TextStyle(
+            //       //               fontSize: 12,
+            //       //               color: Colors.orange.shade700,
+            //       //             ),
+            //       //           ),
+            //       //         ),
+            //       //       ],
+            //       //     ),
+            //       //   ),
+            //     ],
+            //   ),
+            // ),
 
-            // 标题
+            // 标题和正文二合一，中间用一条半透明的黑直线分开
             _buildAnimeCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    '标题',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
-                  ),
+                  // 标题部分
+                  // const Text(
+                  //   '标题',
+                  //   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                  // ),
                   const SizedBox(height: 8),
                   TextFormField(
                     controller: _titleCtrl,
                     style: const TextStyle(fontSize: 16),
                     decoration: InputDecoration(
-                      hintText: '请输入标题...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: _primaryColor, width: 2),
-                      ),
+                      hintText: '标题',
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
                     ),
-                    validator: (v) => (v == null || v.trim().isEmpty) ? '请输入标题' : null,
                   ),
-                ],
-              ),
-            ),
 
-            // 正文
-            _buildAnimeCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '正文内容',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                  // 半透明的黑直线分隔
+                  Container(
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    height: 1,
+                    color: Colors.black.withOpacity(0.1),
                   ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _contentCtrl,
-                    minLines: 5,
-                    maxLines: 10,
-                    style: const TextStyle(fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText: '分享你的想法...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: _primaryColor, width: 2),
+
+                  //正文部分
+                  // const Text(
+                  //   '正文内容',
+                  //   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                  // ),
+                  const SizedBox(height: 15),
+                  Container(
+                    height: 300,
+                    child: TextFormField(
+                      controller: _contentCtrl,
+                      minLines: 5,
+                      maxLines: 100,
+                      style: const TextStyle(fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: '分享你的想法...',
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
                       ),
                     ),
                   ),
+
                 ],
               ),
             ),
@@ -1033,33 +1133,36 @@ class _PostComposePageState extends State<PostComposePage> {
               ),
             const SizedBox(height: 12),
 
+
+// 标签（包含活动标签提示）
+_buildTagsSection(),
             // 标签
-            _buildAnimeCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    '标签',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: _tagsCtrl,
-                    decoration: InputDecoration(
-                      hintText: '例：原神，崩铁（用逗号分隔）',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: _primaryColor, width: 2),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // _buildAnimeCard(
+            //   child: Column(
+            //     crossAxisAlignment: CrossAxisAlignment.start,
+            //     children: [
+            //       const Text(
+            //         '标签',
+            //         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+            //       ),
+            //       const SizedBox(height: 8),
+            //       TextField(
+            //         controller: _tagsCtrl,
+            //         decoration: InputDecoration(
+            //           hintText: '例：原神，崩铁（用逗号分隔）',
+            //           border: OutlineInputBorder(
+            //             borderRadius: BorderRadius.circular(12),
+            //             borderSide: BorderSide(color: Colors.grey.shade300),
+            //           ),
+            //           focusedBorder: OutlineInputBorder(
+            //             borderRadius: BorderRadius.circular(12),
+            //             borderSide: BorderSide(color: _primaryColor, width: 2),
+            //           ),
+            //         ),
+            //       ),
+            //     ],
+            //   ),
+            // ),
 
             // 图片上传
             _buildAnimeCard(

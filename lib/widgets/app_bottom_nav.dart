@@ -6,6 +6,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../services/message_service.dart'; // 🔥 新增：导入消息服务
 
 
+const Color primaryPink = Color(0xFFED7099); // 粉色 - 修改为ED7099
+
+
 class AppBottomNav extends StatefulWidget {
   final int currentIndex;
   final Function(int) onTap;
@@ -95,6 +98,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
         }
       },
       type: BottomNavigationBarType.fixed,
+      backgroundColor: Color(0xFFF8F8F8),
       items: [
         // 首页
         BottomNavigationBarItem(
@@ -137,7 +141,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/home.svg' : 'assets/icons/home.svg',
       width: 24,
       height: 24,
-      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
+      color: isActive ? primaryPink : Colors.grey,
     );
   }
 
@@ -148,7 +152,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/island.svg' : 'assets/icons/island.svg',
       width: 24,
       height: 24,
-      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
+      color: isActive ? primaryPink : Colors.grey,
     );
   }
 
@@ -159,7 +163,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/cos.svg' : 'assets/icons/cos.svg',
       width: 24,
       height: 24,
-      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
+      color: isActive ? primaryPink : Colors.grey,
     );
   }
 
@@ -170,7 +174,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/message.svg' : 'assets/icons/message.svg',
       width: 24,
       height: 24,
-      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
+      color: isActive ? primaryPink : Colors.grey,
     );
   }
   /// 构建消息图标（带未读角标）
@@ -225,7 +229,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/me.svg' : 'assets/icons/me.svg',
       width: 24,
       height: 24,
-      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
+      color: isActive ? primaryPink : Colors.grey,
     );
   }
 

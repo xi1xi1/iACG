@@ -20,11 +20,13 @@ class AnimeColors {
 class PostCard extends StatefulWidget {
   final Map<String, dynamic> post;
   final bool isLeftColumn;
+  final bool compactMode; // 新增：紧凑模式，用于搜索结果页
 
   const PostCard({
     super.key,
     required this.post,
     this.isLeftColumn = true,
+    this.compactMode = false, // 默认不是紧凑模式
   });
 
   @override
@@ -75,12 +77,14 @@ class _PostCardState extends State<PostCard> {
       builder: (context, constraints) {
         final screenWidth = constraints.maxWidth;
         final isNarrowScreen = screenWidth < 360;
+        final isCompactMode = widget.compactMode;
         
         return Container(
           margin: EdgeInsets.only(
-            bottom: 8,
-            left: widget.isLeftColumn ? 4 : 2,
-            right: widget.isLeftColumn ? 2 : 4,
+            bottom: isCompactMode ? 6 : 8,
+            left: 8,
+            right: 8,
+            top: 4,
           ),
           child: InkWell(
             onTap: () {
@@ -88,7 +92,7 @@ class _PostCardState extends State<PostCard> {
                 MaterialPageRoute(builder: (_) => PostDetailPage(postId: postId)),
               );
             },
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(isCompactMode ? 10 : 16),
             child: Container(
               constraints: BoxConstraints(
                 minHeight: 0,
@@ -96,16 +100,16 @@ class _PostCardState extends State<PostCard> {
               ),
               decoration: BoxDecoration(
                 color: AnimeColors.cardWhite,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(isCompactMode ? 10 : 16),
                 border: Border.all(
                   color: Colors.grey.withOpacity(0.1),
-                  width: 1.5,
+                  width: isCompactMode ? 0.8 : 1.5,
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+                    color: Colors.black.withOpacity(isCompactMode ? 0.03 : 0.08),
+                    blurRadius: isCompactMode ? 6 : 12,
+                    offset: const Offset(0, 2),
                   ),
                 ],
               ),
@@ -115,31 +119,31 @@ class _PostCardState extends State<PostCard> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (hasCover)
-                    _buildAdaptiveImage(coverUrl!),
+                    _buildAdaptiveImage(coverUrl!, isCompactMode: isCompactMode),
 
                   Padding(
-                    padding: EdgeInsets.all(isNarrowScreen ? 12 : 16),
+                    padding: EdgeInsets.all(isCompactMode ? 8 : (isNarrowScreen ? 12 : 16)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (title.isNotEmpty)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
+                            padding: EdgeInsets.only(bottom: isCompactMode ? 4 : 8),
                             child: Text(
                               title,
                               style: TextStyle(
-                                fontSize: isNarrowScreen ? 14 : 16,
+                                fontSize: isCompactMode ? 13 : (isNarrowScreen ? 14 : 16),
                                 fontWeight: FontWeight.bold,
                                 color: AnimeColors.textDark,
-                                height: 1.3,
+                                height: 1.2,
                               ),
-                              maxLines: 2,
+                              maxLines: isCompactMode ? 1 : 2,
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
 
-                        if (summary.isNotEmpty)
+                        if (summary.isNotEmpty && !isCompactMode)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Text(
@@ -158,9 +162,9 @@ class _PostCardState extends State<PostCard> {
                           children: [
                             AvatarWidget(
                               imageUrl: authorAvatar,
-                              size: isNarrowScreen ? 16 : 18,
+                              size: isCompactMode ? 16 : (isNarrowScreen ? 16 : 18),
                             ),
-                            SizedBox(width: isNarrowScreen ? 6 : 8),
+                            SizedBox(width: isCompactMode ? 4 : (isNarrowScreen ? 6 : 8)),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,7 +172,7 @@ class _PostCardState extends State<PostCard> {
                                   Text(
                                     authorName,
                                     style: TextStyle(
-                                      fontSize: isNarrowScreen ? 11 : 12,
+                                      fontSize: isCompactMode ? 11 : (isNarrowScreen ? 11 : 12),
                                       fontWeight: FontWeight.w600,
                                       color: AnimeColors.textDark,
                                     ),
@@ -179,18 +183,21 @@ class _PostCardState extends State<PostCard> {
                                 ],
                               ),
                             ),
-                            _ChannelChip(channel: channel, isNarrowScreen: isNarrowScreen),
+                            _ChannelChip(
+                              channel: channel, 
+                              isNarrowScreen: isCompactMode ? true : isNarrowScreen,
+                            ),
                           ],
                         ),
 
-                        const SizedBox(height: 8),
+                        SizedBox(height: isCompactMode ? 6 : 8),
 
                         _buildAdaptiveInteractionBar(
                           likeCount: likeCount,
                           favCount: favCount,
                           cmtCount: cmtCount,
                           viewCount: viewCount,
-                          isNarrowScreen: isNarrowScreen,
+                          isNarrowScreen: isCompactMode ? true : isNarrowScreen,
                         ),
                       ],
                     ),
@@ -204,7 +211,7 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  Widget _buildAdaptiveImage(String imageUrl) {
+  Widget _buildAdaptiveImage(String imageUrl, {bool isCompactMode = false}) {
     return FutureBuilder<ImageInfo>(
       future: _getImageInfo(imageUrl),
       builder: (context, snapshot) {
@@ -214,43 +221,67 @@ class _PostCardState extends State<PostCard> {
           final height = imageInfo.image.height.toDouble();
           final aspectRatio = width / height;
           
-          final clampedAspectRatio = aspectRatio.clamp(0.5, 2.0);
+          // 在紧凑模式下，限制图片的最大高度
+          final clampedAspectRatio = isCompactMode 
+              ? aspectRatio.clamp(1.5, 3.0)  // 紧凑模式下使用更宽的比例
+              : aspectRatio.clamp(0.5, 2.0);
           
-return AspectRatio(
-  aspectRatio: clampedAspectRatio,
-  child: CachedNetworkImage(
-    imageUrl: imageUrl,
-    fit: BoxFit.cover,
-    // ✅ 正确参数名：
-    memCacheWidth: (MediaQuery.of(context).size.width * 1.5).toInt(),
-    maxWidthDiskCache: (MediaQuery.of(context).size.width * 1.5).toInt(),
-    
-    placeholder: (context, url) => _buildImagePlaceholder(),
-    
-    errorWidget: (context, url, error) {
-      Future.delayed(const Duration(milliseconds: 300), () async {
-        try {
-          await DefaultCacheManager().removeFile(url);
-          if (mounted) {
-            setState(() {});
-          }
-        } catch (_) {}
-      });
-      
-      return Container(
-        color: Colors.grey[100],
-        child: Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
-    },
-  ),
-);
+          return AspectRatio(
+            aspectRatio: clampedAspectRatio,
+            child: CachedNetworkImage(
+              imageUrl: imageUrl,
+              fit: BoxFit.cover,
+              memCacheWidth: (MediaQuery.of(context).size.width * (isCompactMode ? 0.8 : 1.5)).toInt(),
+              maxWidthDiskCache: (MediaQuery.of(context).size.width * (isCompactMode ? 0.8 : 1.5)).toInt(),
+              
+              placeholder: (context, url) => Container(
+                height: isCompactMode ? 100 : 150, // 紧凑模式下更小的占位符
+                color: AnimeColors.backgroundLight,
+                child: Center(
+                  child: Icon(
+                    Icons.photo_library_outlined,
+                    size: isCompactMode ? 24 : 40,
+                    color: AnimeColors.textLight.withOpacity(0.5),
+                  ),
+                ),
+              ),
+              
+              errorWidget: (context, url, error) {
+                Future.delayed(const Duration(milliseconds: 300), () async {
+                  try {
+                    await DefaultCacheManager().removeFile(url);
+                    if (mounted) {
+                      setState(() {});
+                    }
+                  } catch (_) {}
+                });
+                
+                return Container(
+                  height: isCompactMode ? 100 : 150,
+                  color: Colors.grey[100],
+                  child: Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                );
+              },
+            ),
+          );
         }
         
+        // 默认占位符，紧凑模式下更小
         return AspectRatio(
-          aspectRatio: 3/2,
-          child: _buildImagePlaceholder(),
+          aspectRatio: isCompactMode ? 2.0 : 3/2,
+          child: Container(
+            height: isCompactMode ? 100 : 150,
+            color: AnimeColors.backgroundLight,
+            child: Center(
+              child: Icon(
+                Icons.photo_library_outlined,
+                size: isCompactMode ? 24 : 40,
+                color: AnimeColors.textLight.withOpacity(0.5),
+              ),
+            ),
+          ),
         );
       },
     );
