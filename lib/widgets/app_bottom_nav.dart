@@ -87,15 +87,6 @@ class _AppBottomNavState extends State<AppBottomNav> {
       currentIndex: widget.currentIndex,
       onTap: (index) {
         widget.onTap(index);
-        
-        // 点击消息Tab时，刷新未读数（用户可能已读）
-        if (index == 3) {
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              _loadUnreadCount();
-            }
-          });
-        }
       },
       type: BottomNavigationBarType.fixed,
       backgroundColor: Color(0xFFF8F8F8),
@@ -106,23 +97,23 @@ class _AppBottomNavState extends State<AppBottomNav> {
           activeIcon: _buildHomeIcon(true),
           label: '首页',
         ),
-        // 关注
+        // Cos
         BottomNavigationBarItem(
           icon: _buildCosIcon(false),
           activeIcon: _buildCosIcon(true),
-          label: 'Cos',
+          label: '作品',
         ),
-        // 发布
+        // 群岛
         BottomNavigationBarItem(
           icon: _buildIslandIcon(false),
           activeIcon: _buildIslandIcon(true),
           label: '群岛',
         ),
-        // 消息（带角标）
+        // 活动（原来消息的位置）
         BottomNavigationBarItem(
-          icon: _buildMessageIcon(false),
-          activeIcon: _buildMessageIcon(true),
-          label: '消息',
+          icon: _buildEventIcon(false),
+          activeIcon: _buildEventIcon(true),
+          label: '活动',
         ),
         // 我的
         BottomNavigationBarItem(
@@ -229,6 +220,16 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/me.svg' : 'assets/icons/me.svg',
       width: 24,
       height: 24,
+      color: isActive ? primaryPink : Colors.grey,
+    );
+  }
+
+  /// 构建活动图标
+  Widget _buildEventIcon(bool isActive) {
+    // 使用事件图标，如果没有事件图标，使用消息图标替代
+    return Icon(
+      Icons.event,
+      size: 24,
       color: isActive ? primaryPink : Colors.grey,
     );
   }

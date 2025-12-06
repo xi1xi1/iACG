@@ -14,7 +14,7 @@ class PostComposePage extends StatefulWidget {
   final String? initialChannel;
   final String? autoFillTag; // ✅ 新增：自动填充的标签名称
   const PostComposePage({
-    super.key, 
+    super.key,
     this.initialChannel,
     this.autoFillTag, // ✅ 新增
   });
@@ -58,7 +58,8 @@ class _PostComposePageState extends State<PostComposePage> {
   final TextEditingController _eventLocationCtrl = TextEditingController();
   final TextEditingController _eventCityCtrl = TextEditingController();
   final TextEditingController _eventTicketUrlCtrl = TextEditingController();
-  final TextEditingController _eventParticipantCountCtrl = TextEditingController();
+  final TextEditingController _eventParticipantCountCtrl =
+      TextEditingController();
 
   // 标签
   final _tagsCtrl = TextEditingController();
@@ -95,31 +96,31 @@ class _PostComposePageState extends State<PostComposePage> {
     super.initState();
     // 初始化频道，如果有传入的初始频道则使用，否则默认cos
     _channel = widget.initialChannel ?? 'cos';
-     // ✅ 新增：处理自动填充的标签
-  if (widget.autoFillTag != null && widget.autoFillTag!.trim().isNotEmpty) {
-    _autoFilledTag = widget.autoFillTag!.trim();
-    
-    // 自动将活动标签添加到标签输入框
-    if (_tagsCtrl.text.trim().isEmpty) {
-      _tagsCtrl.text = _autoFilledTag!;
-    } else {
-      // 检查是否已经包含该标签（简单的检查）
-      final currentTags = _tagsCtrl.text
-          .split(RegExp(r'[，, ]'))
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-      
-      if (!currentTags.contains(_autoFilledTag!)) {
-        _tagsCtrl.text = '${_tagsCtrl.text}, ${_autoFilledTag!}';
+    // ✅ 新增：处理自动填充的标签
+    if (widget.autoFillTag != null && widget.autoFillTag!.trim().isNotEmpty) {
+      _autoFilledTag = widget.autoFillTag!.trim();
+
+      // 自动将活动标签添加到标签输入框
+      if (_tagsCtrl.text.trim().isEmpty) {
+        _tagsCtrl.text = _autoFilledTag!;
+      } else {
+        // 检查是否已经包含该标签（简单的检查）
+        final currentTags = _tagsCtrl.text
+            .split(RegExp(r'[，, ]'))
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
+
+        if (!currentTags.contains(_autoFilledTag!)) {
+          _tagsCtrl.text = '${_tagsCtrl.text}, ${_autoFilledTag!}';
+        }
+      }
+
+      // （可选）自动设置标题前缀
+      if (_titleCtrl.text.isEmpty) {
+        _titleCtrl.text = '';
       }
     }
-    
-    // （可选）自动设置标题前缀
-    if (_titleCtrl.text.isEmpty) {
-      _titleCtrl.text = '参加${_autoFilledTag!}活动';
-    }
-  }
     _checkUserRole();
   }
 
@@ -197,7 +198,8 @@ class _PostComposePageState extends State<PostComposePage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           '选择角色',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+          style:
+              TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF374151)),
         ),
         content: Container(
           constraints: const BoxConstraints(maxHeight: 300),
@@ -206,7 +208,8 @@ class _PostComposePageState extends State<PostComposePage> {
             children: _roles.map((role) {
               return Card(
                 margin: const EdgeInsets.symmetric(vertical: 4),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 child: ListTile(
                   leading: Container(
                     width: 40,
@@ -310,7 +313,8 @@ class _PostComposePageState extends State<PostComposePage> {
         authorId: user.id,
         channel: _channel,
         title: _titleCtrl.text.trim(),
-        content: _contentCtrl.text.trim().isEmpty ? null : _contentCtrl.text.trim(),
+        content:
+            _contentCtrl.text.trim().isEmpty ? null : _contentCtrl.text.trim(),
         mainCategory: _channel == 'cos' ? _cosCategory : null,
         mainIpTagId: mainIpTagId,
         islandType: _channel == 'island' ? _islandType : null,
@@ -321,12 +325,14 @@ class _PostComposePageState extends State<PostComposePage> {
       // 2) 添加共创者
       if (_collaborators.isNotEmpty) {
         try {
-          final collaboratorEntries = _collaborators.map((collab) => {
-            'post_id': postId,
-            'user_id': collab['user_id'],
-            'role': collab['role'],
-            'display_name': null,
-          }).toList();
+          final collaboratorEntries = _collaborators
+              .map((collab) => {
+                    'post_id': postId,
+                    'user_id': collab['user_id'],
+                    'role': collab['role'],
+                    'display_name': null,
+                  })
+              .toList();
 
           await _client.from('post_collaborators').insert(collaboratorEntries);
           print('添加了 ${_collaborators.length} 个共创者');
@@ -368,7 +374,11 @@ class _PostComposePageState extends State<PostComposePage> {
       // 4) 绑定标签
       final raw = _tagsCtrl.text.trim();
       if (raw.isNotEmpty) {
-        final names = raw.split(RegExp(r'[，,]')).map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+        final names = raw
+            .split(RegExp(r'[，,]'))
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
         try {
           final tagIds = await _tagService.ensureTagsAndReturnIds(names);
           if (tagIds.isNotEmpty) {
@@ -413,94 +423,100 @@ class _PostComposePageState extends State<PostComposePage> {
       if (mounted) setState(() => _publishing = false);
     }
   }
+
 // ✅ 新增：构建标签部分（包含活动标签提示）
-Widget _buildTagsSection() {
-  return _buildAnimeCard(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // ✅ 新增：如果是从活动页来的，显示提示
-        if (_autoFilledTag != null && _autoFilledTag!.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFED7099).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFED7099).withOpacity(0.3)),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.event_note,
-                  color: Colors.pink[600],
-                  size: 16,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '已自动添加活动标签 #$_autoFilledTag',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.pink[600],
-                    ),
-                  ),
-                ),
-                // 可选：添加移除按钮
-                GestureDetector(
-                  onTap: () {
-                    _removeAutoFilledTag();
-                  },
-                  child: Icon(
-                    Icons.close,
-                    color: Colors.grey[500],
+  Widget _buildTagsSection() {
+    return _buildAnimeCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ✅ 新增：如果是从活动页来的，显示提示
+          if (_autoFilledTag != null && _autoFilledTag!.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFED7099).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border:
+                    Border.all(color: const Color(0xFFED7099).withOpacity(0.3)),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.event_note,
+                    color: Colors.pink[600],
                     size: 16,
                   ),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '已自动添加活动标签 #$_autoFilledTag，添加标签示例：原神，崩铁（用逗号分隔）',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.pink[600],
+                      ),
+                    ),
+                  ),
+                  // 可选：添加移除按钮
+                  GestureDetector(
+                    onTap: () {
+                      _removeAutoFilledTag();
+                    },
+                    child: Icon(
+                      Icons.close,
+                      color: Colors.grey[500],
+                      size: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+          const Text(
+            '标签',
+            style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF374151)),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _tagsCtrl,
+            decoration: InputDecoration(
+              hintText: '例：原神，崩铁（用逗号分隔）',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: _primaryColor, width: 2),
+              ),
             ),
           ),
-        
-        const Text(
-          '标签',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _tagsCtrl,
-          decoration: InputDecoration(
-            hintText: '例：原神，崩铁（用逗号分隔）',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: _primaryColor, width: 2),
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      ),
+    );
+  }
 
 // ✅ 新增：移除自动填充的标签
-void _removeAutoFilledTag() {
-  if (_autoFilledTag == null) return;
-  // 只是隐藏提示，不删除输入框中的标签
-  setState(() {
-    _autoFilledTag = null;
-  });
-  
-  // 可以给用户一个提示
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text('活动标签提示已隐藏，如需删除请手动编辑标签'),
-      duration: const Duration(seconds: 2),
-    ),
-  );
-}
+  void _removeAutoFilledTag() {
+    if (_autoFilledTag == null) return;
+    // 只是隐藏提示，不删除输入框中的标签
+    setState(() {
+      _autoFilledTag = null;
+    });
+
+    // 可以给用户一个提示
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('活动标签提示已隐藏，如需删除请手动编辑标签'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   // 构建二次元风格卡片
   Widget _buildAnimeCard({required Widget child, EdgeInsetsGeometry? padding}) {
     return Container(
@@ -534,10 +550,13 @@ void _removeAutoFilledTag() {
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(
-        backgroundColor: backgroundColor ?? (isPrimary ? _primaryColor : _secondaryColor),
+        backgroundColor:
+            backgroundColor ?? (isPrimary ? _primaryColor : _secondaryColor),
         foregroundColor: Colors.white,
         elevation: 2,
-        shadowColor: (backgroundColor ?? (isPrimary ? _primaryColor : _secondaryColor)).withOpacity(0.3),
+        shadowColor:
+            (backgroundColor ?? (isPrimary ? _primaryColor : _secondaryColor))
+                .withOpacity(0.3),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       ),
@@ -626,7 +645,8 @@ void _removeAutoFilledTag() {
                       children: [
                         Icon(Icons.send, size: 16),
                         SizedBox(width: 4),
-                        Text('发布', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text('发布',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                       ],
                     ),
             ),
@@ -759,7 +779,6 @@ void _removeAutoFilledTag() {
                       ),
                     ),
                   ),
-
                 ],
               ),
             ),
@@ -772,7 +791,10 @@ void _removeAutoFilledTag() {
                   children: [
                     const Text(
                       'COS分类',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF374151)),
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
@@ -785,7 +807,8 @@ void _removeAutoFilledTag() {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: _primaryColor, width: 2),
+                          borderSide:
+                              BorderSide(color: _primaryColor, width: 2),
                         ),
                       ),
                       items: _cosCategories.map((c) {
@@ -805,11 +828,14 @@ void _removeAutoFilledTag() {
                       onChanged: (v) => setState(() => _cosCategory = v),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // IP标签
                     const Text(
                       'IP标签',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF374151)),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -821,20 +847,24 @@ void _removeAutoFilledTag() {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: _primaryColor, width: 2),
+                          borderSide:
+                              BorderSide(color: _primaryColor, width: 2),
                         ),
                       ),
                       onChanged: (v) => setState(() => _ipTag = v),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // 共创者
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
                           '共创者',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                          style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF374151)),
                         ),
                         const SizedBox(height: 8),
                         TextField(
@@ -843,17 +873,20 @@ void _removeAutoFilledTag() {
                             hintText: '搜索用户名添加共创者...',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey.shade300),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.shade300),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: _primaryColor, width: 2),
+                              borderSide:
+                                  BorderSide(color: _primaryColor, width: 2),
                             ),
                             suffixIcon: _searching
                                 ? const SizedBox(
                                     width: 20,
                                     height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
                                   )
                                 : null,
                           ),
@@ -877,13 +910,14 @@ void _removeAutoFilledTag() {
                                     imageUrl: user['avatar_url'] as String?,
                                     size: 40,
                                   ),
-                                  title: Text(user['nickname'] as String? ?? '未知用户'),
+                                  title: Text(
+                                      user['nickname'] as String? ?? '未知用户'),
                                   onTap: () => _addCollaborator(user),
                                 );
                               },
                             ),
                           ),
-                        
+
                         // 已选择的共创者
                         if (_collaborators.isNotEmpty) ...[
                           const SizedBox(height: 12),
@@ -895,7 +929,8 @@ void _removeAutoFilledTag() {
                           Wrap(
                             spacing: 8,
                             runSpacing: 4,
-                            children: _collaborators.asMap().entries.map((entry) {
+                            children:
+                                _collaborators.asMap().entries.map((entry) {
                               final index = entry.key;
                               final collab = entry.value;
                               return Chip(
@@ -906,7 +941,8 @@ void _removeAutoFilledTag() {
                                     const SizedBox(width: 4),
                                     Text(
                                       '(${collab['role_label']})',
-                                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                      style: const TextStyle(
+                                          fontSize: 12, color: Colors.grey),
                                     ),
                                   ],
                                 ),
@@ -931,7 +967,10 @@ void _removeAutoFilledTag() {
                   children: [
                     const Text(
                       '活动类型',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF374151)),
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
@@ -944,19 +983,26 @@ void _removeAutoFilledTag() {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: _primaryColor, width: 2),
+                          borderSide:
+                              BorderSide(color: _primaryColor, width: 2),
                         ),
                       ),
-                      items: _eventTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                      items: _eventTypes
+                          .map(
+                              (t) => DropdownMenuItem(value: t, child: Text(t)))
+                          .toList(),
                       validator: (v) => v == null ? '请选择活动类型' : null,
                       onChanged: (v) => setState(() => _eventType = v),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // 活动时间
                     const Text(
                       '活动时间',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF374151)),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -966,14 +1012,18 @@ void _removeAutoFilledTag() {
                             readOnly: true,
                             decoration: InputDecoration(
                               labelText: '开始时间',
-                              hintText: _eventStartTime == null ? '选择开始时间' : _eventStartTime.toString().substring(0, 16),
+                              hintText: _eventStartTime == null
+                                  ? '选择开始时间'
+                                  : _eventStartTime.toString().substring(0, 16),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey.shade300),
+                                borderSide:
+                                    BorderSide(color: Colors.grey.shade300),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: _primaryColor, width: 2),
+                                borderSide:
+                                    BorderSide(color: _primaryColor, width: 2),
                               ),
                             ),
                             onTap: () async {
@@ -995,14 +1045,18 @@ void _removeAutoFilledTag() {
                             readOnly: true,
                             decoration: InputDecoration(
                               labelText: '结束时间',
-                              hintText: _eventEndTime == null ? '选择结束时间' : _eventEndTime.toString().substring(0, 16),
+                              hintText: _eventEndTime == null
+                                  ? '选择结束时间'
+                                  : _eventEndTime.toString().substring(0, 16),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey.shade300),
+                                borderSide:
+                                    BorderSide(color: Colors.grey.shade300),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: _primaryColor, width: 2),
+                                borderSide:
+                                    BorderSide(color: _primaryColor, width: 2),
                               ),
                             ),
                             onTap: () async {
@@ -1021,11 +1075,14 @@ void _removeAutoFilledTag() {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // 活动地点
                     const Text(
                       '活动地点',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF374151)),
                     ),
                     const SizedBox(height: 8),
                     TextFormField(
@@ -1038,7 +1095,8 @@ void _removeAutoFilledTag() {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: _primaryColor, width: 2),
+                          borderSide:
+                              BorderSide(color: _primaryColor, width: 2),
                         ),
                       ),
                     ),
@@ -1053,12 +1111,13 @@ void _removeAutoFilledTag() {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: _primaryColor, width: 2),
+                          borderSide:
+                              BorderSide(color: _primaryColor, width: 2),
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    
+
                     // 购票链接和参与人数
                     Row(
                       children: [
@@ -1069,11 +1128,13 @@ void _removeAutoFilledTag() {
                               hintText: '购票链接',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey.shade300),
+                                borderSide:
+                                    BorderSide(color: Colors.grey.shade300),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: _primaryColor, width: 2),
+                                borderSide:
+                                    BorderSide(color: _primaryColor, width: 2),
                               ),
                             ),
                           ),
@@ -1087,11 +1148,13 @@ void _removeAutoFilledTag() {
                               hintText: '预计参与人数',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: Colors.grey.shade300),
+                                borderSide:
+                                    BorderSide(color: Colors.grey.shade300),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide(color: _primaryColor, width: 2),
+                                borderSide:
+                                    BorderSide(color: _primaryColor, width: 2),
                               ),
                             ),
                           ),
@@ -1108,7 +1171,10 @@ void _removeAutoFilledTag() {
                   children: [
                     const Text(
                       '群岛类型',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF374151)),
                     ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
@@ -1121,10 +1187,14 @@ void _removeAutoFilledTag() {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: _primaryColor, width: 2),
+                          borderSide:
+                              BorderSide(color: _primaryColor, width: 2),
                         ),
                       ),
-                      items: _islandTypes.map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
+                      items: _islandTypes
+                          .map(
+                              (t) => DropdownMenuItem(value: t, child: Text(t)))
+                          .toList(),
                       validator: (v) => v == null ? '请选择类型' : null,
                       onChanged: (v) => setState(() => _islandType = v),
                     ),
@@ -1133,9 +1203,8 @@ void _removeAutoFilledTag() {
               ),
             const SizedBox(height: 12),
 
-
 // 标签（包含活动标签提示）
-_buildTagsSection(),
+            _buildTagsSection(),
             // 标签
             // _buildAnimeCard(
             //   child: Column(
@@ -1171,7 +1240,10 @@ _buildTagsSection(),
                 children: [
                   const Text(
                     '图片上传',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF374151)),
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF374151)),
                   ),
                   const SizedBox(height: 12),
                   _buildAnimeButton(
@@ -1182,7 +1254,8 @@ _buildTagsSection(),
                       children: [
                         Icon(Icons.add_photo_alternate, size: 18),
                         SizedBox(width: 8),
-                        Text('选择图片', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text('选择图片',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
@@ -1194,7 +1267,7 @@ _buildTagsSection(),
                       color: Colors.grey.shade600,
                     ),
                   ),
-                  
+
                   // 图片预览
                   if (_pickedImageBytes.isNotEmpty) ...[
                     const SizedBox(height: 12),

@@ -6,6 +6,7 @@ class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
       fontFamily: fontFamily,
+      useMaterial3: false,
       primaryColor: const Color(0xFFED7099), // 主色调
       colorScheme: ColorScheme.fromSeed(
         seedColor: const Color(0xFFED7099),
@@ -20,7 +21,7 @@ class AppTheme {
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: Colors.white,
-        selectedItemColor: Color(0xFF6366F1),
+        selectedItemColor: Color(0xFFED7099),
         unselectedItemColor: Color(0xFF9CA3AF),
       ),
     );

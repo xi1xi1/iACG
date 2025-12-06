@@ -20,6 +20,10 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
   bool _isLoadingMore = false;
   String? _error;
   final AuthService _authService = AuthService();
+  
+  // 二级筛选选项
+  final List<String> _filterTypes = ['全部', '作品'];
+  String _selectedType = '全部';
 
   // 分页相关变量
   final int _pageSize = 10;
@@ -50,6 +54,16 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
     }
   }
 
+  // 根据筛选类型过滤帖子
+  List<Map<String, dynamic>> _filterPosts(List<Map<String, dynamic>> posts) {
+    if (_selectedType == '作品') {
+      // 只显示COS帖子
+      return posts.where((post) => post['channel'] == 'cos').toList();
+    }
+    // 全部：显示所有帖子（COS + 群岛）
+    return posts;
+  }
+
   Future<void> _loadAllFollowingPosts() async {
     try {
       setState(() {
@@ -74,12 +88,15 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
         _displayPosts.clear();
         _allPosts.addAll(result);
 
+        // 根据筛选类型过滤帖子
+        final filteredPosts = _filterPosts(_allPosts);
+        
         // 初始显示第一页
         _currentDisplayCount = _pageSize;
-        if (_allPosts.length <= _pageSize) {
-          _displayPosts.addAll(_allPosts);
+        if (filteredPosts.length <= _pageSize) {
+          _displayPosts.addAll(filteredPosts);
         } else {
-          _displayPosts.addAll(_allPosts.sublist(0, _pageSize));
+          _displayPosts.addAll(filteredPosts.sublist(0, _pageSize));
         }
         _error = null;
       });
@@ -97,7 +114,10 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
   }
 
   void _loadMorePosts() {
-    if (_isLoadingMore || _currentDisplayCount >= _allPosts.length) return;
+    // 根据筛选类型获取过滤后的帖子
+    final filteredPosts = _filterPosts(_allPosts);
+    
+    if (_isLoadingMore || _currentDisplayCount >= filteredPosts.length) return;
 
     setState(() {
       _isLoadingMore = true;
@@ -107,10 +127,10 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
     Future.delayed(const Duration(milliseconds: 500), () {
       final nextCount = _currentDisplayCount + _pageSize;
       final endIndex =
-          nextCount > _allPosts.length ? _allPosts.length : nextCount;
+          nextCount > filteredPosts.length ? filteredPosts.length : nextCount;
 
       setState(() {
-        _displayPosts.addAll(_allPosts.sublist(_currentDisplayCount, endIndex));
+        _displayPosts.addAll(filteredPosts.sublist(_currentDisplayCount, endIndex));
         _currentDisplayCount = endIndex;
         _isLoadingMore = false;
       });
@@ -119,7 +139,9 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
 
   // 构建加载更多指示器
   Widget _buildLoadMoreIndicator() {
-    if (_currentDisplayCount >= _allPosts.length && _displayPosts.isNotEmpty) {
+    final filteredPosts = _filterPosts(_allPosts);
+    
+    if (_currentDisplayCount >= filteredPosts.length && _displayPosts.isNotEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 20),
         child: Center(
@@ -168,22 +190,127 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
     );
   }
 
+  // 构建二级筛选按钮
+  Widget _buildFilterButtons() {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: AnimeColors.cardWhite,
+      ),
+      child: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (int index = 0; index < _filterTypes.length; index++) ...[
+              if (index > 0) const SizedBox(width: 50), // 按钮之间间隔
+              _buildFilterButton(_filterTypes[index]),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 构建单个筛选按钮
+  Widget _buildFilterButton(String type) {
+    final isSelected = _selectedType == type;
+
+    return GestureDetector(
+      onTap: () {
+        if (!isSelected) {
+          setState(() {
+            _selectedType = type;
+            // 重新筛选并显示帖子
+            _displayPosts.clear();
+            final filteredPosts = _filterPosts(_allPosts);
+            _currentDisplayCount = _pageSize;
+            if (filteredPosts.length <= _pageSize) {
+              _displayPosts.addAll(filteredPosts);
+            } else {
+              _displayPosts.addAll(filteredPosts.sublist(0, _pageSize));
+            }
+          });
+        }
+      },
+      child: Container(
+        constraints: const BoxConstraints(
+          minWidth: 80,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        // decoration: BoxDecoration(
+        //   color: AnimeColors.cardWhite,
+        //   border: Border.all(
+        //     color: isSelected ? AnimeColors.primaryPink : Colors.grey.shade300,
+        //     width: 1,
+        //   ),
+        //   borderRadius: BorderRadius.circular(8),
+        // ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              type,
+              style: TextStyle(
+                color: isSelected ? AnimeColors.primaryPink : AnimeColors.textLight,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: isSelected ? 16 : 14,
+              ),
+            ),
+            const SizedBox(height: 4),
+            // 底部指示器
+            Container(
+              height: 3,
+              width: 24,
+              decoration: BoxDecoration(
+                color: isSelected ? AnimeColors.primaryPink : Colors.transparent,
+                borderRadius: BorderRadius.circular(1.5),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // 自定义关注空状态
   Widget _buildFollowingEmptyView() {
+    String title;
+    String subtitle;
+    
+    if (_selectedType == '作品') {
+      title = '关注的用户还没有发布COS作品';
+      subtitle = '关注更多COS创作者，发现更多精彩作品';
+    } else {
+      title = '还没有关注任何人\n快去发现有趣的创作者吧！';
+      subtitle = '';
+    }
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.people_outline, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          const Text(
-            '还没有关注任何人\n快去发现有趣的创作者吧！',
+          Text(
+            title,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 16,
               color: Colors.grey,
             ),
           ),
+          if (subtitle.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
@@ -220,37 +347,47 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
       return _buildFollowingEmptyView();
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadAllFollowingPosts,
-      child: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          // 瀑布流网格
-          SliverToBoxAdapter(
-            child: MasonryGridView.builder(
-              gridDelegate:
-                  const SliverSimpleGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-              ),
-              mainAxisSpacing: 1,
-              crossAxisSpacing: 1,
-              padding: const EdgeInsets.all(1),
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              itemCount: _displayPosts.length,
-              itemBuilder: (context, index) {
-                return PostCard(
-                  post: _displayPosts[index],
-                );
-              },
+    return Column(
+      children: [
+        // 二级筛选按钮
+        _buildFilterButtons(),
+        const SizedBox(height: 8),
+        // 帖子列表
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadAllFollowingPosts,
+            child: CustomScrollView(
+              controller: _scrollController,
+              slivers: [
+                // 瀑布流网格
+                SliverToBoxAdapter(
+                  child: MasonryGridView.builder(
+                    gridDelegate:
+                        const SliverSimpleGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                    ),
+                    mainAxisSpacing: 1,
+                    crossAxisSpacing: 1,
+                    padding: const EdgeInsets.all(1),
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount: _displayPosts.length,
+                    itemBuilder: (context, index) {
+                      return PostCard(
+                        post: _displayPosts[index],
+                      );
+                    },
+                  ),
+                ),
+                // 加载更多指示器
+                SliverToBoxAdapter(
+                  child: _buildLoadMoreIndicator(),
+                ),
+              ],
             ),
           ),
-          // 加载更多指示器
-          SliverToBoxAdapter(
-            child: _buildLoadMoreIndicator(),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

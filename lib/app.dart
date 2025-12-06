@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'features/root/root_shell.dart';
 import 'features/auth/login_page.dart';
+import 'features/messages/message_list_page.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
