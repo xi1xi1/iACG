@@ -1461,6 +1461,7 @@ void _goToPostCompose(String channel, String eventTag) {
                   final name = t['tag']?['name'] ?? '';
                   return ActionChip(
                     label: Text('#$name'),
+                    backgroundColor: Colors.grey[100],
                     onPressed: () {
                       if (name.isEmpty) return;
                       Navigator.of(context).push(

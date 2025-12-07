@@ -20,10 +20,10 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
   bool _isLoadingMore = false;
   String? _error;
   final AuthService _authService = AuthService();
-  
-  // 二级筛选选项
-  final List<String> _filterTypes = ['全部', '作品'];
-  String _selectedType = '全部';
+
+  // 修改为三个选项：首页、作品、群岛
+  final List<String> _filterTypes = ['首页', '作品', '群岛'];
+  String _selectedType = '首页';
 
   // 分页相关变量
   final int _pageSize = 10;
@@ -47,7 +47,7 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
 
   void _scrollListener() {
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 300 &&
+        _scrollController.position.maxScrollExtent - 300 &&
         !_isLoadingMore &&
         _currentDisplayCount < _allPosts.length) {
       _loadMorePosts();
@@ -59,8 +59,11 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
     if (_selectedType == '作品') {
       // 只显示COS帖子
       return posts.where((post) => post['channel'] == 'cos').toList();
+    } else if (_selectedType == '群岛') {
+      // 只显示群岛帖子（假设群岛帖子有特定标识）
+      return posts.where((post) => post['channel'] == 'island').toList();
     }
-    // 全部：显示所有帖子（COS + 群岛）
+    // 首页：显示所有帖子（COS + 群岛）
     return posts;
   }
 
@@ -90,7 +93,7 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
 
         // 根据筛选类型过滤帖子
         final filteredPosts = _filterPosts(_allPosts);
-        
+
         // 初始显示第一页
         _currentDisplayCount = _pageSize;
         if (filteredPosts.length <= _pageSize) {
@@ -116,7 +119,7 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
   void _loadMorePosts() {
     // 根据筛选类型获取过滤后的帖子
     final filteredPosts = _filterPosts(_allPosts);
-    
+
     if (_isLoadingMore || _currentDisplayCount >= filteredPosts.length) return;
 
     setState(() {
@@ -127,7 +130,7 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
     Future.delayed(const Duration(milliseconds: 500), () {
       final nextCount = _currentDisplayCount + _pageSize;
       final endIndex =
-          nextCount > filteredPosts.length ? filteredPosts.length : nextCount;
+      nextCount > filteredPosts.length ? filteredPosts.length : nextCount;
 
       setState(() {
         _displayPosts.addAll(filteredPosts.sublist(_currentDisplayCount, endIndex));
@@ -140,7 +143,7 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
   // 构建加载更多指示器
   Widget _buildLoadMoreIndicator() {
     final filteredPosts = _filterPosts(_allPosts);
-    
+
     if (_currentDisplayCount >= filteredPosts.length && _displayPosts.isNotEmpty) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 20),
@@ -158,11 +161,11 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
 
     return _isLoadingMore
         ? const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
-          )
+      padding: EdgeInsets.symmetric(vertical: 20),
+      child: Center(
+        child: CircularProgressIndicator(),
+      ),
+    )
         : const SizedBox.shrink();
   }
 
@@ -237,14 +240,6 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
           minWidth: 80,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        // decoration: BoxDecoration(
-        //   color: AnimeColors.cardWhite,
-        //   border: Border.all(
-        //     color: isSelected ? AnimeColors.primaryPink : Colors.grey.shade300,
-        //     width: 1,
-        //   ),
-        //   borderRadius: BorderRadius.circular(8),
-        // ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
@@ -277,10 +272,13 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
   Widget _buildFollowingEmptyView() {
     String title;
     String subtitle;
-    
+
     if (_selectedType == '作品') {
       title = '关注的用户还没有发布COS作品';
       subtitle = '关注更多COS创作者，发现更多精彩作品';
+    } else if (_selectedType == '群岛') {
+      title = '关注的用户还没有发布群岛内容';
+      subtitle = '关注更多群岛创作者，发现更多精彩内容';
     } else {
       title = '还没有关注任何人\n快去发现有趣的创作者吧！';
       subtitle = '';
@@ -363,7 +361,7 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
                 SliverToBoxAdapter(
                   child: MasonryGridView.builder(
                     gridDelegate:
-                        const SliverSimpleGridDelegateWithFixedCrossAxisCount(
+                    const SliverSimpleGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                     ),
                     mainAxisSpacing: 1,

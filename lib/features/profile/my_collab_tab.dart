@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../widgets/post_card.dart';
-import '../../widgets/empty_view.dart';
-import '../../widgets/loading_view.dart';
 
 class MyCollabTab extends StatefulWidget {
   final String userId;
-  const MyCollabTab({super.key, required this.userId});
+  final String searchQuery; // 添加搜索参数
+
+  const MyCollabTab({
+    super.key,
+    required this.userId,
+    this.searchQuery = '',
+  });
 
   @override
   State<MyCollabTab> createState() => _MyCollabTabState();
@@ -14,7 +18,8 @@ class MyCollabTab extends StatefulWidget {
 
 class _MyCollabTabState extends State<MyCollabTab> {
   final SupabaseClient _client = Supabase.instance.client;
-  final List<Map<String, dynamic>> _posts = [];
+  final List<Map<String, dynamic>> _allPosts = [];
+  final List<Map<String, dynamic>> _displayPosts = [];
   bool _isLoading = false;
   String? _error;
   int _page = 0;
@@ -32,6 +37,15 @@ class _MyCollabTabState extends State<MyCollabTab> {
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
     _fetchCollabPosts();
+  }
+
+  @override
+  void didUpdateWidget(MyCollabTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 当搜索词变化时，过滤帖子
+    if (oldWidget.searchQuery != widget.searchQuery) {
+      _filterPosts();
+    }
   }
 
   @override
@@ -83,11 +97,13 @@ class _MyCollabTabState extends State<MyCollabTab> {
       }
 
       setState(() {
-        _posts.addAll(newPosts);
+        _allPosts.addAll(newPosts);
         _page++;
         _hasMore = (resp as List).length == _pageSize;
         _isLoading = false;
         _error = null;
+        // 加载新数据后重新过滤
+        _filterPosts();
       });
     } catch (e, stackTrace) {
       setState(() {
@@ -97,9 +113,38 @@ class _MyCollabTabState extends State<MyCollabTab> {
     }
   }
 
+  void _filterPosts() {
+    final searchQuery = widget.searchQuery.trim().toLowerCase();
+
+    if (searchQuery.isEmpty) {
+      // 无搜索词，显示所有帖子
+      setState(() {
+        _displayPosts.clear();
+        _displayPosts.addAll(_allPosts);
+      });
+    } else {
+      // 根据搜索词过滤
+      final filtered = _allPosts.where((post) {
+        final title = post['title']?.toString().toLowerCase() ?? '';
+        final content = post['content']?.toString().toLowerCase() ?? '';
+        final role = widget.searchQuery.toLowerCase(); // 可以搜索角色
+
+        return title.contains(searchQuery) ||
+            content.contains(searchQuery) ||
+            role.contains(searchQuery);
+      }).toList();
+
+      setState(() {
+        _displayPosts.clear();
+        _displayPosts.addAll(filtered);
+      });
+    }
+  }
+
   Future<void> _onRefresh() async {
     setState(() {
-      _posts.clear();
+      _allPosts.clear();
+      _displayPosts.clear();
       _page = 0;
       _hasMore = true;
       _error = null;
@@ -117,6 +162,29 @@ class _MyCollabTabState extends State<MyCollabTab> {
       color: const Color(0xFFF5F5F8),
       child: Column(
         children: [
+          // 搜索状态提示
+          if (widget.searchQuery.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Colors.white,
+              child: Row(
+                children: [
+                  Icon(Icons.search, size: 16, color: _primaryColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '搜索"${widget.searchQuery}"，找到${_displayPosts.length}个共创作品',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (widget.searchQuery.isNotEmpty)
+            const Divider(height: 1, thickness: 0.5),
 
           Expanded(
             child: RefreshIndicator(
@@ -131,7 +199,7 @@ class _MyCollabTabState extends State<MyCollabTab> {
   }
 
   Widget _buildBody() {
-    if (_isLoading && _posts.isEmpty) {
+    if (_isLoading && _allPosts.isEmpty) {
       return Center(
         child: CircularProgressIndicator(
           valueColor: AlwaysStoppedAnimation<Color>(_primaryColor),
@@ -139,24 +207,28 @@ class _MyCollabTabState extends State<MyCollabTab> {
       );
     }
 
-    if (_error != null && _posts.isEmpty) {
+    if (_error != null && _allPosts.isEmpty) {
       return _buildErrorView();
     }
 
-    if (_posts.isEmpty) {
+    // 有搜索词但没有搜索结果
+    if (widget.searchQuery.isNotEmpty && _displayPosts.isEmpty && !_isLoading) {
+      return _buildNoSearchResults();
+    }
+
+    if (_displayPosts.isEmpty) {
       return _buildEmptyView();
     }
 
     return ListView.builder(
       controller: _scrollController,
-      itemCount: _posts.length + 1,
+      itemCount: _displayPosts.length + 1,
       physics: const AlwaysScrollableScrollPhysics(),
       itemBuilder: (context, index) {
-        if (index == _posts.length) {
+        if (index == _displayPosts.length) {
           return _buildLoadMoreIndicator();
         }
 
-        // 添加分隔线和样式
         return Column(
           children: [
             Container(
@@ -172,9 +244,9 @@ class _MyCollabTabState extends State<MyCollabTab> {
                   ),
                 ],
               ),
-              child: PostCard(post: _posts[index]),
+              child: PostCard(post: _displayPosts[index]),
             ),
-            if (index < _posts.length - 1)
+            if (index < _displayPosts.length - 1)
               const Divider(
                 height: 1,
                 thickness: 0.5,
@@ -185,6 +257,56 @@ class _MyCollabTabState extends State<MyCollabTab> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildNoSearchResults() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.search_off,
+            size: 72,
+            color: _primaryColor,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            '没有找到"${widget.searchQuery}"相关的共创作品',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            '换个关键词试试吧',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF666666),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: _onRefresh,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryColor,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            ),
+            child: const Text(
+              '重新搜索',
+              style: TextStyle(fontSize: 14),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -288,10 +410,12 @@ class _MyCollabTabState extends State<MyCollabTab> {
     if (!_hasMore) {
       return Container(
         padding: const EdgeInsets.all(24),
-        child: const Center(
+        child: Center(
           child: Text(
-            '没有更多共创作品了',
-            style: TextStyle(
+            widget.searchQuery.isNotEmpty
+                ? '没有更多搜索结果了'
+                : '没有更多共创作品了',
+            style: const TextStyle(
               fontSize: 14,
               color: Color(0xFF999999),
             ),

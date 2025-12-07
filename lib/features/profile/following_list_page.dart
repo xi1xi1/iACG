@@ -35,17 +35,17 @@ class _FollowingListPageState extends State<FollowingListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F8), // 聊天界面背景色
+      backgroundColor: const Color(0xFFF5F5F8),
       appBar: AppBar(
         title: const Text(
           '我的关注',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Colors.white, // 改为白色文字
+            color: Colors.white,
           ),
         ),
-        backgroundColor: const Color(0xFFEC4899), // 个人主页主色调
+        backgroundColor: const Color(0xFFED7099), // 修改为主题色
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -56,7 +56,7 @@ class _FollowingListPageState extends State<FollowingListPage> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFED7099)), // 修改为主题色
               ),
             );
           }
@@ -77,7 +77,7 @@ class _FollowingListPageState extends State<FollowingListPage> {
               height: 1,
               thickness: 0.5,
               color: Color(0xFFE5E5E5),
-              indent: 80, // 与聊天列表对齐
+              indent: 80,
             ),
             itemBuilder: (context, index) {
               final user = list[index];
@@ -96,7 +96,7 @@ class _FollowingListPageState extends State<FollowingListPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.people_outline, size: 64, color: Color(0xFFEC4899)),
+            Icon(Icons.people_outline, size: 64, color: const Color(0xFFED7099)), // 修改为主题色
             const SizedBox(height: 16),
             Text(
               message,
@@ -143,17 +143,17 @@ class _FollowersListPageState extends State<FollowersListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F8), // 聊天界面背景色
+      backgroundColor: const Color(0xFFF5F5F8),
       appBar: AppBar(
         title: const Text(
           '我的粉丝',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Colors.white, // 改为白色文字
+            color: Colors.white,
           ),
         ),
-        backgroundColor: const Color(0xFFEC4899), // 个人主页主色调
+        backgroundColor: const Color(0xFFED7099), // 修改为主题色
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -164,7 +164,7 @@ class _FollowersListPageState extends State<FollowersListPage> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFED7099)), // 修改为主题色
               ),
             );
           }
@@ -185,7 +185,7 @@ class _FollowersListPageState extends State<FollowersListPage> {
               height: 1,
               thickness: 0.5,
               color: Color(0xFFE5E5E5),
-              indent: 80, // 与聊天列表对齐
+              indent: 80,
             ),
             itemBuilder: (context, index) {
               final user = list[index];
@@ -204,7 +204,7 @@ class _FollowersListPageState extends State<FollowersListPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.people_outline, size: 64, color: Color(0xFFEC4899)),
+            Icon(Icons.people_outline, size: 64, color: const Color(0xFFED7099)), // 修改为主题色
             const SizedBox(height: 16),
             Text(
               message,
@@ -220,7 +220,7 @@ class _FollowersListPageState extends State<FollowersListPage> {
   }
 }
 
-/// 通用的用户一行展示 - 改为聊天界面风格
+/// 通用的用户一行展示
 class _UserRow extends StatelessWidget {
   final UserProfile profile;
   const _UserRow({super.key, required this.profile});
@@ -242,7 +242,7 @@ class _UserRow extends StatelessWidget {
         color: Colors.white,
         child: Row(
           children: [
-            // 头像 - 聊天界面风格
+            // 头像
             Stack(
               children: [
                 Container(
@@ -250,14 +250,17 @@ class _UserRow extends StatelessWidget {
                   height: 52,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFEC4899), Color(0xFFF472B6)],
+                    gradient: LinearGradient(
+                      colors: const [
+                        Color(0xFFED7099), // 主色调
+                        Color(0xFFF9A8C9), // 次要色调
+                      ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFEC4899).withOpacity(0.3),
+                        color: const Color(0xFFED7099).withOpacity(0.3),
                         blurRadius: 6,
                         offset: const Offset(0, 2),
                       ),
@@ -290,12 +293,19 @@ class _UserRow extends StatelessWidget {
                     child: Container(
                       width: 18,
                       height: 18,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFEC4899),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFED7099), // 修改为主题色
                         shape: BoxShape.circle,
-                        border: Border.fromBorderSide(
+                        border: const Border.fromBorderSide(
                           BorderSide(color: Colors.white, width: 2),
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFED7099).withOpacity(0.3),
+                            blurRadius: 3,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
                       ),
                       child: const Icon(
                         Icons.verified,
@@ -308,7 +318,7 @@ class _UserRow extends StatelessWidget {
             ),
             const SizedBox(width: 16),
 
-            // 用户信息 - 聊天列表风格
+            // 用户信息
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,8 +338,6 @@ class _UserRow extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      // 移除 lastActive 相关代码，因为 UserProfile 中没有这个字段
-                      // 如果有其他时间字段可以在这里添加
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -338,8 +346,8 @@ class _UserRow extends StatelessWidget {
                       if (profile.city != null && profile.city!.isNotEmpty)
                         Row(
                           children: [
-                            const Icon(Icons.location_on_outlined,
-                                size: 14, color: Color(0xFF999999)),
+                            Icon(Icons.location_on_outlined,
+                                size: 14, color: const Color(0xFFED7099)), // 修改为主题色
                             const SizedBox(width: 4),
                             Text(
                               profile.city!,
@@ -356,8 +364,11 @@ class _UserRow extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFEC4899), Color(0xFFF472B6)],
+                            gradient: LinearGradient(
+                              colors: const [
+                                Color(0xFFED7099), // 主色调
+                                Color(0xFFF9A8C9), // 次要色调
+                              ],
                               begin: Alignment.centerLeft,
                               end: Alignment.centerRight,
                             ),
@@ -421,13 +432,13 @@ class _ErrorRetry extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
                   colors: [
-                    const Color(0xFFEC4899).withOpacity(0.1),
-                    const Color(0xFFF472B6).withOpacity(0.1),
+                    const Color(0xFFED7099).withOpacity(0.1), // 修改为主题色
+                    const Color(0xFFF9A8C9).withOpacity(0.1), // 修改为次要色调
                   ],
                 ),
               ),
-              child: const Icon(Icons.error_outline,
-                  size: 40, color: Color(0xFFEC4899)),
+              child: Icon(Icons.error_outline,
+                  size: 40, color: const Color(0xFFED7099)), // 修改为主题色
             ),
             const SizedBox(height: 16),
             Text(
@@ -442,7 +453,7 @@ class _ErrorRetry extends StatelessWidget {
             ElevatedButton(
               onPressed: onRetry,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEC4899),
+                backgroundColor: const Color(0xFFED7099), // 修改为主题色
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(

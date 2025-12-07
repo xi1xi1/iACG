@@ -24,6 +24,11 @@ class _MyProfilePageState extends State<MyProfilePage>
   bool _isLoading = true;
   String? _error;
   late TabController _tabController;
+  final TextEditingController _searchController = TextEditingController();
+  String _currentSearchQuery = '';
+
+  // 新增：控制搜索框显示状态
+  bool _showSearchField = false;
 
   @override
   void initState() {
@@ -41,6 +46,7 @@ class _MyProfilePageState extends State<MyProfilePage>
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -83,7 +89,7 @@ class _MyProfilePageState extends State<MyProfilePage>
             onPressed: () => Navigator.pop(context, true),
             child: const Text(
               '退出',
-              style: TextStyle(color: Colors.red),
+              style: TextStyle(color: Color(0xFFED7099)),
             ),
           ),
         ],
@@ -97,7 +103,9 @@ class _MyProfilePageState extends State<MyProfilePage>
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(
-          child: CircularProgressIndicator(),
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFED7099)),
+          ),
         ),
       );
 
@@ -124,6 +132,69 @@ class _MyProfilePageState extends State<MyProfilePage>
     }
   }
 
+  void _performSearch(String query) {
+    setState(() {
+      _currentSearchQuery = query;
+    });
+
+    // 根据当前选中的tab类型和搜索词执行搜索
+    if (query.isEmpty) {
+      // 清空搜索词，显示所有内容
+      return;
+    }
+
+    // 在这里可以根据需要添加搜索逻辑
+    // 例如：可以调用API搜索，或者本地过滤数据
+    _notifyCurrentTabOfSearch(query);
+  }
+
+  void _notifyCurrentTabOfSearch(String query) {
+    // 这里可以通知当前选中的tab进行搜索
+    // 实际搜索逻辑在各个tab中实现
+  }
+
+  void _clearSearch() {
+    setState(() {
+      _searchController.clear();
+      _currentSearchQuery = '';
+      _showSearchField = false;
+    });
+    // 清空搜索后，通知tab显示所有内容
+    _notifyCurrentTabOfSearch('');
+    // 收起键盘
+    FocusScope.of(context).unfocus();
+  }
+
+  void _onSearchSubmitted(String value) {
+    if (value.trim().isNotEmpty) {
+      // 执行搜索
+      _performSearch(value.trim());
+      // 收起键盘
+      FocusScope.of(context).unfocus();
+    }
+  }
+
+  void _toggleSearchField() {
+    setState(() {
+      _showSearchField = !_showSearchField;
+      if (!_showSearchField) {
+        _searchController.clear();
+        _currentSearchQuery = '';
+        _notifyCurrentTabOfSearch('');
+      }
+    });
+
+    if (_showSearchField) {
+      // 延迟一点让搜索框显示后自动聚焦
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (mounted) {
+          FocusScope.of(context).requestFocus(FocusNode());
+          FocusScope.of(context).requestFocus(_searchController.selection.extentOffset == 0 ? _searchController.selection.baseOffset == 0 ? FocusNode() : null : null);
+        }
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -131,7 +202,7 @@ class _MyProfilePageState extends State<MyProfilePage>
         backgroundColor: Colors.white,
         body: Center(
           child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFED7099)), // 修改颜色
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFED7099)),
           ),
         ),
       );
@@ -144,11 +215,11 @@ class _MyProfilePageState extends State<MyProfilePage>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 64, color: Color(0xFFED7099)), // 修改颜色
+              const Icon(Icons.error_outline, size: 64, color: Color(0xFFED7099)),
               const SizedBox(height: 16),
               Text(
                 '加载失败: $_error',
-                style: const TextStyle(color: Color(0xFFED7099)), // 修改颜色
+                style: const TextStyle(color: Color(0xFFED7099)),
               ),
               const SizedBox(height: 16),
               ElevatedButton(
@@ -170,25 +241,52 @@ class _MyProfilePageState extends State<MyProfilePage>
               pinned: true,
               floating: false,
               snap: false,
-              expandedHeight: 500,
-              stretch: true,
+              expandedHeight: 400,
               backgroundColor: Colors.white,
               flexibleSpace: FlexibleSpaceBar(
                 background: _buildProfileHeader(),
                 collapseMode: CollapseMode.parallax,
               ),
-              title: _buildAppBarTitle(),
-              centerTitle: true,
-              forceElevated: true,
+              title: const SizedBox.shrink(),
+              centerTitle: false,
               elevation: 0,
               bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(48),
-                child: Container(
-                  color: Colors.white,
+                preferredSize: Size.fromHeight(_showSearchField ? 96 : 48),
+                child: _buildTabBarWithSearch(),
+              ),
+            ),
+          ];
+        },
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            MyPostsTab(userId: _profile!.id, searchQuery: _currentSearchQuery),
+            MyIslandTab(userId: _profile!.id, searchQuery: _currentSearchQuery),
+            MyFavoritesTab(userId: _profile!.id, searchQuery: _currentSearchQuery),
+            MyCollabTab(userId: _profile!.id, searchQuery: _currentSearchQuery),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabBarWithSearch() {
+    return Container(
+      color: Colors.white,
+      child: Column(
+        children: [
+          // TabBar和搜索图标在一行
+          Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                // TabBar部分 - 占据大部分空间
+                Expanded(
                   child: TabBar(
                     controller: _tabController,
-                    indicatorColor: const Color(0xFFED7099), // 修改颜色
-                    labelColor: const Color(0xFFED7099), // 修改颜色
+                    indicatorColor: const Color(0xFFED7099),
+                    labelColor: const Color(0xFFED7099),
                     unselectedLabelColor: Colors.grey[600],
                     indicatorSize: TabBarIndicatorSize.label,
                     labelStyle: const TextStyle(
@@ -205,38 +303,100 @@ class _MyProfilePageState extends State<MyProfilePage>
                       Tab(text: '收藏'),
                       Tab(text: '共创'),
                     ],
+                    isScrollable: true,
                   ),
+                ),
+
+                // 搜索图标按钮 - 右侧
+                IconButton(
+                  icon: Icon(
+                    _showSearchField ? Icons.close : Icons.search,
+                    color: _showSearchField ? const Color(0xFFED7099) : Colors.grey[600],
+                    size: 22,
+                  ),
+                  onPressed: _toggleSearchField,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // 搜索框区域（展开/收起动画）
+          if (_showSearchField)
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Container(
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Row(
+                  children: [
+                    const SizedBox(width: 12),
+                    Icon(Icons.search, color: const Color(0xFFED7099), size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          hintText: _getSearchHintText(),
+                          hintStyle: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey,
+                          ),
+                          border: InputBorder.none,
+                          isDense: true,
+                        ),
+                        style: const TextStyle(fontSize: 13),
+                        onChanged: _performSearch,
+                        onSubmitted: _onSearchSubmitted,
+                      ),
+                    ),
+                    if (_currentSearchQuery.isNotEmpty)
+                      IconButton(
+                        icon: Icon(Icons.close, size: 18, color: Colors.grey[600]),
+                        onPressed: _clearSearch,
+                        padding: EdgeInsets.zero,
+                        iconSize: 18,
+                      ),
+                    const SizedBox(width: 4),
+                  ],
                 ),
               ),
             ),
-          ];
-        },
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            MyPostsTab(userId: _profile!.id),
-            MyIslandTab(userId: _profile!.id),
-            MyFavoritesTab(userId: _profile!.id),
-            MyCollabTab(userId: _profile!.id),
-          ],
-        ),
+
+          // 分隔线
+          Container(
+            height: 1,
+            color: Colors.grey[100],
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildAppBarTitle() {
-    return AnimatedOpacity(
-      opacity: 1.0,
-      duration: const Duration(milliseconds: 200),
-      child: Text(
-        '${_profile!.nickname}的个人主页',
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-          color: Colors.black,
-        ),
-      ),
-    );
+  String _getSearchHintText() {
+    switch (_tabController.index) {
+      case 0:
+        return '搜索作品...';
+      case 1:
+        return '搜索群岛...';
+      case 2:
+        return '搜索收藏...';
+      case 3:
+        return '搜索共创...';
+      default:
+        return '搜索...';
+    }
   }
 
   Widget _buildProfileHeader() {
@@ -248,80 +408,136 @@ class _MyProfilePageState extends State<MyProfilePage>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildAvatarAndStatsRow(),
-            const SizedBox(height: 16),
-
-            _buildUserInfoCard(),
-            const SizedBox(height: 12),
-
-            _buildActionButtons(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAvatarAndStatsRow() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(40),
-            color: Colors.white,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(40),
-            child: _profile!.avatarUrl != null
-                ? Image.network(
-              _profile!.avatarUrl!,
-              fit: BoxFit.cover,
-            )
-                : Container(
-              color: Colors.grey[200],
-              child: Center(
-                child: Text(
-                  _profile!.nickname.isNotEmpty ? _profile!.nickname[0] : '?',
-                  style: const TextStyle(
-                    fontSize: 28,
+            // 头像和基本信息行
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 头像
+                Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(40),
                     color: Colors.white,
-                    fontWeight: FontWeight.bold,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.withOpacity(0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(40),
+                    child: _profile!.avatarUrl != null
+                        ? Image.network(
+                      _profile!.avatarUrl!,
+                      fit: BoxFit.cover,
+                    )
+                        : Container(
+                      color: Colors.grey[200],
+                      child: Center(
+                        child: Text(
+                          _profile!.nickname.isNotEmpty ? _profile!.nickname[0] : '?',
+                          style: const TextStyle(
+                            fontSize: 28,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
+                const SizedBox(width: 16),
 
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.05),
-                  blurRadius: 6,
-                  offset: const Offset(0, 1),
+                // 昵称、ID和编辑资料按钮
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _profile!.nickname,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'ID: ${_profile!.id}',
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // 编辑资料和退出按钮在一行
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                final result = await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => EditProfilePage(profile: _profile!),
+                                  ),
+                                );
+                                if (result == true) {
+                                  _loadData();
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFFED7099),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: const BorderSide(color: Color(0xFFED7099)),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                elevation: 0,
+                              ),
+                              child: const Text(
+                                '编辑资料',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 56,
+                            child: ElevatedButton(
+                              onPressed: _handleSignOut,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: Colors.red,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  side: const BorderSide(color: Colors.red),
+                                ),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                elevation: 0,
+                              ),
+                              child: const Icon(Icons.logout, size: 20),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
-              border: Border.all(
-                color: Colors.grey.withOpacity(0.1),
-                width: 1,
-              ),
             ),
-            child: Row(
+            const SizedBox(height: 20),
+
+            // 统计数据行
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildStatItem('作品', _stats?['posts'] ?? 0),
@@ -329,309 +545,59 @@ class _MyProfilePageState extends State<MyProfilePage>
                 _buildStatItem('粉丝', _stats?['followers'] ?? 0),
               ],
             ),
-          ),
-        ),
-      ],
-    );
-  }
+            const SizedBox(height: 10),
 
-  Widget _buildUserInfoCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
-        border: Border.all(
-          color: Colors.grey.withOpacity(0.1),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _profile!.nickname,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (_profile!.isCoser) ...[
-                const SizedBox(width: 6),
-
-              ],
-            ],
-          ),
-          const SizedBox(height: 6),
-
-          Text(
-            'ID: ${_profile!.id}',
-            style: const TextStyle(
-              color: Colors.grey,
-              fontSize: 12,
-              fontFamily: 'monospace',
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 8),
-
-          _buildRoleBadges(),
-          const SizedBox(height: 8),
-
-          if (_profile!.bio != null && _profile!.bio!.isNotEmpty)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xffF8F9FA),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    _profile!.bio!,
-                    style: const TextStyle(
-                      color: Colors.black87,
-                      fontSize: 13,
-                      height: 1.3,
+            // 个人简介
+            if (_profile!.bio != null && _profile!.bio!.isNotEmpty)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '个人简介',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
                     ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 8),
-              ],
-            ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xffF8F9FA),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _profile!.bio!,
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
 
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              if (_profile!.city != null)
-                _buildCompactInfoItem(
-                  Icons.location_on_outlined,
-                  _profile!.city!,
-                  const Color(0xFFED7099), // 修改颜色
-                ),
-              // _buildCompactInfoItem(
-              //   Icons.school_outlined,
-              //   '暂无',
-              //   const Color(0xFFED7099), // 修改颜色
-              // ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCompactInfoItem(IconData icon, String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 3),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 11,
-              color: color,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActionButtons() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            blurRadius: 6,
-            offset: const Offset(0, 1),
-          ),
-        ],
-        border: Border.all(
-          color: Colors.grey.withOpacity(0.1),
-          width: 1,
+            // 地标信息
+            if (_profile!.city != null)
+              Row(
+                children: [
+                  Icon(Icons.location_on_outlined, size: 16, color: const Color(0xFFED7099)),
+                  const SizedBox(width: 6),
+                  Text(
+                    _profile!.city!,
+                    style: const TextStyle(
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+          ],
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => EditProfilePage(profile: _profile!),
-                  ),
-                );
-                if (result == true) {
-                  _loadData();
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFED7099), // 修改颜色
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                elevation: 0,
-              ),
-              icon: const Icon(Icons.edit, size: 18),
-              label: const Text(
-                '编辑资料',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 56,
-            child: ElevatedButton(
-              onPressed: _handleSignOut,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.grey[100],
-                foregroundColor: Colors.grey[600],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                elevation: 0,
-              ),
-              child: const Icon(Icons.exit_to_app,color: Colors.red, size: 20),
-            ),
-          ),
-        ],
-      ),
     );
-  }
-
-  Widget _buildInfoItem(IconData icon, String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.2), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: TextStyle(
-              fontSize: 12,
-              color: color,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRoleBadges() {
-    List<Widget> badges = [];
-
-    if (_profile!.isCoser) {
-      badges.add(_buildRoleBadge(
-        'Coser',
-        Icons.camera_alt,
-        const Color(0xFFED7099), // 修改颜色
-      ));
-
-
-    } else if (_profile!.role != 'user') {
-      badges.add(_buildRoleBadge(
-        _profile!.displayRole,
-        _getRoleIcon(_profile!.role),
-        const Color(0xFFED7099), // 修改颜色
-      ));
-    }
-
-    if (badges.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: badges,
-    );
-  }
-
-  Widget _buildRoleBadge(String label, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: Colors.white),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  IconData _getRoleIcon(String role) {
-    switch (role) {
-      case 'coser':
-        return Icons.camera_alt;
-      case 'creator_support':
-        return Icons.palette;
-      case 'organizer':
-        return Icons.event;
-      default:
-        return Icons.person;
-    }
   }
 
   Widget _buildStatItem(String label, int count) {

@@ -48,10 +48,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
     {'value': 'pro', 'label': '职业', 'description': '全职Coser'},
   ];
 
-  // 粉色主题颜色
-  final Color _pinkColor = const Color(0xFFE91E63); // 主粉色
-  final Color _lightPink = const Color(0xFFFCE4EC); // 浅粉色背景
-  final Color _darkPink = const Color(0xFFAD1457); // 深粉色
+  // 更新为新的粉色主题颜色
+  final Color _primaryColor = const Color(0xFFED7099); // 主色调
+  final Color _secondaryColor = const Color(0xFFF9A8C9); // 次要色调
+  final Color _backgroundColor = const Color(0xFFFDF2F6); // 背景色
+  final Color _borderColor = const Color(0xFFF4A6C0); // 边框色
 
   @override
   void initState() {
@@ -141,7 +142,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('保存成功')),
+          SnackBar(
+            content: const Text('保存成功'),
+            backgroundColor: _primaryColor,
+          ),
         );
         Navigator.pop(context, true);
       }
@@ -157,7 +161,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
   void _showErrorSnackBar(String message) {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
@@ -172,7 +179,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               height: 120,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: _pinkColor, width: 3),
+                border: Border.all(color: _primaryColor, width: 3),
               ),
               child: ClipOval(
                 child: _buildAvatarImage(),
@@ -187,9 +194,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: _pinkColor,
+                    color: _primaryColor,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _primaryColor.withOpacity(0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: const Icon(
                     Icons.camera_alt,
@@ -204,7 +218,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
         const SizedBox(height: 8),
         Text(
           '点击更换头像',
-          style: TextStyle(fontSize: 12, color: _pinkColor.withOpacity(0.7)),
+          style: TextStyle(
+            fontSize: 12,
+            color: _primaryColor.withOpacity(0.7),
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ],
     );
@@ -244,12 +262,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   Widget _buildDefaultAvatar() {
     return Container(
-      color: _lightPink,
+      color: _backgroundColor,
       child: Center(
         child: Icon(
           Icons.person,
           size: 48,
-          color: _pinkColor.withOpacity(0.5),
+          color: _primaryColor.withOpacity(0.3),
         ),
       ),
     );
@@ -259,8 +277,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _borderColor, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: _primaryColor.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,14 +294,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(Icons.badge, color: _pinkColor),
-                const SizedBox(width: 8),
+                Icon(Icons.badge, color: _primaryColor, size: 20),
+                const SizedBox(width: 10),
                 Text(
                   '我的身份',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: _pinkColor,
+                    color: _primaryColor,
                   ),
                 ),
               ],
@@ -294,11 +319,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Container(
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: Colors.grey.shade100),
+          top: BorderSide(color: _borderColor.withOpacity(0.5)),
         ),
       ),
       child: Material(
-        color: isSelected ? _lightPink : Colors.transparent,
+        color: isSelected ? _backgroundColor : Colors.transparent,
         child: InkWell(
           onTap: () {
             setState(() {
@@ -315,7 +340,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isSelected ? _pinkColor : Colors.grey.shade400,
+                      color: isSelected ? _primaryColor : Colors.grey.shade400,
                       width: 2,
                     ),
                   ),
@@ -326,7 +351,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       height: 10,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _pinkColor,
+                        color: _primaryColor,
                       ),
                     ),
                   )
@@ -342,7 +367,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                          color: isSelected ? _pinkColor : Colors.black87,
+                          color: isSelected ? _primaryColor : Colors.black87,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -350,7 +375,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         option['description']!,
                         style: TextStyle(
                           fontSize: 13,
-                          color: isSelected ? _pinkColor.withOpacity(0.8) : Colors.grey.shade600,
+                          color: isSelected ? _primaryColor.withOpacity(0.8) : Colors.grey.shade600,
                         ),
                       ),
                     ],
@@ -359,7 +384,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 if (isSelected)
                   Icon(
                     Icons.check_circle,
-                    color: _pinkColor,
+                    color: _primaryColor,
                     size: 20,
                   ),
               ],
@@ -378,8 +403,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _borderColor, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: _primaryColor.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -388,14 +420,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(Icons.star, color: _pinkColor),
-                const SizedBox(width: 8),
+                Icon(Icons.star, color: _primaryColor, size: 20),
+                const SizedBox(width: 10),
                 Text(
                   'Coser 等级',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: _pinkColor,
+                    color: _primaryColor,
                   ),
                 ),
               ],
@@ -413,11 +445,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Container(
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: Colors.grey.shade100),
+          top: BorderSide(color: _borderColor.withOpacity(0.5)),
         ),
       ),
       child: Material(
-        color: isSelected ? _lightPink : Colors.transparent,
+        color: isSelected ? _backgroundColor : Colors.transparent,
         child: InkWell(
           onTap: () {
             setState(() {
@@ -434,7 +466,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isSelected ? _pinkColor : Colors.grey.shade400,
+                      color: isSelected ? _primaryColor : Colors.grey.shade400,
                       width: 2,
                     ),
                   ),
@@ -445,7 +477,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       height: 10,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _pinkColor,
+                        color: _primaryColor,
                       ),
                     ),
                   )
@@ -461,7 +493,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                          color: isSelected ? _pinkColor : Colors.black87,
+                          color: isSelected ? _primaryColor : Colors.black87,
                         ),
                       ),
                       if (option['description']!.isNotEmpty) ...[
@@ -470,7 +502,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           option['description']!,
                           style: TextStyle(
                             fontSize: 13,
-                            color: isSelected ? _pinkColor.withOpacity(0.8) : Colors.grey.shade600,
+                            color: isSelected ? _primaryColor.withOpacity(0.8) : Colors.grey.shade600,
                           ),
                         ),
                       ],
@@ -480,7 +512,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 if (isSelected)
                   Icon(
                     Icons.check_circle,
-                    color: _pinkColor,
+                    color: _primaryColor,
                     size: 20,
                   ),
               ],
@@ -498,25 +530,30 @@ class _EditProfilePageState extends State<EditProfilePage> {
       appBar: AppBar(
         title: const Text(
           '编辑资料',
-          style: TextStyle(color: Colors.black87),
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
         ),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 0,
+        iconTheme: IconThemeData(color: _primaryColor),
         actions: [
           if (_isSaving)
-            const Padding(
-              padding: EdgeInsets.all(16.0),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
               child: SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: _primaryColor,
+                ),
               ),
             )
           else
             IconButton(
               onPressed: _saveProfile,
-              icon: Icon(Icons.check, size: 24, color: _pinkColor),
+              icon: Icon(Icons.check, size: 24, color: _primaryColor),
+              tooltip: '保存',
             ),
         ],
       ),
@@ -526,15 +563,22 @@ class _EditProfilePageState extends State<EditProfilePage> {
           padding: const EdgeInsets.all(16),
           children: [
             // 头像区域
-            _buildAvatarSection(),
+            Center(child: _buildAvatarSection()),
             const SizedBox(height: 32),
 
             // 基本信息卡片
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _borderColor, width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: _primaryColor.withOpacity(0.05),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
@@ -542,20 +586,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        Icon(Icons.person_outline, color: _pinkColor),
-                        const SizedBox(width: 8),
+                        Icon(Icons.person_outline, color: _primaryColor, size: 20),
+                        const SizedBox(width: 10),
                         Text(
                           '基本信息',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
-                            color: _pinkColor,
+                            color: _primaryColor,
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const Divider(height: 1),
+                  const Divider(height: 1, color: Color(0xFFF0F0F0)),
                   Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
@@ -564,12 +608,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           controller: _nicknameController,
                           decoration: InputDecoration(
                             labelText: '昵称',
-                            border: const OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.person, color: _pinkColor),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: _pinkColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: _borderColor),
                             ),
-                            labelStyle: TextStyle(color: _pinkColor),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: _borderColor),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: _primaryColor, width: 2),
+                            ),
+                            prefixIcon: Icon(Icons.person, color: _primaryColor),
+                            labelStyle: TextStyle(color: _primaryColor),
                           ),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
@@ -586,13 +638,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           controller: _bioController,
                           decoration: InputDecoration(
                             labelText: '个人简介',
-                            border: const OutlineInputBorder(),
-                            hintText: '介绍一下自己吧~',
-                            prefixIcon: Icon(Icons.description, color: _pinkColor),
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: _pinkColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: _borderColor),
                             ),
-                            labelStyle: TextStyle(color: _pinkColor),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: _borderColor),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: _primaryColor, width: 2),
+                            ),
+                            hintText: '介绍一下自己吧~',
+                            prefixIcon: Icon(Icons.description, color: _primaryColor),
+                            labelStyle: TextStyle(color: _primaryColor),
                           ),
                           maxLines: 3,
                           maxLength: 200,
@@ -602,13 +662,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           controller: _cityController,
                           decoration: InputDecoration(
                             labelText: '城市',
-                            border: const OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.location_on, color: _pinkColor),
-                            hintText: '如:北京、上海',
-                            focusedBorder: OutlineInputBorder(
-                              borderSide: BorderSide(color: _pinkColor),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: _borderColor),
                             ),
-                            labelStyle: TextStyle(color: _pinkColor),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: _borderColor),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide(color: _primaryColor, width: 2),
+                            ),
+                            hintText: '如:北京、上海',
+                            prefixIcon: Icon(Icons.location_on, color: _primaryColor),
+                            labelStyle: TextStyle(color: _primaryColor),
                           ),
                         ),
                       ],
@@ -630,17 +698,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
             // 保存按钮
             SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 52,
               child: ElevatedButton(
                 onPressed: _isSaving ? null : _saveProfile,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: _pinkColor,
+                  backgroundColor: _primaryColor,
+                  foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
+                  elevation: 0,
+                  shadowColor: _primaryColor.withOpacity(0.3),
                 ),
                 child: _isSaving
-                    ? const SizedBox(
+                    ? SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
@@ -653,7 +724,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
                   ),
                 ),
               ),

@@ -6,7 +6,13 @@ import '../../widgets/loading_view.dart';
 
 class MyFavoritesTab extends StatefulWidget {
   final String userId;
-  const MyFavoritesTab({super.key, required this.userId});
+  final String searchQuery; // 添加搜索参数
+
+  const MyFavoritesTab({
+    super.key,
+    required this.userId,
+    this.searchQuery = '',
+  });
 
   @override
   State<MyFavoritesTab> createState() => _MyFavoritesTabState();
@@ -14,7 +20,8 @@ class MyFavoritesTab extends StatefulWidget {
 
 class _MyFavoritesTabState extends State<MyFavoritesTab> {
   final SupabaseClient _client = Supabase.instance.client;
-  final List<Map<String, dynamic>> _posts = [];
+  final List<Map<String, dynamic>> _allFavorites = []; // 存储所有收藏
+  final List<Map<String, dynamic>> _displayFavorites = []; // 显示收藏（搜索过滤后）
   bool _isLoading = false;
   String? _error;
   int _page = 0;
@@ -32,6 +39,15 @@ class _MyFavoritesTabState extends State<MyFavoritesTab> {
     _scrollController = ScrollController();
     _scrollController.addListener(_onScroll);
     _loadFavorites();
+  }
+
+  @override
+  void didUpdateWidget(MyFavoritesTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 当搜索词变化时，过滤收藏
+    if (oldWidget.searchQuery != widget.searchQuery) {
+      _filterFavorites();
+    }
   }
 
   @override
@@ -86,23 +102,25 @@ class _MyFavoritesTabState extends State<MyFavoritesTab> {
           .order('created_at', ascending: false)
           .range(_page * _pageSize, end);
 
-      final List<Map<String, dynamic>> newPosts = [];
+      final List<Map<String, dynamic>> newFavorites = [];
       for (var item in (resp as List)) {
         final postData = item['post'];
         if (postData != null &&
             postData is Map<String, dynamic> &&
             postData['is_deleted'] == false &&
             postData['status'] == 'normal') {
-          newPosts.add(postData);
+          newFavorites.add(postData);
         }
       }
 
       setState(() {
-        _posts.addAll(newPosts);
+        _allFavorites.addAll(newFavorites);
         _page++;
         _hasMore = (resp as List).length == _pageSize;
         _isLoading = false;
         _error = null;
+        // 加载新数据后重新过滤
+        _filterFavorites();
       });
     } catch (e, stackTrace) {
       setState(() {
@@ -112,9 +130,38 @@ class _MyFavoritesTabState extends State<MyFavoritesTab> {
     }
   }
 
+  void _filterFavorites() {
+    final searchQuery = widget.searchQuery.trim().toLowerCase();
+
+    if (searchQuery.isEmpty) {
+      // 无搜索词，显示所有收藏
+      setState(() {
+        _displayFavorites.clear();
+        _displayFavorites.addAll(_allFavorites);
+      });
+    } else {
+      // 根据搜索词过滤
+      final filtered = _allFavorites.where((post) {
+        final title = post['title']?.toString().toLowerCase() ?? '';
+        final content = post['content']?.toString().toLowerCase() ?? '';
+        final author = post['author']?['nickname']?.toString().toLowerCase() ?? '';
+
+        return title.contains(searchQuery) ||
+            content.contains(searchQuery) ||
+            author.contains(searchQuery);
+      }).toList();
+
+      setState(() {
+        _displayFavorites.clear();
+        _displayFavorites.addAll(filtered);
+      });
+    }
+  }
+
   Future<void> _onRefresh() async {
     setState(() {
-      _posts.clear();
+      _allFavorites.clear();
+      _displayFavorites.clear();
       _page = 0;
       _hasMore = true;
       _error = null;
@@ -132,6 +179,29 @@ class _MyFavoritesTabState extends State<MyFavoritesTab> {
       color: const Color(0xFFF5F5F8),
       child: Column(
         children: [
+          // 搜索状态提示
+          if (widget.searchQuery.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Colors.white,
+              child: Row(
+                children: [
+                  Icon(Icons.search, size: 16, color: _primaryColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '搜索"${widget.searchQuery}"，找到${_displayFavorites.length}个收藏',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          if (widget.searchQuery.isNotEmpty)
+            const Divider(height: 1, thickness: 0.5),
 
           Expanded(
             child: RefreshIndicator(
@@ -146,7 +216,7 @@ class _MyFavoritesTabState extends State<MyFavoritesTab> {
   }
 
   Widget _buildBody() {
-    if (_isLoading && _posts.isEmpty) {
+    if (_isLoading && _allFavorites.isEmpty) {
       return Center(
         child: CircularProgressIndicator(
           valueColor: AlwaysStoppedAnimation<Color>(_primaryColor),
@@ -154,20 +224,25 @@ class _MyFavoritesTabState extends State<MyFavoritesTab> {
       );
     }
 
-    if (_error != null && _posts.isEmpty) {
+    if (_error != null && _allFavorites.isEmpty) {
       return _buildErrorView();
     }
 
-    if (_posts.isEmpty) {
+    // 有搜索词但没有搜索结果
+    if (widget.searchQuery.isNotEmpty && _displayFavorites.isEmpty && !_isLoading) {
+      return _buildNoSearchResults();
+    }
+
+    if (_displayFavorites.isEmpty) {
       return _buildEmptyView();
     }
 
     return ListView.builder(
       controller: _scrollController,
-      itemCount: _posts.length + 1,
+      itemCount: _displayFavorites.length + 1,
       physics: const AlwaysScrollableScrollPhysics(),
       itemBuilder: (context, index) {
-        if (index == _posts.length) {
+        if (index == _displayFavorites.length) {
           return _buildLoadMoreIndicator();
         }
 
@@ -187,9 +262,9 @@ class _MyFavoritesTabState extends State<MyFavoritesTab> {
                   ),
                 ],
               ),
-              child: PostCard(post: _posts[index]),
+              child: PostCard(post: _displayFavorites[index]),
             ),
-            if (index < _posts.length - 1)
+            if (index < _displayFavorites.length - 1)
               const Divider(
                 height: 1,
                 thickness: 0.5,
@@ -200,6 +275,56 @@ class _MyFavoritesTabState extends State<MyFavoritesTab> {
           ],
         );
       },
+    );
+  }
+
+  Widget _buildNoSearchResults() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.search_off,
+            size: 72,
+            color: _primaryColor,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            '没有找到"${widget.searchQuery}"相关的收藏',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.black,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            '换个关键词试试吧',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF666666),
+            ),
+          ),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: _onRefresh,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryColor,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+            ),
+            child: const Text(
+              '重新搜索',
+              style: TextStyle(fontSize: 14),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -277,18 +402,20 @@ class _MyFavoritesTabState extends State<MyFavoritesTab> {
             color: _primaryColor,
           ),
           const SizedBox(height: 20),
-          const Text(
-            '暂无收藏',
-            style: TextStyle(
+          Text(
+            widget.searchQuery.isNotEmpty ? '暂无相关收藏' : '暂无收藏',
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: Colors.black,
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            '收藏的作品会显示在这里',
-            style: TextStyle(
+          Text(
+            widget.searchQuery.isNotEmpty
+                ? '换个关键词试试吧'
+                : '收藏的作品会显示在这里',
+            style: const TextStyle(
               fontSize: 14,
               color: Color(0xFF666666),
             ),
@@ -303,10 +430,12 @@ class _MyFavoritesTabState extends State<MyFavoritesTab> {
     if (!_hasMore) {
       return Container(
         padding: const EdgeInsets.all(24),
-        child: const Center(
+        child: Center(
           child: Text(
-            '已经到底了',
-            style: TextStyle(
+            widget.searchQuery.isNotEmpty
+                ? '没有更多搜索结果了'
+                : '已经到底了',
+            style: const TextStyle(
               fontSize: 14,
               color: Color(0xFF999999),
             ),

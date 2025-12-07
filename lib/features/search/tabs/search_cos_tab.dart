@@ -289,7 +289,7 @@ class _SearchCosTabState extends State<SearchCosTab> with AutomaticKeepAliveClie
         ),
       ),
       selected: isSelected,
-      selectedColor: Colors.blue,
+      selectedColor: Color(0xFFED7099),
       backgroundColor: Colors.grey[200],
       onSelected: (selected) => _changeOrderBy(value),
       shape: RoundedRectangleBorder(

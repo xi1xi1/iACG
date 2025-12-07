@@ -304,7 +304,7 @@ class _SearchAllTabState extends State<SearchAllTab> with AutomaticKeepAliveClie
         ),
       ),
       selected: isSelected,
-      selectedColor: Colors.purple,
+      selectedColor: Color(0xFFED7099),
       backgroundColor: Colors.grey[200],
       onSelected: (selected) => _changeOrderBy(value),
       shape: RoundedRectangleBorder(
