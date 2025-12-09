@@ -1,76 +1,3 @@
-// import 'package:flutter/material.dart';
-// import '../../services/post_service.dart';
-// import '../../widgets/post_card.dart';
-// import '../post/post_detail_page.dart';
-
-// class TagPostsPage extends StatefulWidget {
-//   final String tagName;
-//   const TagPostsPage({super.key, required this.tagName});
-
-//   @override
-//   State<TagPostsPage> createState() => _TagPostsPageState();
-// }
-
-// class _TagPostsPageState extends State<TagPostsPage> {
-//   final _postService = PostService();
-//   final _posts = <Map<String, dynamic>>[];
-//   bool _loading = true;
-//   String? _error;
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     _load();
-//   }
-
-//   Future<void> _load() async {
-//     setState(() { _loading = true; _error = null; });
-//     try {
-//       final rows = await _postService.fetchPostsByTag(widget.tagName, limit: 50);
-//       if (!mounted) return;
-//       setState(() {
-//         _posts
-//           ..clear()
-//           ..addAll(rows);
-//       });
-//     } catch (e) {
-//       if (!mounted) return;
-//       setState(() => _error = e.toString());
-//     } finally {
-//       if (mounted) setState(() => _loading = false);
-//     }
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(title: Text('#${widget.tagName}')),
-//       body: _loading
-//           ? const Center(child: CircularProgressIndicator())
-//           : _error != null
-//               ? Center(child: Text('加载失败：$_error'))
-//               : _posts.isEmpty
-//                   ? const Center(child: Text('暂无相关帖子'))
-//                   : ListView.separated(
-//                       itemCount: _posts.length,
-//                       separatorBuilder: (_, __) => const Divider(height: 1),
-//                       itemBuilder: (context, i) {
-//                         final p = _posts[i];
-//                         return GestureDetector(
-//                           onTap: () {
-//                             Navigator.of(context).push(
-//                               MaterialPageRoute(
-//                                 builder: (_) => PostDetailPage(postId: p['id'] as int),
-//                               ),
-//                             );
-//                           },
-//                           child: PostCard(post: p), // 你已有 PostCard 就复用；没有就用 ListTile
-//                         );
-//                       },
-//                     ),
-//     );
-//   }
-// }
 import 'package:flutter/material.dart';
 import '../../services/post_service.dart';
 import '../../services/tag_service.dart';
@@ -99,7 +26,7 @@ class _TagPostsPageState extends State<TagPostsPage> {
 
   static const _pageSize = 20;
 
-  // 新增：参与量（总数），以及“最新/最热”筛选
+  // 新增：参与量（总数），以及"最新/最热"筛选
   int? _totalCount;
   String _sort = 'latest'; // 'latest' | 'hot'
 
@@ -162,7 +89,7 @@ class _TagPostsPageState extends State<TagPostsPage> {
 
       List<Map<String, dynamic>> rows = const [];
 
-      // 优先尝试带排序参数（与你的 PostService 对接“最热/最新”）
+      // 优先尝试带排序参数（与你的 PostService 对接"最热/最新"）
       try {
         rows = await _postService.fetchPostsByTag(
           widget.tagName,
@@ -221,84 +148,157 @@ class _TagPostsPageState extends State<TagPostsPage> {
     final title = '#${widget.tagName}'
         '${_totalCount == null ? '' : ' · 参与量 $_totalCount'}';
 
-    final sortToggle = SegmentedButton<String>(
-      segments: const [
-        ButtonSegment(value: 'latest', label: Text('最新')),
-        ButtonSegment(value: 'hot', label: Text('最热')),
-      ],
-      selected: {_sort},
-      onSelectionChanged: (s) {
-        final v = s.first;
-        if (v == _sort) return;
-        setState(() => _sort = v);
-        _load(reset: true);
-      },
-    );
-
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: Column(
         children: [
-          // 顶部筛选栏：最新 / 最热
+          // 顶部筛选栏：最新 / 最热 - 使用 OutlinedButton 替代 SegmentedButton
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: Row(
               children: [
-                const Text('排序：'),
-                const SizedBox(width: 8),
-                Expanded(child: sortToggle),
+                const Text(
+                  '排序：',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // 最新按钮
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      if (_sort != 'latest') {
+                        setState(() => _sort = 'latest');
+                        _load(reset: true);
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _sort == 'latest'
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.grey.shade700,
+                      backgroundColor: _sort == 'latest'
+                          ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                          : Colors.transparent,
+                      side: BorderSide(
+                        color: _sort == 'latest'
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.grey.shade300,
+                        width: 1.5,
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.only(
+                          topLeft: const Radius.circular(8),
+                          bottomLeft: const Radius.circular(8),
+                          topRight: Radius.zero,
+                          bottomRight: Radius.zero,
+                        ),
+                      ),
+                    ),
+                    child: const Text(
+                      '最新',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
+                // 最热按钮
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      if (_sort != 'hot') {
+                        setState(() => _sort = 'hot');
+                        _load(reset: true);
+                      }
+                    },
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: _sort == 'hot'
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.grey.shade700,
+                      backgroundColor: _sort == 'hot'
+                          ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                          : Colors.transparent,
+                      side: BorderSide(
+                        color: _sort == 'hot'
+                            ? Theme.of(context).colorScheme.primary
+                            : Colors.grey.shade300,
+                        width: 1.5,
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.zero,
+                          bottomLeft: Radius.zero,
+                          topRight: const Radius.circular(8),
+                          bottomRight: const Radius.circular(8),
+                        ),
+                      ),
+                    ),
+                    child: const Text(
+                      '最热',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-          const Divider(height: 1),
+          const Divider(height: 1, thickness: 1),
           Expanded(
             child: RefreshIndicator(
               onRefresh: _refresh,
               child: _error != null
                   ? ListView(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Center(child: Text('加载失败：$_error')),
-                        ),
-                      ],
-                    )
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(child: Text('加载失败：$_error')),
+                  ),
+                ],
+              )
                   : _posts.isEmpty && _loading
-                      ? const Center(child: CircularProgressIndicator())
-                      : _posts.isEmpty
-                          ? ListView(
-                              children: const [
-                                SizedBox(height: 120),
-                                Center(child: Text('暂无相关帖子')),
-                              ],
-                            )
-                          : ListView.separated(
-                              controller: _scroll,
-                              itemCount: _posts.length + 1,
-                              separatorBuilder: (_, __) => const Divider(height: 1),
-                              itemBuilder: (context, i) {
-                                if (i == _posts.length) {
-                                  if (_end) return const SizedBox(height: 48);
-                                  return const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 16),
-                                    child: Center(child: CircularProgressIndicator()),
-                                  );
-                                }
-                                final p = _posts[i];
-                                return GestureDetector(
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) => PostDetailPage(
-                                          postId: (p['id'] as num).toInt(),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  child: PostCard(post: p),
-                                );
-                              },
-                            ),
+                  ? const Center(child: CircularProgressIndicator())
+                  : _posts.isEmpty
+                  ? ListView(
+                children: const [
+                  SizedBox(height: 120),
+                  Center(child: Text('暂无相关帖子')),
+                ],
+              )
+                  : ListView.separated(
+                controller: _scroll,
+                itemCount: _posts.length + 1,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, i) {
+                  if (i == _posts.length) {
+                    if (_end) return const SizedBox(height: 48);
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  final p = _posts[i];
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PostDetailPage(
+                            postId: (p['id'] as num).toInt(),
+                          ),
+                        ),
+                      );
+                    },
+                    child: PostCard(post: p),
+                  );
+                },
+              ),
             ),
           ),
         ],
@@ -306,4 +306,3 @@ class _TagPostsPageState extends State<TagPostsPage> {
     );
   }
 }
-

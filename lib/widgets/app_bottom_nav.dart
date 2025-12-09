@@ -6,6 +6,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../services/message_service.dart'; // 🔥 新增：导入消息服务
 
 
+const Color primaryPink = Color(0xFFED7099); // 粉色 - 修改为ED7099
+
+
 class AppBottomNav extends StatefulWidget {
   final int currentIndex;
   final Function(int) onTap;
@@ -84,21 +87,9 @@ class _AppBottomNavState extends State<AppBottomNav> {
       currentIndex: widget.currentIndex,
       onTap: (index) {
         widget.onTap(index);
-        
-        // 点击消息Tab时，刷新未读数（用户可能已读）
-        if (index == 3) {
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              _loadUnreadCount();
-            }
-          });
-        }
       },
       type: BottomNavigationBarType.fixed,
-<<<<<<< HEAD
       backgroundColor: Color(0xFFF8F8F8),
-=======
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       items: [
         // 首页
         BottomNavigationBarItem(
@@ -106,23 +97,23 @@ class _AppBottomNavState extends State<AppBottomNav> {
           activeIcon: _buildHomeIcon(true),
           label: '首页',
         ),
-        // 关注
+        // Cos
         BottomNavigationBarItem(
           icon: _buildCosIcon(false),
           activeIcon: _buildCosIcon(true),
-          label: 'Cos',
+          label: '作品',
         ),
-        // 发布
+        // 群岛
         BottomNavigationBarItem(
           icon: _buildIslandIcon(false),
           activeIcon: _buildIslandIcon(true),
           label: '群岛',
         ),
-        // 消息（带角标）
+        // 活动（原来消息的位置）
         BottomNavigationBarItem(
-          icon: _buildMessageIcon(false),
-          activeIcon: _buildMessageIcon(true),
-          label: '消息',
+          icon: _buildEventIcon(false),
+          activeIcon: _buildEventIcon(true),
+          label: '活动',
         ),
         // 我的
         BottomNavigationBarItem(
@@ -141,11 +132,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/home.svg' : 'assets/icons/home.svg',
       width: 24,
       height: 24,
-<<<<<<< HEAD
-      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
-=======
-      color: isActive ? Color(0xFFEC4899) : Colors.grey,
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
+      color: isActive ? primaryPink : Colors.grey,
     );
   }
 
@@ -156,11 +143,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/island.svg' : 'assets/icons/island.svg',
       width: 24,
       height: 24,
-<<<<<<< HEAD
-      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
-=======
-      color: isActive ? Color(0xFFEC4899) : Colors.grey,
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
+      color: isActive ? primaryPink : Colors.grey,
     );
   }
 
@@ -171,11 +154,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/cos.svg' : 'assets/icons/cos.svg',
       width: 24,
       height: 24,
-<<<<<<< HEAD
-      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
-=======
-      color: isActive ? Color(0xFFEC4899) : Colors.grey,
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
+      color: isActive ? primaryPink : Colors.grey,
     );
   }
 
@@ -186,11 +165,7 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/message.svg' : 'assets/icons/message.svg',
       width: 24,
       height: 24,
-<<<<<<< HEAD
-      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
-=======
-      color: isActive ? Color(0xFFEC4899) : Colors.grey,
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
+      color: isActive ? primaryPink : Colors.grey,
     );
   }
   /// 构建消息图标（带未读角标）
@@ -245,17 +220,19 @@ class _AppBottomNavState extends State<AppBottomNav> {
       isActive ? 'assets/icons/me.svg' : 'assets/icons/me.svg',
       width: 24,
       height: 24,
-<<<<<<< HEAD
-      color: isActive ? const Color(0xFFEC4899) : Colors.grey,
-=======
-      color: isActive ? Color(0xFFEC4899) : Colors.grey,
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
+      color: isActive ? primaryPink : Colors.grey,
+    );
+  }
+
+  /// 构建活动图标
+  Widget _buildEventIcon(bool isActive) {
+    // 使用事件图标，如果没有事件图标，使用消息图标替代
+    return Icon(
+      Icons.event,
+      size: 24,
+      color: isActive ? primaryPink : Colors.grey,
     );
   }
 
 
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1

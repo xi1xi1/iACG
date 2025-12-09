@@ -8,17 +8,10 @@ class SearchAllTab extends StatefulWidget {
   final String keyword;
 
   const SearchAllTab({
-<<<<<<< HEAD
     super.key,
     required this.searchService,
     required this.keyword,
   });
-=======
-    Key? key,
-    required this.searchService,
-    required this.keyword,
-  }) : super(key: key);
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 
   @override
   State<SearchAllTab> createState() => _SearchAllTabState();
@@ -86,25 +79,36 @@ class _SearchAllTabState extends State<SearchAllTab> with AutomaticKeepAliveClie
   @override
   void didUpdateWidget(SearchAllTab oldWidget) {
     super.didUpdateWidget(oldWidget);
+    print('🔍 SearchAllTab didUpdateWidget: old=${oldWidget.keyword}, new=${widget.keyword}');
     if (oldWidget.keyword != widget.keyword) {
+      print('🔄 搜索关键词变化，刷新搜索');
       _refreshSearch();
     }
   }
 
   Future<List<Map<String, dynamic>>> _performSearch() async {
-    if (widget.keyword.isEmpty) return [];
+    print('🔍 执行搜索: keyword="${widget.keyword}"');
+    if (widget.keyword.isEmpty) {
+      print('⚠️ 搜索关键词为空，返回空列表');
+      return [];
+    }
     
     setState(() {
       _isLoading = true;
     });
 
     try {
+      print('📡 调用searchService.searchPosts...');
       final result = await widget.searchService.searchPosts(
         query: widget.keyword,
         orderBy: _orderBy,
         limit: _limit,
       );
+      print('✅ 搜索完成，找到 ${result.length} 条结果');
       return result;
+    } catch (e) {
+      print('❌ 搜索出错: $e');
+      rethrow;
     } finally {
       setState(() {
         _isLoading = false;
@@ -270,8 +274,16 @@ class _SearchAllTabState extends State<SearchAllTab> with AutomaticKeepAliveClie
                         : const SizedBox();
                   }
                   final post = _posts[index];
-                  return PostCard(post: post);
+                  return PostCard(
+                    post: post,
+                    compactMode: true, // 使用紧凑模式，让卡片变小
+                  );
                 },
+                  physics: const BouncingScrollPhysics(),
+                  // 关键改动：把这3个参数改成这样
+                  addAutomaticKeepAlives: true,  // 改为true，保持Widget状态
+                  addRepaintBoundaries: true, // 改为true，添加重绘边界
+                  cacheExtent: 1000, // 增加到1000，预渲染更多
               );
             },
           ),
@@ -292,7 +304,7 @@ class _SearchAllTabState extends State<SearchAllTab> with AutomaticKeepAliveClie
         ),
       ),
       selected: isSelected,
-      selectedColor: Colors.purple,
+      selectedColor: Color(0xFFED7099),
       backgroundColor: Colors.grey[200],
       onSelected: (selected) => _changeOrderBy(value),
       shape: RoundedRectangleBorder(

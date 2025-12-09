@@ -1,14 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:iacg/features/auth/login_page.dart';
 import 'package:iacg/services/tag_service.dart';
 import 'package:iacg/widgets/post_card.dart';
 import '../../services/post_service.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/loading_view.dart';
+import '../../services/profile_service.dart';
 import '../../widgets/error_view.dart';
 import 'package:iacg/features/post/post_compose_page.dart';
 import 'package:iacg/features/search/search_page.dart';
+import 'home_page.dart';
 
 class HomeCosTab extends StatefulWidget {
   const HomeCosTab({super.key});
@@ -33,6 +36,10 @@ class _HomeCosTabState extends State<HomeCosTab>
   bool _hasMore = true;
   final int _pageSize = 10;
 
+  // 用户身份状态
+  bool _isOrganizer = false;
+  bool _loadingUserRole = true;
+
   // 顶部标签：全部、关注
   final List<String> _topTabs = ['全部', '关注'];
   late TabController _tabController;
@@ -52,6 +59,7 @@ class _HomeCosTabState extends State<HomeCosTab>
   final PostService _postService = PostService();
   final ScrollController _scrollController = ScrollController();
 
+
   @override
   void initState() {
     super.initState();
@@ -59,6 +67,7 @@ class _HomeCosTabState extends State<HomeCosTab>
     _tabController.addListener(_handleTabSelection);
     _scrollController.addListener(_scrollListener);
     _loadInitialData();
+    _checkUserRole();
   }
 
   @override
@@ -86,12 +95,8 @@ class _HomeCosTabState extends State<HomeCosTab>
         _currentPage = 1;
         _hasMore = true;
       });
-<<<<<<< HEAD
 
       _loadPosts(isRefresh: true);
-=======
-      _loadPosts();
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 
       // 如果是"全部"标签，加载IP标签
       if (_tabController.index == 0) {
@@ -100,12 +105,37 @@ class _HomeCosTabState extends State<HomeCosTab>
     }
   }
 
+  // 检查用户是否是活动组织者
+  Future<void> _checkUserRole() async {
+    try {
+      // 首先检查用户是否登录
+      if (!_authService.isLoggedIn) {
+        setState(() {
+          _isOrganizer = false;
+          _loadingUserRole = false;
+        });
+        return;
+      }
+
+      // 获取用户资料并检查角色
+      final profile = await ProfileService().fetchMyProfile();
+      if (profile != null) {
+        setState(() {
+          _isOrganizer = profile.role == 'organizer';
+          _loadingUserRole = false;
+        });
+        print('用户身份检查完成: isOrganizer = $_isOrganizer, role = ${profile.role}');
+      } else {
+        setState(() => _loadingUserRole = false);
+      }
+    } catch (e) {
+      print('检查用户身份失败: $e');
+      setState(() => _loadingUserRole = false);
+    }
+  }
+
   Future<void> _loadInitialData() async {
-<<<<<<< HEAD
     await _loadPosts(isRefresh: true);
-=======
-    await _loadPosts();
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     if (_selectedTopTab == 0) {
       await _loadIpTags();
     }
@@ -170,10 +200,7 @@ class _HomeCosTabState extends State<HomeCosTab>
 
       if (kDebugMode) {
         debugPrint('加载完成: ${result.length} 条');
-<<<<<<< HEAD
         print(isRefresh);
-=======
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       }
 
       setState(() {
@@ -366,220 +393,70 @@ class _HomeCosTabState extends State<HomeCosTab>
         : const SizedBox.shrink();
   }
 
-<<<<<<< HEAD
   // 构建顶部导航栏 - 二次元风格
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       backgroundColor: AnimeColors.cardWhite,
       elevation: 0,
-      title: Row(
-        children: [
-          // Logo图片部分
-          Image.asset(
-            'assets/images/IACG_L.PNG',
-            height: 32,
-            fit: BoxFit.contain,
-          ),
-          const SizedBox(width: 16),
-          // 搜索框 - 二次元风格
-=======
-  // 构建顶部导航栏 - 返回 PreferredSizeWidget
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      title: Row(
-        children: [
-          const Text(
-            'iACG',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(width: 16),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
-          Expanded(
-            child: Container(
-              height: 40,
-              decoration: BoxDecoration(
-<<<<<<< HEAD
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.grey.withOpacity(0.2),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-=======
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(20),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
-              ),
-              child: TextField(
-                readOnly: true,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SearchPage()),
-                  );
-                },
-                decoration: InputDecoration(
-                  hintText: '搜索内容...',
-<<<<<<< HEAD
-                  hintStyle: TextStyle(color: AnimeColors.textLight),
-                  border: InputBorder.none,
-                  contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: Colors.grey,
-                    size: 20,
-                  ),
-=======
-                  hintStyle: TextStyle(color: Colors.grey[600]),
-                  border: InputBorder.none,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-      actions: [
-<<<<<<< HEAD
-        // 发布按钮 - 二次元风格
-        Container(
-          margin: const EdgeInsets.only(right: 8),
-          child: IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AnimeColors.primaryPink,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AnimeColors.primaryPink.withValues(alpha: 0.3),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const PostComposePage()),
-              );
-            },
-            tooltip: '发布',
-          ),
+      leading: Container(
+        //color: Colors.red[100],
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        child: Image.asset(
+          'assets/images/IACG_L.PNG',
+          fit: BoxFit.contain,
         ),
-        if (!_authService.isLoggedIn)
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            child: ElevatedButton(
-              onPressed: () => Navigator.of(context).pushNamed('/login'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AnimeColors.primaryPink,
-                foregroundColor: Colors.white,
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              ),
-              child: const Text(
-                '登录',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                ),
-              ),
-            ),
+      ),
+      leadingWidth: 80,
+      title: Container(
+        width: 160,
+        color: AnimeColors.cardWhite,
+        //color: Colors.red[100],
+        child: TabBar(
+
+          controller: _tabController,
+          labelColor: AnimeColors.primaryPink,
+          unselectedLabelColor: AnimeColors.textLight,
+          indicatorColor: AnimeColors.primaryPink,
+          indicatorWeight: 3,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
           ),
-      ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(48),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AnimeColors.cardWhite,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.normal,
+            fontSize: 16,
           ),
-          child: TabBar(
-            controller: _tabController,
-            labelColor: AnimeColors.primaryPink,
-            unselectedLabelColor: AnimeColors.textLight,
-            indicatorColor: AnimeColors.primaryPink,
-            indicatorWeight: 3,
-            indicatorSize: TabBarIndicatorSize.label,
-            labelStyle: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-            unselectedLabelStyle: const TextStyle(
-              fontWeight: FontWeight.normal,
-              fontSize: 14,
-            ),
-            tabs: _topTabs.map((tab) => Tab(text: tab)).toList(),
-            isScrollable: false,
-          ),
-=======
+          tabs: [
+            Tab(text: '全部'),
+            Tab(text: '关注'),
+          ],
+          isScrollable: false,
+        ),
+      ),
+      centerTitle: true,
+      actions: [
+        // 搜索按钮（放大镜图标）- 放在消息按钮左侧
         IconButton(
-          icon: const Icon(Icons.add_circle_outline),
+          icon: Icon(
+            Icons.search,
+            color: AnimeColors.textDark,
+            size: 24,
+          ),
           onPressed: () {
             Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const PostComposePage()),
+              MaterialPageRoute(builder: (_) => const SearchPage()),
             );
           },
-          tooltip: '发布',
+          tooltip: '搜索',
         ),
-        if (!_authService.isLoggedIn)
-          TextButton(
-            onPressed: () => Navigator.of(context).pushNamed('/login'),
-            child: const Text(
-              '登录',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
+
       ],
-      bottom: TabBar(
-        controller: _tabController,
-        tabs: _topTabs.map((tab) => Tab(text: tab)).toList(),
-        indicatorColor: Theme.of(context).colorScheme.primary,
-        labelColor: Theme.of(context).colorScheme.primary,
-        unselectedLabelColor: Colors.grey[600],
-        labelStyle: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w600,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
-        ),
-      ),
     );
   }
 
-<<<<<<< HEAD
+
+
   // 构建筛选面板（仅全部标签显示）- 增强二次元风格
   Widget _buildFilterPanel() {
     if (_selectedTopTab != 0 || !_showFilterPanel) {
@@ -610,32 +487,10 @@ class _HomeCosTabState extends State<HomeCosTab>
         //   color: AnimeColors.primaryPink.withValues(alpha: 0.1),
         //   width: 1,
         // ),
-=======
-  // 构建筛选面板（仅全部标签显示）
-  Widget _buildFilterPanel() {
-    if (_selectedTopTab != 0 || !_showFilterPanel)
-      return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[300]!),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-<<<<<<< HEAD
           // 面板标题 - 二次元风格
           Row(
             children: [
@@ -646,7 +501,7 @@ class _HomeCosTabState extends State<HomeCosTab>
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  _currentFilterType == FilterType.category ? '选择类型' : '选择IP',
+                  _currentFilterType == FilterType.category ? '全部类型' : '全部类型',
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -712,51 +567,6 @@ class _HomeCosTabState extends State<HomeCosTab>
                     ),
                   ),
                 ],
-=======
-          // 面板标题
-          Row(
-            children: [
-              Text(
-                _currentFilterType == FilterType.category ? '选择类型' : '选择IP',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const Spacer(),
-              // 关闭按钮
-              IconButton(
-                onPressed: _closeFilterPanel,
-                icon: const Icon(Icons.close, size: 20),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // 筛选内容
-          _buildFilterOptions(),
-          const SizedBox(height: 16),
-          // 应用按钮
-          SizedBox(
-            width: double.infinity,
-            height: 44,
-            child: ElevatedButton(
-              onPressed: _applyFilters,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                '应用筛选',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
               ),
             ),
           ),
@@ -774,19 +584,11 @@ class _HomeCosTabState extends State<HomeCosTab>
     }
   }
 
-<<<<<<< HEAD
   // 构建类型选项 - 增强二次元风格
   Widget _buildCategoryOptions() {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
-=======
-  // 构建类型选项
-  Widget _buildCategoryOptions() {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       children: _cosCategories.map((category) {
         final isSelected = _selectedCategory == category;
         return GestureDetector(
@@ -800,15 +602,14 @@ class _HomeCosTabState extends State<HomeCosTab>
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-<<<<<<< HEAD
               color: isSelected ? AnimeColors.primaryPink : Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isSelected
-                    ? AnimeColors.primaryPink.withValues(alpha: 0.3)
-                    : AnimeColors.primaryPink.withValues(alpha: 0.2),
-                width: isSelected ? 0 : 1.5,
-              ),
+              // border: Border.all(
+              //   color: isSelected
+              //       ? AnimeColors.primaryPink.withValues(alpha: 0.3)
+              //       : AnimeColors.primaryPink.withValues(alpha: 0.2),
+              //   width: isSelected ? 0 : 1.5,
+              // ),
               boxShadow: isSelected
                   ? [
                       BoxShadow(
@@ -824,22 +625,10 @@ class _HomeCosTabState extends State<HomeCosTab>
                         offset: const Offset(0, 1),
                       ),
                     ],
-=======
-              color: isSelected
-                  ? Theme.of(context).colorScheme.primary
-                  : Colors.grey[100],
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isSelected
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey[300]!,
-              ),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
             ),
             child: Text(
               category,
               style: TextStyle(
-<<<<<<< HEAD
                 color: isSelected ? Colors.white : AnimeColors.primaryPink,
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
@@ -852,10 +641,6 @@ class _HomeCosTabState extends State<HomeCosTab>
                         ),
                       ]
                     : null,
-=======
-                color: isSelected ? Colors.white : Colors.grey[700],
-                fontWeight: FontWeight.w500,
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
               ),
             ),
           ),
@@ -864,7 +649,6 @@ class _HomeCosTabState extends State<HomeCosTab>
     );
   }
 
-<<<<<<< HEAD
   // 构建 IP 选项 - 增强二次元风格
   Widget _buildIpOptions() {
     return _isLoadingTags
@@ -889,15 +673,6 @@ class _HomeCosTabState extends State<HomeCosTab>
         : Wrap(
             spacing: 10,
             runSpacing: 10,
-=======
-  // 构建 IP 选项
-  Widget _buildIpOptions() {
-    return _isLoadingTags
-        ? const Center(child: CircularProgressIndicator())
-        : Wrap(
-            spacing: 12,
-            runSpacing: 12,
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
             children: [
               // "全部"选项
               GestureDetector(
@@ -907,17 +682,16 @@ class _HomeCosTabState extends State<HomeCosTab>
                   });
                 },
                 child: Container(
-<<<<<<< HEAD
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
                     color: _selectedIp == '全部' ? AnimeColors.primaryPink : Colors.white,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _selectedIp == '全部'
-                          ? AnimeColors.primaryPink.withValues(alpha: 0.3)
-                          : AnimeColors.primaryPink.withValues(alpha: 0.2),
-                      width: _selectedIp == '全部' ? 0 : 1.5,
-                    ),
+                    // border: Border.all(
+                    //   color: _selectedIp == '全部'
+                    //       ? AnimeColors.primaryPink.withValues(alpha: 0.3)
+                    //       : AnimeColors.primaryPink.withValues(alpha: 0.2),
+                    //   width: _selectedIp == '全部' ? 0 : 1.5,
+                    // ),
                     boxShadow: _selectedIp == '全部'
                         ? [
                             BoxShadow(
@@ -933,24 +707,10 @@ class _HomeCosTabState extends State<HomeCosTab>
                               offset: const Offset(0, 1),
                             ),
                           ],
-=======
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  decoration: BoxDecoration(
-                    color:
-                        _selectedIp == '全部' ? Colors.purple : Colors.grey[100],
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _selectedIp == '全部'
-                          ? Colors.purple
-                          : Colors.grey[300]!,
-                    ),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                   ),
                   child: Text(
                     '全部',
                     style: TextStyle(
-<<<<<<< HEAD
                       color: _selectedIp == '全部' ? Colors.white : AnimeColors.primaryPink,
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
@@ -963,11 +723,6 @@ class _HomeCosTabState extends State<HomeCosTab>
                               ),
                             ]
                           : null,
-=======
-                      color:
-                          _selectedIp == '全部' ? Colors.white : Colors.grey[700],
-                      fontWeight: FontWeight.w500,
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                     ),
                   ),
                 ),
@@ -983,17 +738,16 @@ class _HomeCosTabState extends State<HomeCosTab>
                     });
                   },
                   child: Container(
-<<<<<<< HEAD
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     decoration: BoxDecoration(
                       color: isSelected ? AnimeColors.primaryPink : Colors.white,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected
-                            ? AnimeColors.primaryPink.withValues(alpha: 0.3)
-                            : AnimeColors.primaryPink.withValues(alpha: 0.2),
-                        width: isSelected ? 0 : 1.5,
-                      ),
+                      // border: Border.all(
+                      //   color: isSelected
+                      //       ? AnimeColors.primaryPink.withValues(alpha: 0.3)
+                      //       : AnimeColors.primaryPink.withValues(alpha: 0.2),
+                      //   width: isSelected ? 0 : 1.5,
+                      // ),
                       boxShadow: isSelected
                           ? [
                               BoxShadow(
@@ -1009,21 +763,10 @@ class _HomeCosTabState extends State<HomeCosTab>
                                 offset: const Offset(0, 1),
                               ),
                             ],
-=======
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.purple : Colors.grey[100],
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected ? Colors.purple : Colors.grey[300]!,
-                      ),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                     ),
                     child: Text(
                       tagName,
                       style: TextStyle(
-<<<<<<< HEAD
                         color: isSelected ? Colors.white : AnimeColors.primaryPink,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -1036,10 +779,6 @@ class _HomeCosTabState extends State<HomeCosTab>
                                 ),
                               ]
                             : null,
-=======
-                        color: isSelected ? Colors.white : Colors.grey[700],
-                        fontWeight: FontWeight.w500,
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                       ),
                     ),
                   ),
@@ -1055,10 +794,7 @@ class _HomeCosTabState extends State<HomeCosTab>
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-<<<<<<< HEAD
       color: Color(0xFFF7F7F7),
-=======
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       child: Row(
         children: [
           // 类型筛选按钮
@@ -1097,7 +833,6 @@ class _HomeCosTabState extends State<HomeCosTab>
         height: 44,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-<<<<<<< HEAD
           color: isActive ? AnimeColors.primaryPink : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
@@ -1113,16 +848,6 @@ class _HomeCosTabState extends State<HomeCosTab>
               offset: const Offset(0, 2),
             ),
           ],
-=======
-          color:
-              isActive ? Theme.of(context).colorScheme.primary : Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isActive
-                ? Theme.of(context).colorScheme.primary
-                : Colors.grey[300]!,
-          ),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1130,18 +855,13 @@ class _HomeCosTabState extends State<HomeCosTab>
             Icon(
               icon,
               size: 18,
-<<<<<<< HEAD
               color: isActive ? Colors.white : AnimeColors.primaryPink,
-=======
-              color: isActive ? Colors.white : Colors.grey[600],
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
             ),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
                 fontSize: 14,
-<<<<<<< HEAD
                 fontWeight: FontWeight.w600,
                 color: isActive ? Colors.white : AnimeColors.primaryPink,
                 shadows: isActive
@@ -1153,10 +873,6 @@ class _HomeCosTabState extends State<HomeCosTab>
                         ),
                       ]
                     : null,
-=======
-                fontWeight: FontWeight.w500,
-                color: isActive ? Colors.white : Colors.grey[700],
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -1237,10 +953,7 @@ class _HomeCosTabState extends State<HomeCosTab>
       }
     }
 
-<<<<<<< HEAD
 
-=======
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -1265,11 +978,240 @@ class _HomeCosTabState extends State<HomeCosTab>
       ),
     );
   }
+// 处理发布按钮点击（添加登录检查）
+Future<void> _handlePublishButtonTap() async {
+  // 1. 首先检查用户是否登录
+  final uid = _authService.currentUser?.id;
+  if (uid == null) {
+    // 用户未登录，显示提示
+    if (mounted) {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('需要登录'),
+          shape: RoundedRectangleBorder( // 添加这一行
+          borderRadius: BorderRadius.circular(18), // 设置圆角半径
+        ),
+          content: const Text('登录后才能发布帖子，去登录吧～'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // 跳转到登录页面
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LoginPage(),
+                  ),
+                );
+              },
+              child: const Text('去登录', style: TextStyle(color: Color(0xFFED7099))),
+            ),
+          ],
+        ),
+      );
+    }
+    return;
+  }
+
+  // 2. 用户已登录，显示频道选择
+  showChannelSelectionBottomSheet();
+}
+  // 显示频道选择底部弹窗
+  void showChannelSelectionBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) {
+        return GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            color: Colors.black.withOpacity(0.4),
+            child: DraggableScrollableSheet(
+              initialChildSize: 0.55, // 增加初始高度到55%
+              minChildSize: 0.45, // 最小高度40%
+              maxChildSize: 0.55, // 最大高度70%
+              snap: true,
+              snapSizes: const [0.54, 0.55], // 设置吸附点
+              builder: (context, scrollController) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: AnimeColors.cardWhite,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        spreadRadius: 2,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // 顶部拖拽指示器
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+
+                      // 标题
+                      Padding(
+                        padding: const EdgeInsets.only(top: 24, bottom: 20),
+                        child: Text(
+                          '请选择发布频道',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AnimeColors.textDark,
+                          ),
+                        ),
+                      ),
+
+                      // 频道选项 - 使用固定高度确保完全显示
+                      SizedBox(
+                        height: 280, // 固定高度确保三个选项完全显示
+                        child: ListView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          physics: const ClampingScrollPhysics(), // 禁用弹性效果
+                          children: [
+                            // COS作品
+                            _buildChannelOption(
+                              label: 'COS作品',
+                              icon: Icons.photo_camera,
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => PostComposePage(initialChannel: 'cos'),
+                                  ),
+                                );
+                              },
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // 群岛社区
+                            _buildChannelOption(
+                              label: '群岛社区',
+                              icon: Icons.people,
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => PostComposePage(initialChannel: 'island'),
+                                  ),
+                                );
+                              },
+                            ),
+
+                            // 活动 - 只在用户是活动组织者时显示
+                            if (_isOrganizer) ...[
+                              const SizedBox(height: 16),
+                              _buildChannelOption(
+                                label: '活动',
+                                icon: Icons.event,
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => PostComposePage(initialChannel: 'event'),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // 构建频道选项
+  Widget _buildChannelOption({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Colors.grey.shade200,
+          width: 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AnimeColors.primaryPink.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: AnimeColors.primaryPink,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AnimeColors.textDark,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: Colors.grey.shade400,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-<<<<<<< HEAD
       backgroundColor: AnimeColors.backgroundLight,
       appBar: _buildAppBar(),
       body: Column(
@@ -1279,16 +1221,6 @@ class _HomeCosTabState extends State<HomeCosTab>
           // 筛选面板
           _buildFilterPanel(),
           // 筛选状态栏
-=======
-      appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          // 筛选按钮（仅全部标签）
-          _buildFilterButtons(),
-          // 筛选面板（仅全部标签）
-          _buildFilterPanel(),
-          // 筛选状态栏（仅全部标签）
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
           _buildFilterStatus(),
           // 帖子列表 - 双瀑布流
           Expanded(
@@ -1301,34 +1233,20 @@ class _HomeCosTabState extends State<HomeCosTab>
                     : _posts.isEmpty
                         ? _buildEmptyState()
                         : RefreshIndicator(
-<<<<<<< HEAD
                             onRefresh: () => _loadPosts(isRefresh: true),//下拉刷新
                             child: CustomScrollView(
                               controller: _scrollController,
                               slivers: [
                                 // 瀑布流网格 - 优化布局，缩小空隙
-=======
-                            onRefresh: () => _loadPosts(isRefresh: true),
-                            child: CustomScrollView(
-                              controller: _scrollController,
-                              slivers: [
-                                // 瀑布流网格
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                                 SliverToBoxAdapter(
                                   child: MasonryGridView.builder(
                                     gridDelegate:
                                         const SliverSimpleGridDelegateWithFixedCrossAxisCount(
                                       crossAxisCount: 2,
                                     ),
-<<<<<<< HEAD
                                     mainAxisSpacing: 4, // 缩小垂直间距
                                     crossAxisSpacing: 4, // 缩小水平间距
                                     padding: const EdgeInsets.all(4), // 缩小整体边距
-=======
-                                    mainAxisSpacing: 8,
-                                    crossAxisSpacing: 8,
-                                    padding: const EdgeInsets.all(8),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                                     physics:
                                         const NeverScrollableScrollPhysics(),
                                     shrinkWrap: true,
@@ -1336,10 +1254,7 @@ class _HomeCosTabState extends State<HomeCosTab>
                                     itemBuilder: (context, index) {
                                       return PostCard(
                                         post: _posts[index],
-<<<<<<< HEAD
                                         isLeftColumn: index.isEven, // 传递列位置信息
-=======
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
                                       );
                                     },
                                   ),
@@ -1354,6 +1269,16 @@ class _HomeCosTabState extends State<HomeCosTab>
           ),
         ],
       ),
+      // 右下角悬浮发布按钮
+      floatingActionButton: FloatingActionButton(
+        onPressed:  _handlePublishButtonTap,
+        backgroundColor: AnimeColors.primaryPink,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        mini:  true,
+        child: const Icon(Icons.add),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

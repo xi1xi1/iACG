@@ -1,12 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:iacg/features/auth/login_page.dart';
 import 'package:iacg/widgets/post_card.dart';
 import '../../services/post_service.dart';
 import '../../widgets/loading_view.dart';
 import '../../widgets/error_view.dart';
+import '../../services/profile_service.dart';
 import 'package:iacg/features/post/post_compose_page.dart';
 import 'package:iacg/features/search/search_page.dart';
 import '../../services/auth_service.dart';
+import '../../core/supabase_client.dart';
 
 class HomeIslandTab extends StatefulWidget {
   const HomeIslandTab({super.key});
@@ -15,7 +18,8 @@ class HomeIslandTab extends StatefulWidget {
   State<HomeIslandTab> createState() => _HomeIslandTabState();
 }
 
-class _HomeIslandTabState extends State<HomeIslandTab> {
+class _HomeIslandTabState extends State<HomeIslandTab>
+    with SingleTickerProviderStateMixin {
   final List<Map<String, dynamic>> _posts = [];
   bool _isLoading = true;
   bool _isLoadingMore = false;
@@ -26,8 +30,16 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
   // 分页相关变量
   int _currentPage = 1;
   bool _hasMore = true;
-<<<<<<< HEAD
   final int _pageSize = 20;
+
+  // 一级筛选：全部、关注
+  final List<String> _topTabs = ['全部', '关注'];
+  late TabController _tabController;
+  int _selectedTopTab = 0;
+
+  // 用户身份状态
+  bool _isOrganizer = false;
+  bool _loadingUserRole = true;
 
   // 群岛类型选项 - 增强二次元风格
   final List<Map<String, dynamic>> _islandTypes = [
@@ -39,12 +51,6 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
     {'type': '约拍', 'icon': Icons.photo_camera_outlined, 'color': Color(0xFFEF4444)},
     {'type': '其他', 'icon': Icons.more_horiz, 'color': Color(0xFF6B7280)},
   ];
-=======
-  final int _pageSize = 10;
-
-  // 群岛类型选项 - 只显示数据库中实际存在的类型
-  final List<String> _islandTypes = ['全部', '求助', '分享', '吐槽', '找搭子', '约拍', '其他'];
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 
   final ScrollController _scrollController = ScrollController();
   final PostService _postService = PostService();
@@ -52,14 +58,29 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: _topTabs.length, vsync: this);
+    _tabController.addListener(_handleTabSelection);
     _scrollController.addListener(_scrollListener);
     _loadPosts();
+    _checkUserRole();
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _handleTabSelection() {
+    if (_tabController.indexIsChanging) {
+      setState(() {
+        _selectedTopTab = _tabController.index;
+        _currentPage = 1;
+        _hasMore = true;
+      });
+      _loadPosts(isRefresh: true);
+    }
   }
 
   void _scrollListener() {
@@ -68,6 +89,35 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
         !_isLoadingMore &&
         _hasMore) {
       _loadMorePosts();
+    }
+  }
+
+  // 检查用户是否是活动组织者
+  Future<void> _checkUserRole() async {
+    try {
+      // 首先检查用户是否登录
+      if (!_authService.isLoggedIn) {
+        setState(() {
+          _isOrganizer = false;
+          _loadingUserRole = false;
+        });
+        return;
+      }
+
+      // 获取用户资料并检查角色
+      final profile = await ProfileService().fetchMyProfile();
+      if (profile != null) {
+        setState(() {
+          _isOrganizer = profile.role == 'organizer';
+          _loadingUserRole = false;
+        });
+        print('用户身份检查完成: isOrganizer = $_isOrganizer, role = ${profile.role}');
+      } else {
+        setState(() => _loadingUserRole = false);
+      }
+    } catch (e) {
+      print('检查用户身份失败: $e');
+      setState(() => _loadingUserRole = false);
     }
   }
 
@@ -87,16 +137,62 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
       });
 
       if (kDebugMode) {
-        debugPrint('开始加载群岛帖子，类型: $_selectedType, 页码: $_currentPage');
+        debugPrint('开始加载群岛帖子，一级筛选: ${_topTabs[_selectedTopTab]}, 二级筛选: $_selectedType, 页码: $_currentPage');
       }
 
-      // 使用真实的群岛帖子数据
-      final String? islandType = _selectedType == '全部' ? null : _selectedType;
-      final result = await _postService.fetchIslandPosts(
-        islandType: islandType,
-        limit: _pageSize,
-        offset: (isRefresh ? 0 : _currentPage - 1) * _pageSize,
-      );
+      List<Map<String, dynamic>> result;
+
+      if (_selectedTopTab == 0) {
+        // 全部标签：按类型筛选
+        final String? islandType = _selectedType == '全部' ? null : _selectedType;
+        result = await _postService.fetchIslandPosts(
+          islandType: islandType,
+          limit: _pageSize,
+          offset: (isRefresh ? 0 : _currentPage - 1) * _pageSize,
+        );
+      } else {
+        // 关注标签：获取关注用户的群岛帖子
+        if (!_authService.isLoggedIn) {
+          setState(() {
+            _error = '请先登录查看关注内容';
+            _isLoading = false;
+          });
+          return;
+        }
+
+        final userId = _authService.currentUser?.id;
+        if (userId == null) {
+          setState(() {
+            _error = '用户信息获取失败';
+            _isLoading = false;
+          });
+          return;
+        }
+
+        // 获取关注用户的ID列表
+        final followsResponse = await _postService.fetchFollowingPosts();
+        if (followsResponse.isEmpty) {
+          setState(() {
+            _posts.clear();
+            _hasMore = false;
+            _error = null;
+            _isLoading = false;
+          });
+          return;
+        }
+
+        final followingIds = followsResponse
+            .map((post) => post['author_id'] as String)
+            .toSet()
+            .toList();
+
+        // 使用自定义查询获取关注用户的群岛帖子
+        result = await _fetchFollowIslandPosts(
+          followingIds,
+          limit: _pageSize,
+          offset: (isRefresh ? 0 : _currentPage - 1) * _pageSize,
+        );
+      }
 
       if (kDebugMode) {
         debugPrint('成功加载 ${result.length} 条帖子');
@@ -140,12 +236,46 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
 
       _currentPage++;
 
-      final String? islandType = _selectedType == '全部' ? null : _selectedType;
-      final result = await _postService.fetchIslandPosts(
-        islandType: islandType,
-        limit: _pageSize,
-        offset: (_currentPage - 1) * _pageSize,
-      );
+      List<Map<String, dynamic>> result;
+
+      if (_selectedTopTab == 0) {
+        final String? islandType = _selectedType == '全部' ? null : _selectedType;
+        result = await _postService.fetchIslandPosts(
+          islandType: islandType,
+          limit: _pageSize,
+          offset: (_currentPage - 1) * _pageSize,
+        );
+      } else {
+        // 关注标签：获取关注用户的群岛帖子
+        if (!_authService.isLoggedIn) {
+          return;
+        }
+
+        final userId = _authService.currentUser?.id;
+        if (userId == null) return;
+
+        // 获取关注用户的ID列表
+        final followsResponse = await _postService.fetchFollowingPosts();
+        if (followsResponse.isEmpty) {
+          setState(() {
+            _hasMore = false;
+            _isLoadingMore = false;
+          });
+          return;
+        }
+
+        final followingIds = followsResponse
+            .map((post) => post['author_id'] as String)
+            .toSet()
+            .toList();
+
+        // 使用自定义查询获取关注用户的群岛帖子
+        result = await _fetchFollowIslandPosts(
+          followingIds,
+          limit: _pageSize,
+          offset: (_currentPage - 1) * _pageSize,
+        );
+      }
 
       setState(() {
         _posts.addAll(result);
@@ -170,275 +300,195 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
     }
   }
 
-<<<<<<< HEAD
-  // 构建加载更多指示器 - 增强二次元风格
-  Widget _buildLoadMoreIndicator() {
-    if (!_hasMore && _posts.isNotEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
-            Text(
-              '已经到底了～',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-=======
-  // 构建加载更多指示器
-  Widget _buildLoadMoreIndicator() {
-    if (!_hasMore && _posts.isNotEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 20),
-        child: Center(
-          child: Text(
-            '已经到底了～',
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 14,
-            ),
-          ),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
-        ),
-      );
-    }
+  // 自定义方法：获取关注用户的群岛帖子
+  Future<List<Map<String, dynamic>>> _fetchFollowIslandPosts(
+    List<String> followingIds, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      if (kDebugMode) {
+        debugPrint('开始获取关注用户的群岛帖子，关注用户数: ${followingIds.length}, limit=$limit, offset=$offset');
+      }
 
-    return _isLoadingMore
-<<<<<<< HEAD
-        ? Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Column(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF8B5CF6).withOpacity(0.1),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFF8B5CF6).withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF8B5CF6)),
-                    strokeWidth: 2,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '加载中...',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-=======
-        ? const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
-            child: Center(
-              child: CircularProgressIndicator(),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
-            ),
-          )
-        : const SizedBox.shrink();
-  }
+      // 使用PostService的client直接查询
+      final client = AppSupabaseClient().client;
+      
+      final response = await client
+          .from('posts')
+          .select('''
+            id, channel, title, content, island_type, created_at,
+            comment_count, view_count, author_id,
+            author:profiles!posts_author_id_fkey(id, nickname, avatar_url),
+            post_media(media_url, media_type, sort_order)
+          ''')
+          .eq('channel', 'island')  // 只获取群岛帖子
+          .eq('is_deleted', false)
+          .eq('status', 'normal')
+          .inFilter('author_id', followingIds)
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
 
-  // 回到顶部
-  void _scrollToTop() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+      if (kDebugMode) {
+        debugPrint('成功获取 ${(response as List).length} 条关注用户的群岛帖子');
+      }
+
+      return (response as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('获取关注用户的群岛帖子失败: $e');
+      }
+      throw Exception('加载关注内容失败: ${e.toString()}');
     }
   }
 
-<<<<<<< HEAD
-  // 构建顶部导航栏 - 增强二次元风格
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: AnimeColors.cardWhite,
+  // 自定义方法：获取关注用户的COS帖子
+  Future<List<Map<String, dynamic>>> _fetchFollowCosPosts(
+    List<String> followingIds, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      if (kDebugMode) {
+        debugPrint('开始获取关注用户的COS帖子，关注用户数: ${followingIds.length}, limit=$limit, offset=$offset');
+      }
+
+      // 使用PostService的client直接查询
+      final client = AppSupabaseClient().client;
+      
+      final response = await client
+          .from('posts')
+          .select('''
+            id, channel, title, content, island_type, created_at,
+            comment_count, view_count, author_id,
+            author:profiles!posts_author_id_fkey(id, nickname, avatar_url),
+            post_media(media_url, media_type, sort_order)
+          ''')
+          .eq('channel', 'cos')  // 只获取COS帖子
+          .eq('is_deleted', false)
+          .eq('status', 'normal')
+          .inFilter('author_id', followingIds)
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+
+      if (kDebugMode) {
+        debugPrint('成功获取 ${(response as List).length} 条关注用户的COS帖子');
+      }
+
+      return (response as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('获取关注用户的COS帖子失败: $e');
+      }
+      throw Exception('加载关注内容失败: ${e.toString()}');
+    }
+  }
+
+  // 自定义方法：获取关注用户的全部帖子（COS + 群岛）
+  Future<List<Map<String, dynamic>>> _fetchFollowAllPosts(
+    List<String> followingIds, {
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    try {
+      if (kDebugMode) {
+        debugPrint('开始获取关注用户的全部帖子，关注用户数: ${followingIds.length}, limit=$limit, offset=$offset');
+      }
+
+      // 使用PostService的client直接查询
+      final client = AppSupabaseClient().client;
+      
+      final response = await client
+          .from('posts')
+          .select('''
+            id, channel, title, content, island_type, created_at,
+            comment_count, view_count, author_id,
+            author:profiles!posts_author_id_fkey(id, nickname, avatar_url),
+            post_media(media_url, media_type, sort_order)
+          ''')
+          .inFilter('channel', ['cos', 'island'])  // 获取COS和群岛帖子
+          .eq('is_deleted', false)
+          .eq('status', 'normal')
+          .inFilter('author_id', followingIds)
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+
+      if (kDebugMode) {
+        debugPrint('成功获取 ${(response as List).length} 条关注用户的全部帖子');
+      }
+
+      return (response as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('获取关注用户的全部帖子失败: $e');
+      }
+      throw Exception('加载关注内容失败: ${e.toString()}');
+    }
+  }
+
+  // 构建频道选项
+  Widget _buildChannelOption({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Card(
       elevation: 0,
-      title: Row(
-        children: [
-          // Logo图片部分
-          Image.asset(
-            'assets/images/IACG_L.PNG',
-            height: 32,
-            fit: BoxFit.contain,
-          ),
-          const SizedBox(width: 16),
-          // 搜索框 - 二次元风格
-=======
-  // 构建顶部导航栏
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      title: Row(
-        children: [
-          const Text(
-            'iACG',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(width: 16),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
-          Expanded(
-            child: Container(
-              height: 40,
-              decoration: BoxDecoration(
-<<<<<<< HEAD
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.grey.withOpacity(0.2),
-                  width: 1.5,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-=======
-                color: Colors.grey[200],
-                borderRadius: BorderRadius.circular(20),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
-              ),
-              child: TextField(
-                readOnly: true,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SearchPage()),
-                  );
-                },
-                decoration: InputDecoration(
-                  hintText: '搜索内容...',
-<<<<<<< HEAD
-                  hintStyle: TextStyle(color: AnimeColors.textLight),
-                  border: InputBorder.none,
-                  contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: Colors.grey,
-                    size: 20,
-                  ),
-=======
-                  hintStyle: TextStyle(color: Colors.grey[600]),
-                  border: InputBorder.none,
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
-                ),
-              ),
-            ),
-          ),
-        ],
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Colors.grey.shade200,
+          width: 1,
+        ),
       ),
-      actions: [
-<<<<<<< HEAD
-        // 发布按钮 - 二次元风格
-        Container(
-          margin: const EdgeInsets.only(right: 8),
-          child: IconButton(
-            icon: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AnimeColors.primaryPink,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: AnimeColors.primaryPink.withValues(alpha: 0.3),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AnimeColors.primaryPink.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: AnimeColors.primaryPink,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AnimeColors.textDark,
                   ),
-                ],
-              ),
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const PostComposePage()),
-              );
-            },
-            tooltip: '发布',
-          ),
-        ),
-        if (!_authService.isLoggedIn)
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            child: ElevatedButton(
-              onPressed: () => Navigator.of(context).pushNamed('/login'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AnimeColors.primaryPink,
-                foregroundColor: Colors.white,
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              ),
-              child: const Text(
-                '登录',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
                 ),
               ),
-=======
-        IconButton(
-          icon: const Icon(Icons.add_circle_outline),
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const PostComposePage()),
-            );
-          },
-          tooltip: '发布',
-        ),
-        if (!_authService.isLoggedIn)
-          TextButton(
-            onPressed: () => Navigator.of(context).pushNamed('/login'),
-            child: const Text(
-              '登录',
-              style: TextStyle(color: Colors.white),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
-            ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: Colors.grey.shade400,
+              ),
+            ],
           ),
-      ],
+        ),
+      ),
     );
   }
 
-<<<<<<< HEAD
-  // 构建类型筛选器 - 修改为首页样式
-  Widget _buildTypeFilter() {
+  Widget _buildislandTypesButtons(){
     return Container(
       height: 48,
       decoration: BoxDecoration(
         color: AnimeColors.cardWhite,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
       ),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
@@ -447,19 +497,6 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
         itemBuilder: (context, index) {
           final typeData = _islandTypes[index];
           final type = typeData['type'] as String;
-=======
-  // 构建类型筛选器
-  Widget _buildTypeFilter() {
-    return Container(
-      height: 50,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _islandTypes.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final type = _islandTypes[index];
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
           final isSelected = _selectedType == type;
 
           return GestureDetector(
@@ -470,9 +507,8 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
               }
             },
             child: Container(
-<<<<<<< HEAD
               constraints: const BoxConstraints(
-                minWidth: 60,
+                minWidth: 20,
               ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Column(
@@ -498,21 +534,6 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
                     ),
                   ),
                 ],
-=======
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected
-                    ? Theme.of(context).colorScheme.primary
-                    : Colors.grey[200],
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                type,
-                style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.grey[700],
-                  fontWeight: FontWeight.w500,
-                ),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
               ),
             ),
           );
@@ -521,17 +542,333 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
     );
   }
 
-<<<<<<< HEAD
+  // 构建加载更多指示器 - 增强二次元风格
+  Widget _buildLoadMoreIndicator() {
+    if (!_hasMore && _posts.isNotEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Text(
+              '已经到底了～',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return _isLoadingMore
+        ? Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24),
+            child: Column(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFED7099).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFFED7099).withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: const CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFED7099)),
+                    strokeWidth: 2,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '加载中...',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          )
+        : const SizedBox.shrink();
+  }
+
+  // 回到顶部
+  void _scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  // 构建顶部导航栏 - 增强二次元风格
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+      backgroundColor: AnimeColors.cardWhite,
+      elevation: 0,
+      leading: Container(
+        //color: Colors.red[100],
+        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        child: Image.asset(
+          'assets/images/IACG_L.PNG',
+          fit: BoxFit.contain,
+        ),
+      ),
+      leadingWidth: 80,
+      title: Container(
+        width: 160,
+        color: AnimeColors.cardWhite,
+        //color: Colors.red[100],
+        child: TabBar(
+
+          controller: _tabController,
+          labelColor: AnimeColors.primaryPink,
+          unselectedLabelColor: AnimeColors.textLight,
+          indicatorColor: AnimeColors.primaryPink,
+          indicatorWeight: 3,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.normal,
+            fontSize: 16,
+          ),
+          tabs: [
+            Tab(text: '全部'),
+            Tab(text: '关注'),
+          ],
+          isScrollable: false,
+        ),
+      ),
+      centerTitle: true,
+      actions: [
+        // 搜索按钮（放大镜图标）- 放在消息按钮左侧
+        IconButton(
+          icon: Icon(
+            Icons.search,
+            color: AnimeColors.textDark,
+            size: 24,
+          ),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SearchPage()),
+            );
+          },
+          tooltip: '搜索',
+        ),
+      ],
+    );
+  }
+
+// 处理发布按钮点击（添加登录检查）
+Future<void> _handlePublishButtonTap() async {
+  // 1. 首先检查用户是否登录
+  final uid = _authService.currentUser?.id;
+  if (uid == null) {
+    // 用户未登录，显示提示
+    if (mounted) {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('需要登录'),
+          shape: RoundedRectangleBorder( // 添加这一行
+          borderRadius: BorderRadius.circular(18), // 设置圆角半径
+        ),
+          content: const Text('登录后才能发布帖子，去登录吧～'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // 跳转到登录页面
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LoginPage(),
+                  ),
+                );
+              },
+              child: const Text('去登录', style: TextStyle(color: Color(0xFFED7099))),
+            ),
+          ],
+        ),
+      );
+    }
+    return;
+  }
+
+  // 2. 用户已登录，显示频道选择
+  showChannelSelectionBottomSheet();
+}
+
+  // 显示频道选择底部弹窗
+  void showChannelSelectionBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) {
+        return GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            color: Colors.black.withOpacity(0.4),
+            child: DraggableScrollableSheet(
+              initialChildSize: 0.55, // 增加初始高度到55%
+              minChildSize: 0.45, // 最小高度40%
+              maxChildSize: 0.55, // 最大高度70%
+              snap: true,
+              snapSizes: const [0.54, 0.55], // 设置吸附点
+              builder: (context, scrollController) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: AnimeColors.cardWhite,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        spreadRadius: 2,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // 顶部拖拽指示器
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+
+                      // 标题
+                      Padding(
+                        padding: const EdgeInsets.only(top: 24, bottom: 20),
+                        child: Text(
+                          '请选择发布频道',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AnimeColors.textDark,
+                          ),
+                        ),
+                      ),
+
+                      // 频道选项 - 使用固定高度确保完全显示
+                      SizedBox(
+                        height: 280, // 固定高度确保三个选项完全显示
+                        child: ListView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          physics: const ClampingScrollPhysics(), // 禁用弹性效果
+                          children: [
+                            // COS作品
+                            _buildChannelOption(
+                              label: 'COS作品',
+                              icon: Icons.photo_camera,
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => PostComposePage(initialChannel: 'cos'),
+                                  ),
+                                );
+                              },
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // 群岛社区
+                            _buildChannelOption(
+                              label: '群岛社区',
+                              icon: Icons.people,
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => PostComposePage(initialChannel: 'island'),
+                                  ),
+                                );
+                              },
+                            ),
+
+                            // 活动 - 只在用户是活动组织者时显示
+                            if (_isOrganizer) ...[
+                              const SizedBox(height: 16),
+                              _buildChannelOption(
+                                label: '活动',
+                                icon: Icons.event,
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => PostComposePage(initialChannel: 'event'),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   // 构建空状态 - 增强二次元风格
-=======
-  // 构建空状态
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
   Widget _buildEmptyState() {
+    String title;
+    String subtitle;
+    
+    if (_selectedTopTab == 0) {
+      // 全部标签
+      title = _selectedType == '全部' ? '暂无群岛帖子' : '暂无$_selectedType类型的帖子';
+      subtitle = '快来发布第一条帖子吧～';
+    } else {
+      // 关注标签
+      if (!_authService.isLoggedIn) {
+        title = '请先登录查看关注内容';
+        subtitle = '登录后可以查看你关注的用户发布的帖子';
+      } else {
+        title = '暂无关注的用户发布的帖子';
+        subtitle = '关注更多用户，发现更多精彩内容';
+      }
+    }
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-<<<<<<< HEAD
           Container(
             width: 120,
             height: 120,
@@ -544,14 +881,14 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
               ),
             ),
             child: Icon(
-              Icons.forum_outlined,
+              _selectedTopTab == 0 ? Icons.forum_outlined : Icons.people_outline,
               size: 48,
               color: Colors.grey[400],
             ),
           ),
           const SizedBox(height: 24),
           Text(
-            _selectedType == '全部' ? '暂无群岛帖子' : '暂无$_selectedType类型的帖子',
+            title,
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey[600],
@@ -560,7 +897,7 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
           ),
           const SizedBox(height: 12),
           Text(
-            '快来发布第一条帖子吧～',
+            subtitle,
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey[400],
@@ -618,36 +955,23 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
           // 加载更多指示器
           SliverToBoxAdapter(
             child: _buildLoadMoreIndicator(),
-=======
-          const Icon(Icons.forum_outlined, size: 64, color: Colors.grey),
-          const SizedBox(height: 16),
-          Text(
-            _selectedType == '全部' ? '暂无群岛帖子' : '暂无$_selectedType类型的帖子',
-            style: const TextStyle(fontSize: 16, color: Colors.grey),
-          ),
-          const SizedBox(height: 8),
-          ElevatedButton(
-            onPressed: () => _loadPosts(isRefresh: true),
-            child: const Text('重新加载'),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
           ),
         ],
       ),
     );
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _buildAppBar(),
-<<<<<<< HEAD
       backgroundColor: AnimeColors.backgroundLight,// 背景颜色
-=======
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       body: Column(
         children: [
-          // 类型筛选器
-          _buildTypeFilter(),
+          // 二级筛选按钮 - 只在全部标签显示群岛类型筛选
+          if (_selectedTopTab == 0) 
+            _buildislandTypesButtons(),
           const SizedBox(height: 8),
           // 帖子列表
           Expanded(
@@ -659,40 +983,20 @@ class _HomeIslandTabState extends State<HomeIslandTab> {
                         onRetry: () => _loadPosts(isRefresh: true))
                     : _posts.isEmpty
                         ? _buildEmptyState()
-<<<<<<< HEAD
                         : _buildSingleColumnLayout(),
           ),
         ],
       ),
-      // 浮动回到顶部按钮
-      floatingActionButton: _scrollController.hasClients && 
-          _scrollController.offset > 300
-          ? FloatingActionButton(
-              onPressed: _scrollToTop,
-              backgroundColor: const Color(0xFF8B5CF6),
-              foregroundColor: Colors.white,
-              elevation: 4,
-              child: const Icon(Icons.arrow_upward_rounded),
-            )
-          : null,
-=======
-                        : RefreshIndicator(
-                            onRefresh: () => _loadPosts(isRefresh: true),
-                            child: ListView.builder(
-                              controller: _scrollController,
-                              itemCount: _posts.length + 1,
-                              itemBuilder: (context, index) {
-                                if (index == _posts.length) {
-                                  return _buildLoadMoreIndicator();
-                                }
-                                return PostCard(post: _posts[index]);
-                              },
-                            ),
-                          ),
-          ),
-        ],
+      // 右下角悬浮发布按钮
+      floatingActionButton: FloatingActionButton(
+        onPressed: _handlePublishButtonTap,
+        backgroundColor: AnimeColors.primaryPink,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        mini:  true,
+        child: const Icon(Icons.add),
       ),
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }

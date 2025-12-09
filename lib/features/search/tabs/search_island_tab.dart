@@ -8,17 +8,10 @@ class SearchIslandTab extends StatefulWidget {
   final String keyword;
 
   const SearchIslandTab({
-<<<<<<< HEAD
     super.key,
     required this.searchService,
     required this.keyword,
   });
-=======
-    Key? key,
-    required this.searchService,
-    required this.keyword,
-  }) : super(key: key);
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 
   @override
   State<SearchIslandTab> createState() => _SearchIslandTabState();
@@ -259,7 +252,7 @@ class _SearchIslandTabState extends State<SearchIslandTab> with AutomaticKeepAli
 
               return ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(8),
                 itemCount: _posts.length + (_hasMore ? 1 : 0),
                 itemBuilder: (context, index) {
                   if (index == _posts.length) {
@@ -271,7 +264,10 @@ class _SearchIslandTabState extends State<SearchIslandTab> with AutomaticKeepAli
                         : const SizedBox();
                   }
                   final post = _posts[index];
-                  return PostCard(post: post);
+                  return PostCard(
+                    post: post,
+                    compactMode: true, // 使用紧凑模式
+                  );
                 },
               );
             },
@@ -293,7 +289,7 @@ class _SearchIslandTabState extends State<SearchIslandTab> with AutomaticKeepAli
         ),
       ),
       selected: isSelected,
-      selectedColor: Colors.green,
+      selectedColor: Color(0xFFED7099),
       backgroundColor: Colors.grey[200],
       onSelected: (selected) => _changeOrderBy(value),
       shape: RoundedRectangleBorder(

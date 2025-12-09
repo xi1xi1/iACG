@@ -8,7 +8,8 @@ class EventService {
   final _tagService = TagService();
   final _postService = PostService();
 
-  // 获取即将开始的活动 - 包含帖子图片（支持分页）
+  // 获取正在进行的和即将开始的活动 - 包含帖子图片（支持分页）
+  // ✅ 修复：基于 end_time 筛选未结束的活动
   Future<List<Map<String, dynamic>>> fetchUpcomingEvents({
     int page = 1,
     int pageSize = 10,
@@ -34,22 +35,19 @@ class EventService {
             ),
             event_tag:tags!events_event_tag_id_fkey(id, name)
           ''')
-          .gte('start_time', DateTime.now().toIso8601String())
+          // ✅ 修复：筛选未结束的活动（end_time > 当前时间）
+          .gte('end_time', DateTime.now().toIso8601String())
           .order('start_time', ascending: true)
           .range(offset, offset + pageSize - 1);
 
       return (response as List).cast<Map<String, dynamic>>();
     } catch (e) {
       print('获取活动列表失败: $e');
-<<<<<<< HEAD
       rethrow;
-=======
-      throw e;
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     }
   }
 
-  // 获取所有活动 - 包含帖子图片（支持分页）
+  // 获取所有未结束的活动 - 包含帖子图片（支持分页）
   Future<List<Map<String, dynamic>>> fetchAllEvents({
     int page = 1,
     int pageSize = 20,
@@ -75,21 +73,19 @@ class EventService {
             ),
             event_tag:tags!events_event_tag_id_fkey(id, name)
           ''')
+          // ✅ 修复：筛选未结束的活动
+          .gte('end_time', DateTime.now().toIso8601String())
           .order('start_time', ascending: false)
           .range(offset, offset + pageSize - 1);
 
       return (response as List).cast<Map<String, dynamic>>();
     } catch (e) {
       print('获取所有活动失败: $e');
-<<<<<<< HEAD
       rethrow;
-=======
-      throw e;
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     }
   }
 
-  // 按城市筛选活动 - 包含帖子图片（支持分页）
+  // 按城市筛选未结束的活动 - 包含帖子图片（支持分页）
   Future<List<Map<String, dynamic>>> fetchEventsByCity(
     String city, {
     int page = 1,
@@ -117,22 +113,19 @@ class EventService {
             event_tag:tags!events_event_tag_id_fkey(id, name)
           ''')
           .eq('city', city)
-          .gte('start_time', DateTime.now().toIso8601String())
+          // ✅ 修复：筛选未结束的活动
+          .gte('end_time', DateTime.now().toIso8601String())
           .order('start_time', ascending: true)
           .range(offset, offset + pageSize - 1);
 
       return (response as List).cast<Map<String, dynamic>>();
     } catch (e) {
       print('按城市获取活动失败: $e');
-<<<<<<< HEAD
       rethrow;
-=======
-      throw e;
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     }
   }
 
-  // 获取热门活动 - 包含帖子图片（支持分页）
+  // 获取热门未结束的活动 - 包含帖子图片（支持分页）
   Future<List<Map<String, dynamic>>> fetchFeaturedEvents({
     int limit = 5,
     int page = 1,
@@ -159,18 +152,15 @@ class EventService {
             event_tag:tags!events_event_tag_id_fkey(id, name)
           ''')
           .eq('is_featured', true)
-          .gte('start_time', DateTime.now().toIso8601String())
+          // ✅ 修复：筛选未结束的活动
+          .gte('end_time', DateTime.now().toIso8601String())
           .order('start_time', ascending: true)
           .range(offset, offset + limit - 1);
 
       return (response as List).cast<Map<String, dynamic>>();
     } catch (e) {
       print('获取热门活动失败: $e');
-<<<<<<< HEAD
       rethrow;
-=======
-      throw e;
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     }
   }
 
@@ -197,7 +187,10 @@ class EventService {
               )
             )
           ''')
-          .gte('start_time', DateTime.now().toIso8601String())
+          // 添加筛选条件：只获取 is_featured = true 的活动
+          .eq('is_featured', true)
+          // ✅ 修复：筛选未结束的活动
+          .gte('end_time', DateTime.now().toIso8601String())
           .order('start_time', ascending: true)
           .range(offset, offset + pageSize - 1);
 
@@ -225,11 +218,86 @@ class EventService {
       return events;
     } catch (e) {
       print('获取首页活动数据失败: $e');
-<<<<<<< HEAD
       rethrow;
-=======
-      throw e;
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
+    }
+  }
+
+  // ✅ 新增方法：获取进行中的活动（已开始但未结束）
+  Future<List<Map<String, dynamic>>> fetchOngoingEvents({
+    int page = 1,
+    int pageSize = 10,
+  }) async {
+    try {
+      final offset = (page - 1) * pageSize;
+
+      final now = DateTime.now().toIso8601String();
+
+      final response = await _client
+          .from('events')
+          .select('''
+            *,
+            post:posts!events_post_id_fkey(
+              id, 
+              title, 
+              content, 
+              author_id,
+              post_media(
+                id,
+                media_url,
+                media_type,
+                sort_order
+              )
+            ),
+            event_tag:tags!events_event_tag_id_fkey(id, name)
+          ''')
+          // ✅ 筛选：已开始且未结束的活动
+          .lte('start_time', now)
+          .gte('end_time', now)
+          .order('start_time', ascending: false)
+          .range(offset, offset + pageSize - 1);
+
+      return (response as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      print('获取进行中活动失败: $e');
+      rethrow;
+    }
+  }
+
+  // ✅ 新增方法：获取已结束的活动
+  Future<List<Map<String, dynamic>>> fetchPastEvents({
+    int page = 1,
+    int pageSize = 10,
+  }) async {
+    try {
+      final offset = (page - 1) * pageSize;
+
+      final response = await _client
+          .from('events')
+          .select('''
+            *,
+            post:posts!events_post_id_fkey(
+              id, 
+              title, 
+              content, 
+              author_id,
+              post_media(
+                id,
+                media_url,
+                media_type,
+                sort_order
+              )
+            ),
+            event_tag:tags!events_event_tag_id_fkey(id, name)
+          ''')
+          // ✅ 筛选：已结束的活动
+          .lt('end_time', DateTime.now().toIso8601String())
+          .order('end_time', ascending: false)
+          .range(offset, offset + pageSize - 1);
+
+      return (response as List).cast<Map<String, dynamic>>();
+    } catch (e) {
+      print('获取已结束活动失败: $e');
+      rethrow;
     }
   }
 
@@ -332,10 +400,6 @@ class EventService {
           organizer:profiles!events_organizer_id_fkey(id, nickname, avatar_url)
         ''').eq('id', eventId).maybeSingle();
 
-<<<<<<< HEAD
     return event;
-=======
-    return event as Map<String, dynamic>?;
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
   }
 }

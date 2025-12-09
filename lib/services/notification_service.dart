@@ -286,7 +286,6 @@ class NotificationService {
           ),
           callback: (payload) {
             print('🔔 收到实时通知: ${payload.newRecord}');
-<<<<<<< HEAD
             try {
               final notification = NotificationModel.fromJson(payload.newRecord!);
               print('✅ 解析通知成功: ${notification.title}');
@@ -299,22 +298,6 @@ class NotificationService {
               print('❌ 解析通知失败: $e');
             }
                     },
-=======
-            if (payload.newRecord != null) {
-              try {
-                final notification = NotificationModel.fromJson(payload.newRecord!);
-                print('✅ 解析通知成功: ${notification.title}');
-                
-                // 🔥 新增：更新全局未读计数
-                updateGlobalUnreadCount(_globalUnreadCount + 1);
-                
-                onNewNotification(notification);
-              } catch (e) {
-                print('❌ 解析通知失败: $e');
-              }
-            }
-          },
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
         )
         .subscribe((status, error) {
           print('📡 通知订阅状态: $status');

@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-=======
-// lib/features/profile/following_list_page.dart
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 import 'package:flutter/material.dart';
 import '../../models/user_profile.dart';
 import '../../services/profile_service.dart';
@@ -10,11 +6,7 @@ import 'user_profile_page.dart';
 
 class FollowingListPage extends StatefulWidget {
   final String userId;
-<<<<<<< HEAD
   const FollowingListPage({super.key, required this.userId});
-=======
-  const FollowingListPage({Key? key, required this.userId}) : super(key: key);
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 
   @override
   State<FollowingListPage> createState() => _FollowingListPageState();
@@ -31,10 +23,6 @@ class _FollowingListPageState extends State<FollowingListPage> {
   }
 
   Future<List<UserProfile>> _load() {
-<<<<<<< HEAD
-=======
-    // 调用 ProfileService 中的"获取关注列表"方法
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     return _profileService.fetchFollowing(widget.userId);
   }
 
@@ -47,84 +35,30 @@ class _FollowingListPageState extends State<FollowingListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-<<<<<<< HEAD
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F5F8),
       appBar: AppBar(
         title: const Text(
           '我的关注',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: Colors.white,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFED7099), // 修改为主题色
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Container(
-        color: Colors.white,
-        child: FutureBuilder<List<UserProfile>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
-                ),
-              );
-            }
-            if (snapshot.hasError) {
-              return _ErrorRetry(
-                message: '加载关注列表失败: ${snapshot.error}',
-                onRetry: _reload,
-              );
-            }
-            final list = snapshot.data ?? <UserProfile>[];
-            if (list.isEmpty) {
-              return _buildEmptyState('你还没有关注任何人');
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: list.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final user = list[index];
-                return _UserRow(profile: user);
-              },
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(String message) {
-    return Container(
-      color: Colors.white,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.people_outline, size: 64, color: Color(0xFFEC4899)),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-=======
-      appBar: AppBar(title: const Text('我的关注')),
       body: FutureBuilder<List<UserProfile>>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFED7099)), // 修改为主题色
+              ),
+            );
           }
           if (snapshot.hasError) {
             return _ErrorRetry(
@@ -134,18 +68,45 @@ class _FollowingListPageState extends State<FollowingListPage> {
           }
           final list = snapshot.data ?? <UserProfile>[];
           if (list.isEmpty) {
-            return const Center(child: Text('你还没有关注任何人'));
+            return _buildEmptyState('你还没有关注任何人');
           }
           return ListView.separated(
+            padding: const EdgeInsets.all(0),
             itemCount: list.length,
-            separatorBuilder: (_, __) => const Divider(height: 0),
+            separatorBuilder: (_, __) => const Divider(
+              height: 1,
+              thickness: 0.5,
+              color: Color(0xFFE5E5E5),
+              indent: 80,
+            ),
             itemBuilder: (context, index) {
               final user = list[index];
               return _UserRow(profile: user);
             },
           );
         },
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Container(
+      color: const Color(0xFFF5F5F8),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 64, color: const Color(0xFFED7099)), // 修改为主题色
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Color(0xFF666666),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -153,11 +114,7 @@ class _FollowingListPageState extends State<FollowingListPage> {
 
 class FollowersListPage extends StatefulWidget {
   final String userId;
-<<<<<<< HEAD
   const FollowersListPage({super.key, required this.userId});
-=======
-  const FollowersListPage({Key? key, required this.userId}) : super(key: key);
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
 
   @override
   State<FollowersListPage> createState() => _FollowersListPageState();
@@ -174,10 +131,6 @@ class _FollowersListPageState extends State<FollowersListPage> {
   }
 
   Future<List<UserProfile>> _load() {
-<<<<<<< HEAD
-=======
-    // 调用 ProfileService 中的"获取粉丝列表"方法
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     return _profileService.fetchFollowers(widget.userId);
   }
 
@@ -190,84 +143,30 @@ class _FollowersListPageState extends State<FollowersListPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-<<<<<<< HEAD
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF5F5F8),
       appBar: AppBar(
         title: const Text(
           '我的粉丝',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Colors.black,
+            color: Colors.white,
           ),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFED7099), // 修改为主题色
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.black),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: Container(
-        color: Colors.white,
-        child: FutureBuilder<List<UserProfile>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFEC4899)),
-                ),
-              );
-            }
-            if (snapshot.hasError) {
-              return _ErrorRetry(
-                message: '加载粉丝列表失败: ${snapshot.error}',
-                onRetry: _reload,
-              );
-            }
-            final list = snapshot.data ?? <UserProfile>[];
-            if (list.isEmpty) {
-              return _buildEmptyState('还没有粉丝呢');
-            }
-            return ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: list.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final user = list[index];
-                return _UserRow(profile: user);
-              },
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(String message) {
-    return Container(
-      color: Colors.white,
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.people_outline, size: 64, color: Color(0xFFEC4899)),
-            const SizedBox(height: 16),
-            Text(
-              message,
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-=======
-      appBar: AppBar(title: const Text('我的粉丝')),
       body: FutureBuilder<List<UserProfile>>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFED7099)), // 修改为主题色
+              ),
+            );
           }
           if (snapshot.hasError) {
             return _ErrorRetry(
@@ -277,18 +176,45 @@ class _FollowersListPageState extends State<FollowersListPage> {
           }
           final list = snapshot.data ?? <UserProfile>[];
           if (list.isEmpty) {
-            return const Center(child: Text('还没有粉丝呢'));
+            return _buildEmptyState('还没有粉丝呢');
           }
           return ListView.separated(
+            padding: const EdgeInsets.all(0),
             itemCount: list.length,
-            separatorBuilder: (_, __) => const Divider(height: 0),
+            separatorBuilder: (_, __) => const Divider(
+              height: 1,
+              thickness: 0.5,
+              color: Color(0xFFE5E5E5),
+              indent: 80,
+            ),
             itemBuilder: (context, index) {
               final user = list[index];
               return _UserRow(profile: user);
             },
           );
         },
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message) {
+    return Container(
+      color: const Color(0xFFF5F5F8),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 64, color: const Color(0xFFED7099)), // 修改为主题色
+            const SizedBox(height: 16),
+            Text(
+              message,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Color(0xFF666666),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -297,76 +223,11 @@ class _FollowersListPageState extends State<FollowersListPage> {
 /// 通用的用户一行展示
 class _UserRow extends StatelessWidget {
   final UserProfile profile;
-<<<<<<< HEAD
   const _UserRow({super.key, required this.profile});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-=======
-  const _UserRow({Key? key, required this.profile}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      // 使用头像组件
-      leading: AvatarWidget(
-        imageUrl: profile.avatarUrl,
-        size: 44,
-      ),
-      title: Text(
-        profile.nickname,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Row(
-        children: [
-          if (profile.city != null && profile.city!.isNotEmpty) ...[
-            const Icon(Icons.location_on, size: 12, color: Colors.grey),
-            const SizedBox(width: 4),
-            Text(
-              profile.city!,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
-            ),
-          ],
-          if (profile.isCoser) ...[
-            const SizedBox(width: 8),
-            // 认证图标
-            Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: Colors.pink,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.verified,
-                size: 12,
-                color: Colors.white,
-              ),
-            ),
-            // 只有当有等级信息时才显示等级标签
-            if (profile.displayCosLevel != null && profile.displayCosLevel!.isNotEmpty) ...[
-              const SizedBox(width: 4),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.pink.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  profile.displayCosLevel!,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Colors.pink,
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ],
-      ),
-      // 点击整行，跳转到他人的个人主页
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -376,56 +237,86 @@ class _UserRow extends StatelessWidget {
           ),
         );
       },
-<<<<<<< HEAD
       child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.05),
-              blurRadius: 6,
-              offset: const Offset(0, 1),
-            ),
-          ],
-          border: Border.all(
-            color: Colors.grey.withOpacity(0.1),
-            width: 1,
-          ),
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        color: Colors.white,
         child: Row(
           children: [
             // 头像
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(25),
-                border: Border.all(
-                  color: const Color(0xFFEC4899),
-                  width: 1.5,
-                ),
-              ),
-              child: CircleAvatar(
-                radius: 23,
-                backgroundColor: Colors.grey[200],
-                backgroundImage: profile.avatarUrl != null
-                    ? NetworkImage(profile.avatarUrl!)
-                    : null,
-                child: profile.avatarUrl == null
-                    ? Text(
-                  profile.nickname.isNotEmpty ? profile.nickname[0] : '?',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+            Stack(
+              children: [
+                Container(
+                  width: 52,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: const [
+                        Color(0xFFED7099), // 主色调
+                        Color(0xFFF9A8C9), // 次要色调
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFED7099).withOpacity(0.3),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                )
-                    : null,
-              ),
+                  child: CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Colors.transparent,
+                    backgroundImage: profile.avatarUrl != null
+                        ? NetworkImage(profile.avatarUrl!)
+                        : null,
+                    child: profile.avatarUrl == null
+                        ? Center(
+                      child: Text(
+                        profile.nickname.isNotEmpty ? profile.nickname[0] : '?',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    )
+                        : null,
+                  ),
+                ),
+                if (profile.isCoser)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 18,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFED7099), // 修改为主题色
+                        shape: BoxShape.circle,
+                        border: const Border.fromBorderSide(
+                          BorderSide(color: Colors.white, width: 2),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFED7099).withOpacity(0.3),
+                            blurRadius: 3,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.verified,
+                        size: 10,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
 
             // 用户信息
             Expanded(
@@ -433,91 +324,85 @@ class _UserRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
+                      Flexible(
                         child: Text(
                           profile.nickname,
                           style: const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w600,
                             color: Colors.black,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (profile.isCoser) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEC4899),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.verified,
-                                size: 10,
-                                color: Colors.white,
-                              ),
-                              SizedBox(width: 2),
-                              Text(
-                                'Coser',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
-                      if (profile.city != null && profile.city!.isNotEmpty) ...[
-                        Icon(Icons.location_on, size: 12, color: Colors.grey[600]),
-                        const SizedBox(width: 4),
-                        Text(
-                          profile.city!,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
+                      if (profile.city != null && profile.city!.isNotEmpty)
+                        Row(
+                          children: [
+                            Icon(Icons.location_on_outlined,
+                                size: 14, color: const Color(0xFFED7099)), // 修改为主题色
+                            const SizedBox(width: 4),
+                            Text(
+                              profile.city!,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF666666),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                      ],
                       if (profile.displayCosLevel.isNotEmpty)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFEC4899).withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
+                            gradient: LinearGradient(
+                              colors: const [
+                                Color(0xFFED7099), // 主色调
+                                Color(0xFFF9A8C9), // 次要色调
+                              ],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             profile.displayCosLevel,
                             style: const TextStyle(
-                              fontSize: 10,
-                              color: Color(0xFFEC4899),
-                              fontWeight: FontWeight.w500,
+                              fontSize: 11,
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                     ],
                   ),
+                  if (profile.bio != null && profile.bio!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      profile.bio!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF666666),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
               ),
             ),
           ],
         ),
       ),
-=======
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
     );
   }
 }
@@ -527,7 +412,6 @@ class _ErrorRetry extends StatelessWidget {
   final VoidCallback onRetry;
 
   const _ErrorRetry({
-<<<<<<< HEAD
     super.key,
     required this.message,
     required this.onRetry,
@@ -536,54 +420,51 @@ class _ErrorRetry extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.white,
+      color: const Color(0xFFF5F5F8),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: Color(0xFFEC4899)),
-            const SizedBox(height: 12),
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFFED7099).withOpacity(0.1), // 修改为主题色
+                    const Color(0xFFF9A8C9).withOpacity(0.1), // 修改为次要色调
+                  ],
+                ),
+              ),
+              child: Icon(Icons.error_outline,
+                  size: 40, color: const Color(0xFFED7099)), // 修改为主题色
+            ),
+            const SizedBox(height: 16),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFFEC4899)),
+              style: const TextStyle(
+                color: Color(0xFF666666),
+                fontSize: 14,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: onRetry,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFEC4899),
+                backgroundColor: const Color(0xFFED7099), // 修改为主题色
                 foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
               ),
-              child: const Text('重试'),
+              child: const Text('重新加载'),
             ),
           ],
         ),
-=======
-    Key? key,
-    required this.message,
-    required this.onRetry,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.error_outline, size: 48, color: Colors.red),
-          const SizedBox(height: 12),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton(
-            onPressed: onRetry,
-            child: const Text('重试'),
-          ),
-        ],
->>>>>>> 8c6d29c092719f5a7283fd71eb70ec81efa241e1
       ),
     );
   }

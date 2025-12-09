@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:iacg/features/auth/login_page.dart';
 import 'package:iacg/features/post/post_compose_page.dart';
 import 'package:iacg/features/post/repost_compose_page.dart';
 import 'package:iacg/widgets/avatar_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'dart:async'; 
 import '../../services/post_service.dart';
 import '../profile/user_profile_page.dart';
 import '../tag/tag_posts_page.dart';
 import 'post_image_preview.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 class PostDetailPage extends StatefulWidget {
   final int postId;
@@ -33,7 +35,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
   // 轮播
   final PageController _pageController = PageController();
   int _currentIndex = 0;
-
+  // ✅ 新增1：轮播图比例（基于第一张图）
+  double? _carouselAspectRatio;
+  
+  // ✅ 新增2：标记是否已获取比例
+  bool _hasLoadedRatio = false;
   // 评论输入
   final TextEditingController _commentCtrl = TextEditingController();
   final FocusNode _inputFocus = FocusNode();
@@ -69,7 +75,59 @@ class _PostDetailPageState extends State<PostDetailPage> {
     _inputFocus.dispose();
     super.dispose();
   }
-
+  // 获取第一张图的比例
+  Future<void> _loadFirstImageAspectRatio(List<String> imageUrls) async {
+    if (_hasLoadedRatio || imageUrls.isEmpty) return;
+    
+    try {
+      final firstUrl = imageUrls[0];
+      final completer = Completer<double?>();
+      
+      final imageProvider = NetworkImage(firstUrl);
+      final stream = imageProvider.resolve(ImageConfiguration.empty);
+      
+      final listener = ImageStreamListener(
+        (ImageInfo info, bool _) {
+          final width = info.image.width.toDouble();
+          final height = info.image.height.toDouble();
+          final ratio = width / height;
+          
+          // 限制比例范围，避免极端比例
+          final clampedRatio = ratio.clamp(0.5, 2.0);
+          completer.complete(clampedRatio);
+        },
+        onError: (error, stackTrace) {
+          completer.complete(null); // 失败返回null
+        },
+      );
+      
+      stream.addListener(listener);
+      
+      // 设置超时
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!completer.isCompleted) {
+          stream.removeListener(listener);
+          completer.complete(null);
+        }
+      });
+      
+      final ratio = await completer.future;
+      
+      if (mounted) {
+        setState(() {
+          _carouselAspectRatio = ratio ?? 3/4; // 失败时用默认3/4
+          _hasLoadedRatio = true;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _carouselAspectRatio = 3/4;
+          _hasLoadedRatio = true;
+        });
+      }
+    }
+  }
   // 新增：检查是否是作者
   Future<void> _checkIsAuthor() async {
     try {
@@ -128,7 +186,42 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
 
 // ✅ 新增：跳转到发布页面并自动填充活动标签
-void _navigateToEventPostCompose() {
+// ✅ 修改：跳转到发布页面并自动填充活动标签（添加登录检查）
+void _navigateToEventPostCompose() async {
+  // 1. 首先检查用户是否登录
+  final uid = Supabase.instance.client.auth.currentUser?.id;
+  if (uid == null) {
+    // 用户未登录，显示提示
+    if (mounted) {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('需要登录'),
+          content: const Text('登录后才能发布帖子，去登录吧～'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // 跳转到登录页面
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LoginPage(),
+                  ),
+                );
+              },
+              child: const Text('去登录', style: TextStyle(color: Color(0xFFED7099))),
+            ),
+          ],
+        ),
+      );
+    }
+    return;
+  }
+
   if (_eventTagName == null || _eventTagName!.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -598,14 +691,26 @@ void _goToPostCompose(String channel, String eventTag) {
                       child: CachedNetworkImage(
                         imageUrl: firstImage,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) =>
-                            Container(color: Colors.grey[200]),
-                        errorWidget: (_, __, ___) => Container(
-                          color: Colors.grey[200],
-                          alignment: Alignment.center,
-                          child: const Icon(Icons.image,
-                              size: 20, color: Colors.grey),
-                        ),
+                        // ✅ 添加图片尺寸限制
+                        memCacheWidth: 300, // 相关帖子图片小，用固定值
+                        maxWidthDiskCache: 300,
+                        
+                        placeholder: (_, __) => Container(color: Colors.grey[200]),
+                        errorWidget: (_, __, ___) {
+                          // ✅ 添加自动重试逻辑
+                          Future.delayed(const Duration(milliseconds: 300), () async {
+                            try {
+                              await DefaultCacheManager().removeFile(firstImage);
+                              if (mounted) setState(() {});
+                            } catch (_) {}
+                          });
+                          
+                          return Container(
+                            color: Colors.grey[200],
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.image, size: 20, color: Colors.grey),
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -1461,6 +1566,7 @@ void _goToPostCompose(String channel, String eventTag) {
                   final name = t['tag']?['name'] ?? '';
                   return ActionChip(
                     label: Text('#$name'),
+                    backgroundColor: Colors.grey[100],
                     onPressed: () {
                       if (name.isEmpty) return;
                       Navigator.of(context).push(
@@ -1638,96 +1744,142 @@ void _goToPostCompose(String channel, String eventTag) {
     );
   }
 
-  Widget _buildMediaCarousel(List media) {
-    final urls = media
-        .map<String>((m) => (m['media_url'] as String?) ?? '')
-        .where((u) => u.isNotEmpty)
-        .toList();
-    if (urls.isEmpty) return const SizedBox.shrink();
+Widget _buildMediaCarousel(List media) {
+  final urls = media
+      .map<String>((m) => (m['media_url'] as String?) ?? '')
+      .where((u) => u.isNotEmpty)
+      .toList();
+  if (urls.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      children: [
-        AspectRatio(
-          aspectRatio: 3 / 4,
-          child: Stack(
-            children: [
-              PageView.builder(
-                controller: _pageController,
-                itemCount: urls.length,
-                onPageChanged: (i) => setState(() => _currentIndex = i),
-                itemBuilder: (_, i) {
-                  final url = urls[i];
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PostImagePreview(
-                            images: urls,
-                            initialIndex: i,
-                          ),
-                        ),
-                      );
-                    },
-                    child: CachedNetworkImage(
-                      imageUrl: url,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) =>
-                          Container(color: Colors.grey[100]),
-                      errorWidget: (_, __, ___) => Container(
-                        color: Colors.grey[100],
-                        alignment: Alignment.center,
-                        child: Icon(Icons.broken_image_outlined,
-                            color: Colors.grey[400]),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              if (urls.length > 1) ...[
-                _arrowBtn(
-                  left: true,
-                  onTap: () {
-                    final prev = (_currentIndex - 1).clamp(0, urls.length - 1);
-                    _pageController.animateToPage(prev,
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOut);
-                  },
-                ),
-                _arrowBtn(
-                  left: false,
-                  onTap: () {
-                    final next = (_currentIndex + 1).clamp(0, urls.length - 1);
-                    _pageController.animateToPage(next,
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOut);
-                  },
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (urls.length > 1)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(urls.length, (i) {
-              final active = i == _currentIndex;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                height: 6,
-                width: active ? 18 : 6,
-                decoration: BoxDecoration(
-                  color: active ? Colors.black87 : Colors.black26,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              );
-            }),
-          ),
-      ],
-    );
+  // ✅ 加载第一张图比例
+  if (!_hasLoadedRatio) {
+    _loadFirstImageAspectRatio(urls);
+  }
+  
+  // ✅ 根据第一张图方向决定容器类型
+  final screenWidth = MediaQuery.of(context).size.width;
+  double containerHeight;
+  
+  if (_carouselAspectRatio != null) {
+    final ratio = _carouselAspectRatio!;
+    
+    if (ratio > 1) {
+      // 🟡 横图：固定 3:2 容器
+      containerHeight = screenWidth * (2/3); // 3:2 的高度
+    } else {
+      // 🟢 竖图：固定 2:3 容器  
+      containerHeight = screenWidth * (3/2); // 2:3 的高度
+    }
+  } else {
+    // 🔵 默认：3:2 横图容器
+    containerHeight = screenWidth * (1/1);
   }
 
+  // 🔧 确保高度在合理范围内
+  final safeHeight = containerHeight.clamp(screenWidth * 0.5, screenWidth * 2);
+
+  return Column(
+    children: [
+      SizedBox(
+        height: safeHeight,
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: _pageController,
+              itemCount: urls.length,
+              onPageChanged: (i) => setState(() => _currentIndex = i),
+              itemBuilder: (_, i) {
+                final url = urls[i];
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PostImagePreview(
+                          images: urls,
+                          initialIndex: i,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    color: Colors.white, // 白色背景作为空白
+                    child: CachedNetworkImage(
+                      imageUrl: url,
+                      fit: BoxFit.contain, // ✅ 保持比例，等比例缩放
+                      width: double.infinity,
+                      height: double.infinity,
+                      alignment: Alignment.center,
+                      // ❌ 去掉缓存尺寸限制，看看是否解决问题
+                      // memCacheWidth: isHorizontalContainer ? 1200 : 800,
+                      // memCacheHeight: isHorizontalContainer ? 800 : 1200,
+                      placeholder: (_, __) => Container(color: Colors.grey[100]),
+                      errorWidget: (_, url, ___) {
+                        // Future.delayed(const Duration(milliseconds: 300), () {
+                        //   if (mounted) setState(() {});
+                        // });
+                          Future.delayed(const Duration(milliseconds: 500), () {
+                            // 使用 CachedNetworkImage 的内置缓存失效功能
+                            if (mounted) {
+                              // 只清除当前图片的缓存，不刷新整个组件
+                              CachedNetworkImage.evictFromCache(url);
+                            }
+                          });
+                        
+                        return Container(
+                          color: Colors.grey[100],
+                          alignment: Alignment.center,
+                          child: Icon(Icons.broken_image_outlined, color: Colors.grey[400]),
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+            if (urls.length > 1) ...[
+              _arrowBtn(
+                left: true,
+                onTap: () {
+                  final prev = (_currentIndex - 1).clamp(0, urls.length - 1);
+                  _pageController.animateToPage(prev,
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOut);
+                },
+              ),
+              _arrowBtn(
+                left: false,
+                onTap: () {
+                  final next = (_currentIndex + 1).clamp(0, urls.length - 1);
+                  _pageController.animateToPage(next,
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOut);
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+      const SizedBox(height: 8),
+      if (urls.length > 1)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(urls.length, (i) {
+            final active = i == _currentIndex;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              height: 6,
+              width: active ? 18 : 6,
+              decoration: BoxDecoration(
+                color: active ? Colors.black87 : Colors.black26,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            );
+          }),
+        ),
+    ],
+  );
+}
   Widget _arrowBtn({required bool left, required VoidCallback onTap}) {
     return Positioned(
       top: 0,
