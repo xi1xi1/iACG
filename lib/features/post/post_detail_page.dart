@@ -1935,13 +1935,22 @@ class _CommentThreadState extends State<CommentThread> {
   List<Map<String, dynamic>> _replies = []; // 扁平子孙
   Set<int> _myLiked = <int>{}; // 我在整楼里点过赞的评论ID
   bool _loading = true;
-
+  // ✅ 新增：控制展开状态的变量
+  int _visibleCount = 1; // 默认显示3条
+  static const int _pageSize = 5; // 每次展开显示5条
+  
   @override
   void initState() {
     super.initState();
     _root = Map<String, dynamic>.from(widget.root);
-    _loadThread(); // 独立拉整楼，不影响其他楼
+    _loadThread();
   }
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _root = Map<String, dynamic>.from(widget.root);
+  //   _loadThread(); // 独立拉整楼，不影响其他楼
+  // }
 
   Future<void> _loadThread() async {
     setState(() => _loading = true);
@@ -2018,148 +2027,319 @@ class _CommentThreadState extends State<CommentThread> {
     widget.onLikeChanged(commentId, nowLiked);
   }
 
-  /// 单条评论（主楼/楼内）渲染；头像/昵称可点击进入个人主页
-  Widget _buildOne(Map<String, dynamic> c, {required bool isRoot}) {
-    // root 数据来源可能是 select 格式（有 user:{}），也可能是 RPC 格式（展开后的 user_* 字段）
-    final cid = c['id'] as int;
-    final isRpc =
-        c.containsKey('user_nickname') || c.containsKey('parent_user_nickname');
+  // /// 单条评论（主楼/楼内）渲染；头像/昵称可点击进入个人主页
+  // Widget _buildOne(Map<String, dynamic> c, {required bool isRoot}) {
+  //   // root 数据来源可能是 select 格式（有 user:{}），也可能是 RPC 格式（展开后的 user_* 字段）
+  //   final cid = c['id'] as int;
+  //   final isRpc =
+  //       c.containsKey('user_nickname') || c.containsKey('parent_user_nickname');
 
-    final String nickname = isRpc
-        ? (c['user_nickname'] as String? ?? '用户')
-        : ((c['user']?['nickname'] as String?) ?? '用户');
+  //   final String nickname = isRpc
+  //       ? (c['user_nickname'] as String? ?? '用户')
+  //       : ((c['user']?['nickname'] as String?) ?? '用户');
 
-    final String? avatar = isRpc
-        ? (c['user_avatar_url'] as String?)
-        : (c['user']?['avatar_url'] as String?);
+  //   final String? avatar = isRpc
+  //       ? (c['user_avatar_url'] as String?)
+  //       : (c['user']?['avatar_url'] as String?);
 
-    final String? userId =
-        isRpc ? (c['user_id'] as String?) : (c['user']?['id'] as String?);
+  //   final String? userId =
+  //       isRpc ? (c['user_id'] as String?) : (c['user']?['id'] as String?);
 
-    final String? parentNickname =
-        isRoot ? null : (isRpc ? (c['parent_user_nickname'] as String?) : null);
+  //   final String? parentNickname =
+  //       isRoot ? null : (isRpc ? (c['parent_user_nickname'] as String?) : null);
 
-    final String? parentUserId =
-        isRoot ? null : (isRpc ? (c['parent_user_id'] as String?) : null);
+  //   final String? parentUserId =
+  //       isRoot ? null : (isRpc ? (c['parent_user_id'] as String?) : null);
 
-    final timeLabel = _timeAgo(c['created_at']);
-    final liked = _myLiked.contains(cid);
-    final likeCount = (c['like_count'] ?? 0) as int;
+  //   final timeLabel = _timeAgo(c['created_at']);
+  //   final liked = _myLiked.contains(cid);
+  //   final likeCount = (c['like_count'] ?? 0) as int;
 
-    void goUser(String? uid) {
-      if (uid == null || uid.isEmpty) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => UserProfilePage(userId: uid)),
-      );
-    }
+  //   void goUser(String? uid) {
+  //     if (uid == null || uid.isEmpty) return;
+  //     Navigator.of(context).push(
+  //       MaterialPageRoute(builder: (_) => UserProfilePage(userId: uid)),
+  //     );
+  //   }
 
-    return Padding(
-      padding: EdgeInsets.only(left: isRoot ? 0 : 46, top: isRoot ? 0 : 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 头像可点
-          InkWell(
-            onTap: () => goUser(userId),
-            child: AvatarWidget(imageUrl: avatar, size: isRoot ? 36 : 28),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 昵称（可点击） + 时间
-                Row(
-                  children: [
-                    Flexible(
-                      child: InkWell(
-                        onTap: () => goUser(userId),
-                        child: Text(
-                          nickname,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(timeLabel,
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 12)),
-                  ],
-                ),
-                const SizedBox(height: 4),
+  //   return Padding(
+  //     padding: EdgeInsets.only(left: isRoot ? 0 : 46, top: isRoot ? 0 : 8),
+  //     child: Row(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         // 头像可点
+  //         InkWell(
+  //           onTap: () => goUser(userId),
+  //           child: AvatarWidget(imageUrl: avatar, size: isRoot ? 36 : 28),
+  //         ),
+  //         const SizedBox(width: 8),
+  //         Expanded(
+  //           child: Column(
+  //             crossAxisAlignment: CrossAxisAlignment.start,
+  //             children: [
+  //               // 昵称（可点击） + 时间
+  //               Row(
+  //                 children: [
+  //                   Flexible(
+  //                     child: InkWell(
+  //                       onTap: () => goUser(userId),
+  //                       child: Text(
+  //                         nickname,
+  //                         style: const TextStyle(
+  //                           fontWeight: FontWeight.w600,
+  //                           fontSize: 14,
+  //                         ),
+  //                       ),
+  //                     ),
+  //                   ),
+  //                   const SizedBox(width: 8),
+  //                   Text(timeLabel,
+  //                       style:
+  //                           const TextStyle(color: Colors.grey, fontSize: 12)),
+  //                 ],
+  //               ),
+  //               const SizedBox(height: 4),
 
-                // 内容（回复层：A 回复 B：xxx）—— 这里只让"作者昵称"可点击；B 也可点击的话再包一层 InkWell
-                if (parentNickname == null)
-                  Text('${c['content'] ?? ''}')
-                else
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      InkWell(
-                        onTap: () => goUser(userId),
-                        child: Text(
-                          nickname,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      const Text(' 回复 '),
-                      if (parentNickname != null)
-                        (parentUserId != null && parentUserId.isNotEmpty)
-                            ? InkWell(
-                                onTap: () => goUser(parentUserId),
-                                child: Text(
-                                  parentNickname,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              )
-                            : Text(
-                                parentNickname,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600),
-                              ),
-                      const Text('：'),
-                      Text('${c['content'] ?? ''}'),
-                    ],
-                  ),
+  //               // 内容（回复层：A 回复 B：xxx）—— 这里只让"作者昵称"可点击；B 也可点击的话再包一层 InkWell
+  //               if (parentNickname == null)
+  //                 Text('${c['content'] ?? ''}')
+  //               else
+  //                 Wrap(
+  //                   crossAxisAlignment: WrapCrossAlignment.center,
+  //                   children: [
+  //                     InkWell(
+  //                       onTap: () => goUser(userId),
+  //                       child: Text(
+  //                         nickname,
+  //                         style: const TextStyle(fontWeight: FontWeight.w600),
+  //                       ),
+  //                     ),
+  //                     const Text(' 回复 '),
+  //                     if (parentNickname != null)
+  //                       (parentUserId != null && parentUserId.isNotEmpty)
+  //                           ? InkWell(
+  //                               onTap: () => goUser(parentUserId),
+  //                               child: Text(
+  //                                 parentNickname,
+  //                                 style: const TextStyle(
+  //                                     fontWeight: FontWeight.w600),
+  //                               ),
+  //                             )
+  //                           : Text(
+  //                               parentNickname,
+  //                               style: const TextStyle(
+  //                                   fontWeight: FontWeight.w600),
+  //                             ),
+  //                     const Text('：'),
+  //                     Text('${c['content'] ?? ''}'),
+  //                   ],
+  //                 ),
 
-                const SizedBox(height: 6),
-                // 操作区：点赞 / 回复
-                Row(
-                  children: [
-                    InkWell(
-                      onTap: () => _toggleLike(cid),
-                      child: Row(
-                        children: [
-                          Icon(liked ? Icons.favorite : Icons.favorite_border,
-                              size: 16,
-                              color: liked ? Colors.red : Colors.grey),
-                          const SizedBox(width: 4),
-                          Text('$likeCount',
-                              style: const TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    InkWell(
-                      onTap: () => widget.onReply(cid, nickname),
-                      child: const Text('回复',
-                          style: TextStyle(color: Colors.grey, fontSize: 12)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+  //               const SizedBox(height: 6),
+  //               // 操作区：点赞 / 回复
+  //               Row(
+  //                 children: [
+  //                   InkWell(
+  //                     onTap: () => _toggleLike(cid),
+  //                     child: Row(
+  //                       children: [
+  //                         Icon(liked ? Icons.favorite : Icons.favorite_border,
+  //                             size: 16,
+  //                             color: liked ? Colors.red : Colors.grey),
+  //                         const SizedBox(width: 4),
+  //                         Text('$likeCount',
+  //                             style: const TextStyle(fontSize: 12)),
+  //                       ],
+  //                     ),
+  //                   ),
+  //                   const SizedBox(width: 16),
+  //                   InkWell(
+  //                     onTap: () => widget.onReply(cid, nickname),
+  //                     child: const Text('回复',
+  //                         style: TextStyle(color: Colors.grey, fontSize: 12)),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+Widget _buildOne(Map<String, dynamic> c, {required bool isRoot}) {
+  final cid = c['id'] as int;
+  final isRpc =
+      c.containsKey('user_nickname') || c.containsKey('parent_user_nickname');
+
+  final String nickname = isRpc
+      ? (c['user_nickname'] as String? ?? '用户')
+      : ((c['user']?['nickname'] as String?) ?? '用户');
+
+  final String? avatar = isRpc
+      ? (c['user_avatar_url'] as String?)
+      : (c['user']?['avatar_url'] as String?);
+
+  final String? userId =
+      isRpc ? (c['user_id'] as String?) : (c['user']?['id'] as String?);
+
+  final String? parentNickname =
+      isRoot ? null : (isRpc ? (c['parent_user_nickname'] as String?) : null);
+
+  final String? parentUserId =
+      isRoot ? null : (isRpc ? (c['parent_user_id'] as String?) : null);
+
+  final timeLabel = _timeAgo(c['created_at']);
+  final liked = _myLiked.contains(cid);
+  final likeCount = (c['like_count'] ?? 0) as int;
+  final content = c['content']?.toString() ?? '';
+
+  void goUser(String? uid) {
+    if (uid == null || uid.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => UserProfilePage(userId: uid)),
     );
   }
 
-  @override
+  return Padding(
+    padding: EdgeInsets.only(left: isRoot ? 0 : 46, top: isRoot ? 0 : 8),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 头像可点
+        InkWell(
+          onTap: () => goUser(userId),
+          child: AvatarWidget(imageUrl: avatar, size: isRoot ? 36 : 28),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 昵称（可点击） + 时间
+              Row(
+                children: [
+                  Flexible(
+                    child: InkWell(
+                      onTap: () => goUser(userId),
+                      child: Text(
+                        nickname,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(timeLabel,
+                      style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                ],
+              ),
+              const SizedBox(height: 4),
+
+              // 内容显示 - 简化版本
+              if (parentNickname == null)
+                // 主楼或直接回复帖子
+                Text(content, style: const TextStyle(fontSize: 14))
+              else
+                // 子评论回复：只显示 "回复 @用户名：内容"
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                    children: [
+                      const TextSpan(text: '回复 '),
+                      // 被回复的用户名（可点击）
+                      WidgetSpan(
+                        child: InkWell(
+                          onTap: ()  {
+                print('点击被回复者 parentUserId: $parentUserId'); // 调试
+                print('点击被回复者 parentNickname: $parentNickname'); // 调试
+                goUser(parentUserId);
+              },
+                          child: Text(
+                            '@${parentNickname ?? ''}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const TextSpan(text: '：'),
+                      TextSpan(text: content),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 6),
+              // 操作区：点赞 / 回复
+              Row(
+                children: [
+                  InkWell(
+                    onTap: () => _toggleLike(cid),
+                    child: Row(
+                      children: [
+                        Icon(liked ? Icons.favorite : Icons.favorite_border,
+                            size: 16,
+                            color: liked ? Colors.red : Colors.grey),
+                        const SizedBox(width: 4),
+                        Text('$likeCount',
+                            style: const TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  InkWell(
+                    onTap: () => widget.onReply(cid, nickname),
+                    child: const Text('回复',
+                        style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+  // @override
+  // Widget build(BuildContext context) {
+  //   if (_loading) {
+  //     return const Padding(
+  //       padding: EdgeInsets.symmetric(vertical: 12),
+  //       child: Center(child: CircularProgressIndicator()),
+  //     );
+  //   }
+  //   // ✅ 计算要显示的子评论
+  //   final visibleReplies = _replies.take(_visibleCount).toList();
+  //   final hasMore = _replies.length > _visibleCount;
+  //   final hasReplies = _replies.isNotEmpty;
+  //   final isExpanded = _visibleCount > 1; // 是否已展开
+
+  //   return Container(
+  //     padding: const EdgeInsets.symmetric(vertical: 10),
+  //     decoration: const BoxDecoration(
+  //       border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
+  //     ),
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         // 一楼
+  //         _buildOne(_root, isRoot: true),
+  //         const SizedBox(height: 6),
+  //         // 扁平所有子孙
+  //         ..._replies.map((e) => _buildOne(e, isRoot: false)),
+  //         const SizedBox(height: 12),
+  //       ],
+  //     ),
+  //   );
+  // }
+    @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Padding(
@@ -2167,6 +2347,12 @@ class _CommentThreadState extends State<CommentThread> {
         child: Center(child: CircularProgressIndicator()),
       );
     }
+
+    // ✅ 计算要显示的子评论
+    final visibleReplies = _replies.take(_visibleCount).toList();
+    final hasMore = _replies.length > _visibleCount;
+    final hasReplies = _replies.isNotEmpty;
+    final isExpanded = _visibleCount > 1; // 是否已展开
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -2178,9 +2364,102 @@ class _CommentThreadState extends State<CommentThread> {
         children: [
           // 一楼
           _buildOne(_root, isRoot: true),
-          const SizedBox(height: 6),
-          // 扁平所有子孙
-          ..._replies.map((e) => _buildOne(e, isRoot: false)),
+          
+          // // 回复总数（可选）
+          // if (hasReplies)
+          //   Padding(
+          //     padding: const EdgeInsets.only(left: 46, top: 4),
+          //     child: Text(
+          //       '共 ${_replies.length} 条回复',
+          //       style: TextStyle(
+          //         fontSize: 12,
+          //         color: Colors.grey[600],
+          //       ),
+          //     ),
+          //   ),
+          
+          // const SizedBox(height: 6),
+
+          // 子评论列表
+          if (hasReplies) ...[
+            ...visibleReplies.map((e) => _buildOne(e, isRoot: false)),
+          ],
+
+          // ✅ 展开/收起按钮区域
+          if (hasReplies) ...[
+            const SizedBox(height: 8),
+            
+            // 第一行：展开更多 和 收起（左右对齐）
+            Padding(
+              padding: const EdgeInsets.only(left: 46),
+              child: Row(
+                children: [
+                  // 左侧：展开更多按钮
+                  if (hasMore)
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          // 增加显示数量，但不能超过总数
+                          _visibleCount = (_visibleCount + _pageSize)
+                              .clamp(0, _replies.length);
+                        });
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.keyboard_arrow_down,
+                            size: 18,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '展开更多评论（${_replies.length - _visibleCount}条）',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  
+                  //const Spacer(),
+                  
+                  // 右侧：收起按钮（只在已展开时显示）
+                  if (isExpanded)
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _visibleCount = 1; // 收起回3条
+                        });
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.keyboard_arrow_up,
+                            size: 18,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '收起',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+
           const SizedBox(height: 12),
         ],
       ),
