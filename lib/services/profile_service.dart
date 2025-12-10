@@ -948,44 +948,83 @@ class ProfileService {
     }
   }
 
-  /// 🔥 新增：发送关注通知
-  Future<void> _sendFollowNotification(String followerId, String followingId, bool isFollowBack) async {
-    try {
-      // 获取关注者的用户信息
-      final followerProfile = await fetchUserProfile(followerId);
-      final followerName = followerProfile?.nickname ?? '有人';
+  // /// 🔥 新增：发送关注通知
+  // Future<void> _sendFollowNotification(String followerId, String followingId, bool isFollowBack) async {
+  //   try {
+  //     // 获取关注者的用户信息
+  //     final followerProfile = await fetchUserProfile(followerId);
+  //     final followerName = followerProfile?.nickname ?? '有人';
 
-      // 根据是否回关，设置不同的通知内容
-      String title;
-      String content;
+  //     // 根据是否回关，设置不同的通知内容
+  //     String title;
+  //     String content;
       
-      if (isFollowBack) {
-        // 回关通知
-        title = '🎉 $followerName 回关了你';
-        content = '你们已互相关注，快去打个招呼吧！';
-      } else {
-        // 普通关注通知
-        title = '$followerName 关注了你';
-        content = '你有了新粉丝，去看看Ta的主页吧！';
-      }
+  //     if (isFollowBack) {
+  //       // 回关通知
+  //       title = '🎉 $followerName 回关了你';
+  //       content = '你们已互相关注，快去打个招呼吧！';
+  //     } else {
+  //       // 普通关注通知
+  //       title = '$followerName 关注了你';
+  //       content = '你有了新粉丝，去看看Ta的主页吧！';
+  //     }
 
-      // 插入通知记录
-      await _client.from('notifications').insert(<String, dynamic>{
-        'user_id': followingId,  // 通知发送给被关注的人
-        'type': 'follow',
-        'title': title,
-        'content': content,
-        'is_read': false,
-        'created_at': DateTime.now().toIso8601String(),
-      });
+  //     // 插入通知记录
+  //     await _client.from('notifications').insert(<String, dynamic>{
+  //       'user_id': followingId,  // 通知发送给被关注的人
+  //       'type': 'follow',
+  //        'ref_id': followerId,        // ✅ 新增：关注者的用户ID，用于跳转
+  //       'title': title,
+  //       'content': content,
+  //       'is_read': false,
+  //       'created_at': DateTime.now().toIso8601String(),
+  //     });
 
-      print('✅ 关注通知发送成功: isFollowBack=$isFollowBack');
-    } catch (e) {
-      print('❌ 发送关注通知失败: $e');
-      // 通知发送失败不影响关注操作
+  //     print('✅ 关注通知发送成功: isFollowBack=$isFollowBack');
+  //   } catch (e) {
+  //     print('❌ 发送关注通知失败: $e');
+  //     // 通知发送失败不影响关注操作
+  //   }
+  // }
+/// 🔥 修改：发送关注通知
+Future<void> _sendFollowNotification(String followerId, String followingId, bool isFollowBack) async {
+  try {
+    // 获取关注者的用户信息
+    final followerProfile = await fetchUserProfile(followerId);
+    final followerName = followerProfile?.nickname ?? '有人';
+
+    // 根据是否回关，设置不同的通知内容
+    String title;
+    String content;
+    
+    if (isFollowBack) {
+      // 回关通知
+      title = '🎉 $followerName 回关了你';
+      content = '你们已互相关注，快去打个招呼吧！';
+    } else {
+      // 普通关注通知
+      title = '$followerName 关注了你';
+      content = '你有了新粉丝，去看看Ta的主页吧！';
     }
-  }
 
+    // 插入通知记录
+    await _client.from('notifications').insert(<String, dynamic>{
+      'user_id': followingId,      // 通知接收者：被关注的人
+      'type': 'follow',
+      'ref_id': null,              // 对于关注通知，ref_id可以为空
+      'ref_user_id': followerId,   // ✅ 新增：关注者的用户ID
+      'title': title,
+      'content': content,
+      'is_read': false,
+      'created_at': DateTime.now().toIso8601String(),
+    });
+
+    print('✅ 关注通知发送成功: isFollowBack=$isFollowBack, ref_user_id=$followerId');
+  } catch (e) {
+    print('❌ 发送关注通知失败: $e');
+    // 通知发送失败不影响关注操作
+  }
+}
   /// 取消关注
   Future<void> unfollowUser(String followingId) async {
     final userId = _client.auth.currentUser?.id;

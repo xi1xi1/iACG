@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/supabase_client.dart';
 import 'features/root/root_shell.dart';
 import 'features/auth/login_page.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   debugPaintSizeEnabled = false;
@@ -155,7 +156,8 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'iACG Cosplay',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      //theme: ThemeData(primarySwatch: Colors.blue),
+      theme: AppTheme.lightTheme,
       debugShowCheckedModeBanner: false,
       home: _getInitialPage(),
       routes: {

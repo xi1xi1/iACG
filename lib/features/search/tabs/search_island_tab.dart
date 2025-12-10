@@ -289,7 +289,7 @@ class _SearchIslandTabState extends State<SearchIslandTab> with AutomaticKeepAli
         ),
       ),
       selected: isSelected,
-      selectedColor: Colors.green,
+      selectedColor: Color(0xFFED7099),
       backgroundColor: Colors.grey[200],
       onSelected: (selected) => _changeOrderBy(value),
       shape: RoundedRectangleBorder(

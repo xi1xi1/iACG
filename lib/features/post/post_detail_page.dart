@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:iacg/features/auth/login_page.dart';
 import 'package:iacg/features/post/post_compose_page.dart';
 import 'package:iacg/features/post/repost_compose_page.dart';
 import 'package:iacg/widgets/avatar_widget.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
+import 'dart:async'; 
 import '../../services/post_service.dart';
 import '../profile/user_profile_page.dart';
 import '../tag/tag_posts_page.dart';
 import 'post_image_preview.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 class PostDetailPage extends StatefulWidget {
   final int postId;
@@ -33,7 +35,11 @@ class _PostDetailPageState extends State<PostDetailPage> {
   // 轮播
   final PageController _pageController = PageController();
   int _currentIndex = 0;
-
+  // ✅ 新增1：轮播图比例（基于第一张图）
+  double? _carouselAspectRatio;
+  
+  // ✅ 新增2：标记是否已获取比例
+  bool _hasLoadedRatio = false;
   // 评论输入
   final TextEditingController _commentCtrl = TextEditingController();
   final FocusNode _inputFocus = FocusNode();
@@ -69,7 +75,59 @@ class _PostDetailPageState extends State<PostDetailPage> {
     _inputFocus.dispose();
     super.dispose();
   }
-
+  // 获取第一张图的比例
+  Future<void> _loadFirstImageAspectRatio(List<String> imageUrls) async {
+    if (_hasLoadedRatio || imageUrls.isEmpty) return;
+    
+    try {
+      final firstUrl = imageUrls[0];
+      final completer = Completer<double?>();
+      
+      final imageProvider = NetworkImage(firstUrl);
+      final stream = imageProvider.resolve(ImageConfiguration.empty);
+      
+      final listener = ImageStreamListener(
+        (ImageInfo info, bool _) {
+          final width = info.image.width.toDouble();
+          final height = info.image.height.toDouble();
+          final ratio = width / height;
+          
+          // 限制比例范围，避免极端比例
+          final clampedRatio = ratio.clamp(0.5, 2.0);
+          completer.complete(clampedRatio);
+        },
+        onError: (error, stackTrace) {
+          completer.complete(null); // 失败返回null
+        },
+      );
+      
+      stream.addListener(listener);
+      
+      // 设置超时
+      Future.delayed(const Duration(seconds: 2), () {
+        if (!completer.isCompleted) {
+          stream.removeListener(listener);
+          completer.complete(null);
+        }
+      });
+      
+      final ratio = await completer.future;
+      
+      if (mounted) {
+        setState(() {
+          _carouselAspectRatio = ratio ?? 3/4; // 失败时用默认3/4
+          _hasLoadedRatio = true;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _carouselAspectRatio = 3/4;
+          _hasLoadedRatio = true;
+        });
+      }
+    }
+  }
   // 新增：检查是否是作者
   Future<void> _checkIsAuthor() async {
     try {
@@ -128,7 +186,42 @@ class _PostDetailPageState extends State<PostDetailPage> {
 
 
 // ✅ 新增：跳转到发布页面并自动填充活动标签
-void _navigateToEventPostCompose() {
+// ✅ 修改：跳转到发布页面并自动填充活动标签（添加登录检查）
+void _navigateToEventPostCompose() async {
+  // 1. 首先检查用户是否登录
+  final uid = Supabase.instance.client.auth.currentUser?.id;
+  if (uid == null) {
+    // 用户未登录，显示提示
+    if (mounted) {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('需要登录'),
+          content: const Text('登录后才能发布帖子，去登录吧～'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // 跳转到登录页面
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LoginPage(),
+                  ),
+                );
+              },
+              child: const Text('去登录', style: TextStyle(color: Color(0xFFED7099))),
+            ),
+          ],
+        ),
+      );
+    }
+    return;
+  }
+
   if (_eventTagName == null || _eventTagName!.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -598,14 +691,26 @@ void _goToPostCompose(String channel, String eventTag) {
                       child: CachedNetworkImage(
                         imageUrl: firstImage,
                         fit: BoxFit.cover,
-                        placeholder: (_, __) =>
-                            Container(color: Colors.grey[200]),
-                        errorWidget: (_, __, ___) => Container(
-                          color: Colors.grey[200],
-                          alignment: Alignment.center,
-                          child: const Icon(Icons.image,
-                              size: 20, color: Colors.grey),
-                        ),
+                        // ✅ 添加图片尺寸限制
+                        memCacheWidth: 300, // 相关帖子图片小，用固定值
+                        maxWidthDiskCache: 300,
+                        
+                        placeholder: (_, __) => Container(color: Colors.grey[200]),
+                        errorWidget: (_, __, ___) {
+                          // ✅ 添加自动重试逻辑
+                          Future.delayed(const Duration(milliseconds: 300), () async {
+                            try {
+                              await DefaultCacheManager().removeFile(firstImage);
+                              if (mounted) setState(() {});
+                            } catch (_) {}
+                          });
+                          
+                          return Container(
+                            color: Colors.grey[200],
+                            alignment: Alignment.center,
+                            child: const Icon(Icons.image, size: 20, color: Colors.grey),
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -1461,6 +1566,7 @@ void _goToPostCompose(String channel, String eventTag) {
                   final name = t['tag']?['name'] ?? '';
                   return ActionChip(
                     label: Text('#$name'),
+                    backgroundColor: Colors.grey[100],
                     onPressed: () {
                       if (name.isEmpty) return;
                       Navigator.of(context).push(
@@ -1638,96 +1744,142 @@ void _goToPostCompose(String channel, String eventTag) {
     );
   }
 
-  Widget _buildMediaCarousel(List media) {
-    final urls = media
-        .map<String>((m) => (m['media_url'] as String?) ?? '')
-        .where((u) => u.isNotEmpty)
-        .toList();
-    if (urls.isEmpty) return const SizedBox.shrink();
+Widget _buildMediaCarousel(List media) {
+  final urls = media
+      .map<String>((m) => (m['media_url'] as String?) ?? '')
+      .where((u) => u.isNotEmpty)
+      .toList();
+  if (urls.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      children: [
-        AspectRatio(
-          aspectRatio: 3 / 4,
-          child: Stack(
-            children: [
-              PageView.builder(
-                controller: _pageController,
-                itemCount: urls.length,
-                onPageChanged: (i) => setState(() => _currentIndex = i),
-                itemBuilder: (_, i) {
-                  final url = urls[i];
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PostImagePreview(
-                            images: urls,
-                            initialIndex: i,
-                          ),
-                        ),
-                      );
-                    },
-                    child: CachedNetworkImage(
-                      imageUrl: url,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) =>
-                          Container(color: Colors.grey[100]),
-                      errorWidget: (_, __, ___) => Container(
-                        color: Colors.grey[100],
-                        alignment: Alignment.center,
-                        child: Icon(Icons.broken_image_outlined,
-                            color: Colors.grey[400]),
-                      ),
-                    ),
-                  );
-                },
-              ),
-              if (urls.length > 1) ...[
-                _arrowBtn(
-                  left: true,
-                  onTap: () {
-                    final prev = (_currentIndex - 1).clamp(0, urls.length - 1);
-                    _pageController.animateToPage(prev,
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOut);
-                  },
-                ),
-                _arrowBtn(
-                  left: false,
-                  onTap: () {
-                    final next = (_currentIndex + 1).clamp(0, urls.length - 1);
-                    _pageController.animateToPage(next,
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOut);
-                  },
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        if (urls.length > 1)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(urls.length, (i) {
-              final active = i == _currentIndex;
-              return AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                height: 6,
-                width: active ? 18 : 6,
-                decoration: BoxDecoration(
-                  color: active ? Colors.black87 : Colors.black26,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              );
-            }),
-          ),
-      ],
-    );
+  // ✅ 加载第一张图比例
+  if (!_hasLoadedRatio) {
+    _loadFirstImageAspectRatio(urls);
+  }
+  
+  // ✅ 根据第一张图方向决定容器类型
+  final screenWidth = MediaQuery.of(context).size.width;
+  double containerHeight;
+  
+  if (_carouselAspectRatio != null) {
+    final ratio = _carouselAspectRatio!;
+    
+    if (ratio > 1) {
+      // 🟡 横图：固定 3:2 容器
+      containerHeight = screenWidth * (2/3); // 3:2 的高度
+    } else {
+      // 🟢 竖图：固定 2:3 容器  
+      containerHeight = screenWidth * (3/2); // 2:3 的高度
+    }
+  } else {
+    // 🔵 默认：3:2 横图容器
+    containerHeight = screenWidth * (1/1);
   }
 
+  // 🔧 确保高度在合理范围内
+  final safeHeight = containerHeight.clamp(screenWidth * 0.5, screenWidth * 2);
+
+  return Column(
+    children: [
+      SizedBox(
+        height: safeHeight,
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: _pageController,
+              itemCount: urls.length,
+              onPageChanged: (i) => setState(() => _currentIndex = i),
+              itemBuilder: (_, i) {
+                final url = urls[i];
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => PostImagePreview(
+                          images: urls,
+                          initialIndex: i,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    color: Colors.white, // 白色背景作为空白
+                    child: CachedNetworkImage(
+                      imageUrl: url,
+                      fit: BoxFit.contain, // ✅ 保持比例，等比例缩放
+                      width: double.infinity,
+                      height: double.infinity,
+                      alignment: Alignment.center,
+                      // ❌ 去掉缓存尺寸限制，看看是否解决问题
+                      // memCacheWidth: isHorizontalContainer ? 1200 : 800,
+                      // memCacheHeight: isHorizontalContainer ? 800 : 1200,
+                      placeholder: (_, __) => Container(color: Colors.grey[100]),
+                      errorWidget: (_, url, ___) {
+                        // Future.delayed(const Duration(milliseconds: 300), () {
+                        //   if (mounted) setState(() {});
+                        // });
+                          Future.delayed(const Duration(milliseconds: 500), () {
+                            // 使用 CachedNetworkImage 的内置缓存失效功能
+                            if (mounted) {
+                              // 只清除当前图片的缓存，不刷新整个组件
+                              CachedNetworkImage.evictFromCache(url);
+                            }
+                          });
+                        
+                        return Container(
+                          color: Colors.grey[100],
+                          alignment: Alignment.center,
+                          child: Icon(Icons.broken_image_outlined, color: Colors.grey[400]),
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
+            if (urls.length > 1) ...[
+              _arrowBtn(
+                left: true,
+                onTap: () {
+                  final prev = (_currentIndex - 1).clamp(0, urls.length - 1);
+                  _pageController.animateToPage(prev,
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOut);
+                },
+              ),
+              _arrowBtn(
+                left: false,
+                onTap: () {
+                  final next = (_currentIndex + 1).clamp(0, urls.length - 1);
+                  _pageController.animateToPage(next,
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOut);
+                },
+              ),
+            ],
+          ],
+        ),
+      ),
+      const SizedBox(height: 8),
+      if (urls.length > 1)
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(urls.length, (i) {
+            final active = i == _currentIndex;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              height: 6,
+              width: active ? 18 : 6,
+              decoration: BoxDecoration(
+                color: active ? Colors.black87 : Colors.black26,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            );
+          }),
+        ),
+    ],
+  );
+}
   Widget _arrowBtn({required bool left, required VoidCallback onTap}) {
     return Positioned(
       top: 0,
@@ -1783,13 +1935,22 @@ class _CommentThreadState extends State<CommentThread> {
   List<Map<String, dynamic>> _replies = []; // 扁平子孙
   Set<int> _myLiked = <int>{}; // 我在整楼里点过赞的评论ID
   bool _loading = true;
-
+  // ✅ 新增：控制展开状态的变量
+  int _visibleCount = 1; // 默认显示3条
+  static const int _pageSize = 5; // 每次展开显示5条
+  
   @override
   void initState() {
     super.initState();
     _root = Map<String, dynamic>.from(widget.root);
-    _loadThread(); // 独立拉整楼，不影响其他楼
+    _loadThread();
   }
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   _root = Map<String, dynamic>.from(widget.root);
+  //   _loadThread(); // 独立拉整楼，不影响其他楼
+  // }
 
   Future<void> _loadThread() async {
     setState(() => _loading = true);
@@ -1866,148 +2027,319 @@ class _CommentThreadState extends State<CommentThread> {
     widget.onLikeChanged(commentId, nowLiked);
   }
 
-  /// 单条评论（主楼/楼内）渲染；头像/昵称可点击进入个人主页
-  Widget _buildOne(Map<String, dynamic> c, {required bool isRoot}) {
-    // root 数据来源可能是 select 格式（有 user:{}），也可能是 RPC 格式（展开后的 user_* 字段）
-    final cid = c['id'] as int;
-    final isRpc =
-        c.containsKey('user_nickname') || c.containsKey('parent_user_nickname');
+  // /// 单条评论（主楼/楼内）渲染；头像/昵称可点击进入个人主页
+  // Widget _buildOne(Map<String, dynamic> c, {required bool isRoot}) {
+  //   // root 数据来源可能是 select 格式（有 user:{}），也可能是 RPC 格式（展开后的 user_* 字段）
+  //   final cid = c['id'] as int;
+  //   final isRpc =
+  //       c.containsKey('user_nickname') || c.containsKey('parent_user_nickname');
 
-    final String nickname = isRpc
-        ? (c['user_nickname'] as String? ?? '用户')
-        : ((c['user']?['nickname'] as String?) ?? '用户');
+  //   final String nickname = isRpc
+  //       ? (c['user_nickname'] as String? ?? '用户')
+  //       : ((c['user']?['nickname'] as String?) ?? '用户');
 
-    final String? avatar = isRpc
-        ? (c['user_avatar_url'] as String?)
-        : (c['user']?['avatar_url'] as String?);
+  //   final String? avatar = isRpc
+  //       ? (c['user_avatar_url'] as String?)
+  //       : (c['user']?['avatar_url'] as String?);
 
-    final String? userId =
-        isRpc ? (c['user_id'] as String?) : (c['user']?['id'] as String?);
+  //   final String? userId =
+  //       isRpc ? (c['user_id'] as String?) : (c['user']?['id'] as String?);
 
-    final String? parentNickname =
-        isRoot ? null : (isRpc ? (c['parent_user_nickname'] as String?) : null);
+  //   final String? parentNickname =
+  //       isRoot ? null : (isRpc ? (c['parent_user_nickname'] as String?) : null);
 
-    final String? parentUserId =
-        isRoot ? null : (isRpc ? (c['parent_user_id'] as String?) : null);
+  //   final String? parentUserId =
+  //       isRoot ? null : (isRpc ? (c['parent_user_id'] as String?) : null);
 
-    final timeLabel = _timeAgo(c['created_at']);
-    final liked = _myLiked.contains(cid);
-    final likeCount = (c['like_count'] ?? 0) as int;
+  //   final timeLabel = _timeAgo(c['created_at']);
+  //   final liked = _myLiked.contains(cid);
+  //   final likeCount = (c['like_count'] ?? 0) as int;
 
-    void goUser(String? uid) {
-      if (uid == null || uid.isEmpty) return;
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => UserProfilePage(userId: uid)),
-      );
-    }
+  //   void goUser(String? uid) {
+  //     if (uid == null || uid.isEmpty) return;
+  //     Navigator.of(context).push(
+  //       MaterialPageRoute(builder: (_) => UserProfilePage(userId: uid)),
+  //     );
+  //   }
 
-    return Padding(
-      padding: EdgeInsets.only(left: isRoot ? 0 : 46, top: isRoot ? 0 : 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 头像可点
-          InkWell(
-            onTap: () => goUser(userId),
-            child: AvatarWidget(imageUrl: avatar, size: isRoot ? 36 : 28),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 昵称（可点击） + 时间
-                Row(
-                  children: [
-                    Flexible(
-                      child: InkWell(
-                        onTap: () => goUser(userId),
-                        child: Text(
-                          nickname,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(timeLabel,
-                        style:
-                            const TextStyle(color: Colors.grey, fontSize: 12)),
-                  ],
-                ),
-                const SizedBox(height: 4),
+  //   return Padding(
+  //     padding: EdgeInsets.only(left: isRoot ? 0 : 46, top: isRoot ? 0 : 8),
+  //     child: Row(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         // 头像可点
+  //         InkWell(
+  //           onTap: () => goUser(userId),
+  //           child: AvatarWidget(imageUrl: avatar, size: isRoot ? 36 : 28),
+  //         ),
+  //         const SizedBox(width: 8),
+  //         Expanded(
+  //           child: Column(
+  //             crossAxisAlignment: CrossAxisAlignment.start,
+  //             children: [
+  //               // 昵称（可点击） + 时间
+  //               Row(
+  //                 children: [
+  //                   Flexible(
+  //                     child: InkWell(
+  //                       onTap: () => goUser(userId),
+  //                       child: Text(
+  //                         nickname,
+  //                         style: const TextStyle(
+  //                           fontWeight: FontWeight.w600,
+  //                           fontSize: 14,
+  //                         ),
+  //                       ),
+  //                     ),
+  //                   ),
+  //                   const SizedBox(width: 8),
+  //                   Text(timeLabel,
+  //                       style:
+  //                           const TextStyle(color: Colors.grey, fontSize: 12)),
+  //                 ],
+  //               ),
+  //               const SizedBox(height: 4),
 
-                // 内容（回复层：A 回复 B：xxx）—— 这里只让"作者昵称"可点击；B 也可点击的话再包一层 InkWell
-                if (parentNickname == null)
-                  Text('${c['content'] ?? ''}')
-                else
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      InkWell(
-                        onTap: () => goUser(userId),
-                        child: Text(
-                          nickname,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      const Text(' 回复 '),
-                      if (parentNickname != null)
-                        (parentUserId != null && parentUserId.isNotEmpty)
-                            ? InkWell(
-                                onTap: () => goUser(parentUserId),
-                                child: Text(
-                                  parentNickname,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              )
-                            : Text(
-                                parentNickname,
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600),
-                              ),
-                      const Text('：'),
-                      Text('${c['content'] ?? ''}'),
-                    ],
-                  ),
+  //               // 内容（回复层：A 回复 B：xxx）—— 这里只让"作者昵称"可点击；B 也可点击的话再包一层 InkWell
+  //               if (parentNickname == null)
+  //                 Text('${c['content'] ?? ''}')
+  //               else
+  //                 Wrap(
+  //                   crossAxisAlignment: WrapCrossAlignment.center,
+  //                   children: [
+  //                     InkWell(
+  //                       onTap: () => goUser(userId),
+  //                       child: Text(
+  //                         nickname,
+  //                         style: const TextStyle(fontWeight: FontWeight.w600),
+  //                       ),
+  //                     ),
+  //                     const Text(' 回复 '),
+  //                     if (parentNickname != null)
+  //                       (parentUserId != null && parentUserId.isNotEmpty)
+  //                           ? InkWell(
+  //                               onTap: () => goUser(parentUserId),
+  //                               child: Text(
+  //                                 parentNickname,
+  //                                 style: const TextStyle(
+  //                                     fontWeight: FontWeight.w600),
+  //                               ),
+  //                             )
+  //                           : Text(
+  //                               parentNickname,
+  //                               style: const TextStyle(
+  //                                   fontWeight: FontWeight.w600),
+  //                             ),
+  //                     const Text('：'),
+  //                     Text('${c['content'] ?? ''}'),
+  //                   ],
+  //                 ),
 
-                const SizedBox(height: 6),
-                // 操作区：点赞 / 回复
-                Row(
-                  children: [
-                    InkWell(
-                      onTap: () => _toggleLike(cid),
-                      child: Row(
-                        children: [
-                          Icon(liked ? Icons.favorite : Icons.favorite_border,
-                              size: 16,
-                              color: liked ? Colors.red : Colors.grey),
-                          const SizedBox(width: 4),
-                          Text('$likeCount',
-                              style: const TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    InkWell(
-                      onTap: () => widget.onReply(cid, nickname),
-                      child: const Text('回复',
-                          style: TextStyle(color: Colors.grey, fontSize: 12)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+  //               const SizedBox(height: 6),
+  //               // 操作区：点赞 / 回复
+  //               Row(
+  //                 children: [
+  //                   InkWell(
+  //                     onTap: () => _toggleLike(cid),
+  //                     child: Row(
+  //                       children: [
+  //                         Icon(liked ? Icons.favorite : Icons.favorite_border,
+  //                             size: 16,
+  //                             color: liked ? Colors.red : Colors.grey),
+  //                         const SizedBox(width: 4),
+  //                         Text('$likeCount',
+  //                             style: const TextStyle(fontSize: 12)),
+  //                       ],
+  //                     ),
+  //                   ),
+  //                   const SizedBox(width: 16),
+  //                   InkWell(
+  //                     onTap: () => widget.onReply(cid, nickname),
+  //                     child: const Text('回复',
+  //                         style: TextStyle(color: Colors.grey, fontSize: 12)),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
+Widget _buildOne(Map<String, dynamic> c, {required bool isRoot}) {
+  final cid = c['id'] as int;
+  final isRpc =
+      c.containsKey('user_nickname') || c.containsKey('parent_user_nickname');
+
+  final String nickname = isRpc
+      ? (c['user_nickname'] as String? ?? '用户')
+      : ((c['user']?['nickname'] as String?) ?? '用户');
+
+  final String? avatar = isRpc
+      ? (c['user_avatar_url'] as String?)
+      : (c['user']?['avatar_url'] as String?);
+
+  final String? userId =
+      isRpc ? (c['user_id'] as String?) : (c['user']?['id'] as String?);
+
+  final String? parentNickname =
+      isRoot ? null : (isRpc ? (c['parent_user_nickname'] as String?) : null);
+
+  final String? parentUserId =
+      isRoot ? null : (isRpc ? (c['parent_user_id'] as String?) : null);
+
+  final timeLabel = _timeAgo(c['created_at']);
+  final liked = _myLiked.contains(cid);
+  final likeCount = (c['like_count'] ?? 0) as int;
+  final content = c['content']?.toString() ?? '';
+
+  void goUser(String? uid) {
+    if (uid == null || uid.isEmpty) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => UserProfilePage(userId: uid)),
     );
   }
 
-  @override
+  return Padding(
+    padding: EdgeInsets.only(left: isRoot ? 0 : 46, top: isRoot ? 0 : 8),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 头像可点
+        InkWell(
+          onTap: () => goUser(userId),
+          child: AvatarWidget(imageUrl: avatar, size: isRoot ? 36 : 28),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 昵称（可点击） + 时间
+              Row(
+                children: [
+                  Flexible(
+                    child: InkWell(
+                      onTap: () => goUser(userId),
+                      child: Text(
+                        nickname,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(timeLabel,
+                      style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                ],
+              ),
+              const SizedBox(height: 4),
+
+              // 内容显示 - 简化版本
+              if (parentNickname == null)
+                // 主楼或直接回复帖子
+                Text(content, style: const TextStyle(fontSize: 14))
+              else
+                // 子评论回复：只显示 "回复 @用户名：内容"
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                    children: [
+                      const TextSpan(text: '回复 '),
+                      // 被回复的用户名（可点击）
+                      WidgetSpan(
+                        child: InkWell(
+                          onTap: ()  {
+                print('点击被回复者 parentUserId: $parentUserId'); // 调试
+                print('点击被回复者 parentNickname: $parentNickname'); // 调试
+                goUser(parentUserId);
+              },
+                          child: Text(
+                            '@${parentNickname ?? ''}',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const TextSpan(text: '：'),
+                      TextSpan(text: content),
+                    ],
+                  ),
+                ),
+
+              const SizedBox(height: 6),
+              // 操作区：点赞 / 回复
+              Row(
+                children: [
+                  InkWell(
+                    onTap: () => _toggleLike(cid),
+                    child: Row(
+                      children: [
+                        Icon(liked ? Icons.favorite : Icons.favorite_border,
+                            size: 16,
+                            color: liked ? Colors.red : Colors.grey),
+                        const SizedBox(width: 4),
+                        Text('$likeCount',
+                            style: const TextStyle(fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  InkWell(
+                    onTap: () => widget.onReply(cid, nickname),
+                    child: const Text('回复',
+                        style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+  // @override
+  // Widget build(BuildContext context) {
+  //   if (_loading) {
+  //     return const Padding(
+  //       padding: EdgeInsets.symmetric(vertical: 12),
+  //       child: Center(child: CircularProgressIndicator()),
+  //     );
+  //   }
+  //   // ✅ 计算要显示的子评论
+  //   final visibleReplies = _replies.take(_visibleCount).toList();
+  //   final hasMore = _replies.length > _visibleCount;
+  //   final hasReplies = _replies.isNotEmpty;
+  //   final isExpanded = _visibleCount > 1; // 是否已展开
+
+  //   return Container(
+  //     padding: const EdgeInsets.symmetric(vertical: 10),
+  //     decoration: const BoxDecoration(
+  //       border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
+  //     ),
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         // 一楼
+  //         _buildOne(_root, isRoot: true),
+  //         const SizedBox(height: 6),
+  //         // 扁平所有子孙
+  //         ..._replies.map((e) => _buildOne(e, isRoot: false)),
+  //         const SizedBox(height: 12),
+  //       ],
+  //     ),
+  //   );
+  // }
+    @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Padding(
@@ -2015,6 +2347,12 @@ class _CommentThreadState extends State<CommentThread> {
         child: Center(child: CircularProgressIndicator()),
       );
     }
+
+    // ✅ 计算要显示的子评论
+    final visibleReplies = _replies.take(_visibleCount).toList();
+    final hasMore = _replies.length > _visibleCount;
+    final hasReplies = _replies.isNotEmpty;
+    final isExpanded = _visibleCount > 1; // 是否已展开
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
@@ -2026,9 +2364,102 @@ class _CommentThreadState extends State<CommentThread> {
         children: [
           // 一楼
           _buildOne(_root, isRoot: true),
-          const SizedBox(height: 6),
-          // 扁平所有子孙
-          ..._replies.map((e) => _buildOne(e, isRoot: false)),
+          
+          // // 回复总数（可选）
+          // if (hasReplies)
+          //   Padding(
+          //     padding: const EdgeInsets.only(left: 46, top: 4),
+          //     child: Text(
+          //       '共 ${_replies.length} 条回复',
+          //       style: TextStyle(
+          //         fontSize: 12,
+          //         color: Colors.grey[600],
+          //       ),
+          //     ),
+          //   ),
+          
+          // const SizedBox(height: 6),
+
+          // 子评论列表
+          if (hasReplies) ...[
+            ...visibleReplies.map((e) => _buildOne(e, isRoot: false)),
+          ],
+
+          // ✅ 展开/收起按钮区域
+          if (hasReplies) ...[
+            const SizedBox(height: 8),
+            
+            // 第一行：展开更多 和 收起（左右对齐）
+            Padding(
+              padding: const EdgeInsets.only(left: 46),
+              child: Row(
+                children: [
+                  // 左侧：展开更多按钮
+                  if (hasMore)
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          // 增加显示数量，但不能超过总数
+                          _visibleCount = (_visibleCount + _pageSize)
+                              .clamp(0, _replies.length);
+                        });
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.keyboard_arrow_down,
+                            size: 18,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '展开更多评论（${_replies.length - _visibleCount}条）',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  
+                  //const Spacer(),
+                  
+                  // 右侧：收起按钮（只在已展开时显示）
+                  if (isExpanded)
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _visibleCount = 1; // 收起回3条
+                        });
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.keyboard_arrow_up,
+                            size: 18,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '收起',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+
           const SizedBox(height: 12),
         ],
       ),

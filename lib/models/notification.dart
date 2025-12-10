@@ -98,8 +98,9 @@ class NotificationModel {
 class NotificationModel {
   final int id;
   final String userId;
-  final String type; // like, comment, follow, message, system, event, new_post
+  final String type;
   final int? refId;
+  final String? refUserId;  // ✅ 新增字段
   final String title;
   final String? content;
   final bool isRead;
@@ -110,6 +111,7 @@ class NotificationModel {
     required this.userId,
     required this.type,
     this.refId,
+    this.refUserId,  // ✅ 新增
     required this.title,
     this.content,
     required this.isRead,
@@ -122,12 +124,14 @@ class NotificationModel {
       userId: json['user_id'] as String,
       type: json['type'] as String,
       refId: json['ref_id'] as int?,
+      refUserId: json['ref_user_id'] as String?,  // ✅ 新增
       title: json['title'] as String,
       content: json['content'] as String?,
       isRead: json['is_read'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
     );
   }
+  
 
   /// 🔥 新增：判断是否为回关通知
   bool get isFollowBack {

@@ -159,42 +159,89 @@ class TagService {
     return tagIds;
   } */
 
-  Future<List<int>> ensureTagsAndReturnIds(List<String> tagNames, {String type = 'user'}) async {
-    if (tagNames.isEmpty) return [];
+Future<List<int>> ensureTagsAndReturnIds(
+  List<String> tagNames, 
+  {String type = 'user'}
+) async {
+  if (tagNames.isEmpty) return [];
 
-    final List<int> tagIds = [];
+  final List<int> tagIds = [];
 
-    for (final name in tagNames) {
-      try {
-        final existingTag = await _client
-            .from('tags')
-            .select('id')
-            .eq('name', name)
-            .maybeSingle();
+  for (final name in tagNames) {
+    try {
+      // 1. 先检查标签是否已存在
+      final existingTag = await _client
+          .from('tags')
+          .select('id, type')
+          .eq('name', name.trim())
+          .maybeSingle();
 
-        if (existingTag != null) {
-          tagIds.add(existingTag['id'] as int);
-        } else {
-          final newTag = await _client
-              .from('tags')
-              .insert(<String, dynamic>{
-                // ✅ 添加类型
-                'name': name,
-                'type': type, // ✅ 使用传入的类型，默认是'user'
-              })
-              .select('id')
-              .single();
-
-          tagIds.add(newTag['id'] as int);
-          print('创建新标签: $name (ID: ${newTag['id']})');
+      if (existingTag != null) {
+        final existingId = existingTag['id'] as int;
+        final existingType = existingTag['type'] as String?;
+        
+        print('📊 标签存在检查: "$name" - ID: $existingId, 当前类型: ${existingType ?? "null"}');
+        
+        // ✅ 关键修改：只有原类型是 'user'，且新类型不是 'user'，才更新
+        if (type != 'user' && existingType == 'user') {
+          print('🔧 符合条件：原类型是user，新类型是$type，执行更新');
+          try {
+            // ✅ 重要：只更新 type 字段，不要包含不存在的字段
+            await _client
+                .from('tags')
+                .update({'type': type}) // ✅ 只更新type字段
+                .eq('id', existingId)
+                .eq('type', 'user');
+            
+            print('✅ 标签类型更新已提交: "$name" (user → $type)');
+            
+            // 重新查询确认更新结果
+            final verifyResult = await _client
+                .from('tags')
+                .select('type')
+                .eq('id', existingId)
+                .single();
+            
+            final verifiedType = verifyResult['type'] as String?;
+            print('🔍 验证更新结果: 类型 = $verifiedType');
+          } catch (e) {
+            print('❌ 标签类型更新失败: $e');
+            print('错误详情: ${e.toString()}');
+          }
+        } else if (type != 'user' && existingType != 'user') {
+          print('📝 标签类型不是user，保持原类型: $existingType');
+        } else if (type == 'user') {
+          print('📝 目标类型是user，不更新现有标签');
         }
-      } catch (e) {
-        print('处理标签 "$name" 时出错: $e');
-      }
-    }
+        
+        tagIds.add(existingId);
+        print('✅ 标签最终: "$name" (ID: $existingId)');
+      } else {
+        // 标签不存在，创建新标签
+        final newTag = await _client
+            .from('tags')
+            .insert(<String, dynamic>{
+              'name': name.trim(),
+              'type': type,
+              'created_at': DateTime.now().toIso8601String(),
+              'is_active': true,
+            })
+            .select('id, type')
+            .single();
 
-    return tagIds;
+        final newId = newTag['id'] as int;
+        final newTagType = newTag['type'] as String?;
+        tagIds.add(newId);
+        print('✅ 创建新标签: $name (ID: $newId, 类型: ${newTagType ?? type})');
+      }
+    } catch (e) {
+      print('❌ 处理标签 "$name" 时出错: $e');
+      print('错误详情: ${e.toString()}');
+    }
   }
+
+  return tagIds;
+}
 
   /// 批量获取标签信息
   Future<List<Map<String, dynamic>>> getTagsByIds(List<int> tagIds) async {

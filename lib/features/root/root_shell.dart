@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:iacg/features/home/home_island_tab.dart';
 import 'package:iacg/features/home/home_page.dart';
 import 'package:iacg/features/home/home_cos_tab.dart';
+import 'package:iacg/features/home/home_events_tab.dart';
 import 'package:iacg/features/messages/message_list_page.dart';
 import 'package:iacg/features/profile/my_profile_page.dart';
 import '../../widgets/app_bottom_nav.dart';
@@ -28,7 +29,7 @@ class _RootShellState extends State<RootShell> {
     const HomePage(),
     const HomeCosTab(),
     const HomeIslandTab(),
-    const MessageListPage(),
+    const HomeEventsTab(), // 活动页放在原来消息的位置
     const MyProfilePage(),
   ];
 
@@ -106,6 +107,7 @@ class _RootShellState extends State<RootShell> {
 
   static Widget _buildPlaceholder(String name) {
     return Scaffold(
+      resizeToAvoidBottomInset : false,
       appBar: AppBar(title: Text(name)),
       body: Center(
         child: Column(

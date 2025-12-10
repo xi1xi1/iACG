@@ -1,5 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:iacg/features/auth/login_page.dart';
+import 'package:iacg/features/messages/chat_page.dart';
+import 'package:iacg/features/messages/message_list_page.dart';
 import 'package:iacg/features/search/search_page.dart';
 import '../../services/auth_service.dart';
 import '../../services/event_service.dart';
@@ -9,18 +12,11 @@ import 'home_events_tab.dart';
 import 'home_following_tab.dart'; // 新增关注标签页
 import 'package:iacg/features/post/post_compose_page.dart';
 import 'package:iacg/features/post/post_detail_page.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import '../../widgets/post_card.dart';
+import 'home_recommend_tab_with_events.dart'; // 新增
 
-class AnimeColors {
-  static const Color primaryPink = Color(0xFFED7099); // 粉色 - 修改为ED7099
-  static const Color secondaryPurple = Color(0xFF8B5CF6); // 紫色
-  static const Color accentCyan = Color(0xFF06B6D4); // 青色
-  static const Color backgroundLight = Color(0xFFF8FAFC); // 浅灰背景
-  static const Color textDark = Color(0xFF1F2937); // 深色文字
-  static const Color textLight = Color(0xFF6B7280); // 浅色文字
-  static const Color cardWhite = Color(0xFFFFFFFF); // 卡片白色
-  static const Color gradientStart = Color(0xFFED7099); // 渐变开始 - 修改为ED7099
-  static const Color gradientEnd = Color(0xFF8B5CF6); // 渐变结束
-}
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -46,11 +42,14 @@ class _HomePageState extends State<HomePage>
   bool _isOrganizer = false;
   bool _loadingUserRole = true;
 
+  // 未读消息计数
+  int _unreadCount = 0;
+
   @override
   void initState() {
     super.initState();
-    // 修改：长度改为3，包含推荐、活动、关注
-    _tabController = TabController(length: 3, vsync: this);
+    // 修改：长度改为2，只包含推荐和关注（活动已移至底部导航栏）
+    _tabController = TabController(length: 2, vsync: this);
     _loadEvents();
     _checkUserRole();
   }
@@ -74,8 +73,8 @@ class _HomePageState extends State<HomePage>
       final result = await EventService().fetchHomePageEvents();
 
       // 调试信息
-      print('=== 活动数据调试信息 ===');
-      print('获取到 ${result.length} 个活动');
+      print('=== 精选活动数据调试信息 ===');
+      print('获取到 ${result.length} 个精选活动');
       for (var i = 0; i < result.length; i++) {
         print('活动 $i: ${result[i]['name']}');
         print('  - post_media: ${result[i]['post_media']}');
@@ -140,6 +139,7 @@ class _HomePageState extends State<HomePage>
   // 重构的活动卡片设计 - 二次元风格，优化左右空隙
   Widget _buildEventCard(Map<String, dynamic> event) {
     return Container(
+      //color: Colors.red[100],
       margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
@@ -148,7 +148,7 @@ class _HomePageState extends State<HomePage>
             // 活动背景图片 - 占满整个容器
             Container(
               width: double.infinity,
-              height: 360,
+              height: 180,
               color: AnimeColors.backgroundLight,
               child: _getEventImage(event),
             ),
@@ -156,7 +156,7 @@ class _HomePageState extends State<HomePage>
             // 二次元风格渐变遮罩层
             Container(
               width: double.infinity,
-              height: 360,
+              height: 180,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
@@ -457,7 +457,7 @@ class _HomePageState extends State<HomePage>
       children: [
         const SizedBox(height: 8),
         SizedBox(
-          height: 260,
+          height: 180,
           child: Stack(
             children: [
               PageView.builder(
@@ -510,23 +510,54 @@ class _HomePageState extends State<HomePage>
   }
 
   // 新增：构建推荐页内容（包含活动预览和帖子列表）
+  // 修改：构建推荐页内容（包含活动预览和帖子列表）
   Widget _buildRecommendTab() {
-    return CustomScrollView(
-      slivers: [
-        // 活动预览部分
-        SliverToBoxAdapter(
-          child: _buildEventsPreview(),
+    return const HomeRecommendTabWithEvents();
+  }
+// 处理发布按钮点击（添加登录检查）
+Future<void> _handlePublishButtonTap() async {
+  // 1. 首先检查用户是否登录
+  final uid = _authService.currentUser?.id;
+  if (uid == null) {
+    // 用户未登录，显示提示
+    if (mounted) {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('需要登录'),
+          shape: RoundedRectangleBorder( // 添加这一行
+          borderRadius: BorderRadius.circular(18), // 设置圆角半径
         ),
-        // 帖子列表部分
-        const SliverToBoxAdapter(
-          child: HomeRecommendTab(),
+          content: const Text('登录后才能发布帖子，去登录吧～'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // 跳转到登录页面
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LoginPage(),
+                  ),
+                );
+              },
+              child: const Text('去登录', style: TextStyle(color: Color(0xFFED7099))),
+            ),
+          ],
         ),
-      ],
-    );
+      );
+    }
+    return;
   }
 
+  // 2. 用户已登录，显示频道选择
+  showChannelSelectionBottomSheet();
+}
   // 显示频道选择底部弹窗
-  void _showChannelSelectionBottomSheet() {
+  void showChannelSelectionBottomSheet() {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -538,8 +569,8 @@ class _HomePageState extends State<HomePage>
           child: Container(
             color: Colors.black.withOpacity(0.4),
             child: DraggableScrollableSheet(
-              initialChildSize: 0.55, // 增加初始高度到55%
-              minChildSize: 0.4, // 最小高度40%
+              initialChildSize: 0.55, // 增加初始高度到55%F
+              minChildSize: 0.45, // 最小高度40%
               maxChildSize: 0.55, // 最大高度70%
               snap: true,
               snapSizes: const [0.54, 0.55], // 设置吸附点
@@ -716,161 +747,156 @@ class _HomePageState extends State<HomePage>
 
   @override
   Widget build(BuildContext context) {
-    final tabs = ['推荐', '活动', '关注'];
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       backgroundColor: AnimeColors.backgroundLight,
       appBar: AppBar(
         backgroundColor: AnimeColors.cardWhite,
         elevation: 0,
-        title: Row(
-          children: [
-            // Logo图片部分
-            Image.asset(
-              'assets/images/IACG_L.PNG',
-              height: 32,
-              fit: BoxFit.contain,
-            ),
-            const SizedBox(width: 16),
-            // 搜索框 - 二次元风格
-            Expanded(
-              child: Container(
-                height: 40,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.grey.withOpacity(0.2),
-                    width: 1.5,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: TextField(
-                  readOnly: true,
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SearchPage()),
-                    );
-                  },
-                  decoration: InputDecoration(
-                    hintText: '搜索内容...',
-                    hintStyle: TextStyle(color: AnimeColors.textLight),
-                    border: InputBorder.none,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 2, vertical: 10),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: Colors.grey,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
+        leading: Container(
+          //color: Colors.red[100],
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          child: Image.asset(
+            'assets/images/IACG_L.PNG',
+            fit: BoxFit.contain,
+          ),
         ),
+        leadingWidth: 80,
+        title: Container(
+          width: 160,
+          color: AnimeColors.cardWhite,
+          //color: Colors.red[100],
+          child: TabBar(
+            controller: _tabController,
+            labelColor: AnimeColors.primaryPink,
+            unselectedLabelColor: AnimeColors.textLight,
+            indicatorColor: AnimeColors.primaryPink,
+            indicatorWeight: 3,
+            indicatorSize: TabBarIndicatorSize.label,
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.normal,
+              fontSize: 16,
+            ),
+            tabs: [
+              Tab(text: '推荐'),
+              Tab(text: '关注'),
+            ],
+            isScrollable: false,
+          ),
+        ),
+        centerTitle: true,
         actions: [
-          // 发布按钮 - 二次元风格
+          // 搜索按钮（放大镜图标）- 放在消息按钮左侧
+          IconButton(
+            icon: const Icon(
+              Icons.search,
+              color: Colors.black,
+              size: 24,
+            ),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SearchPage()),
+              );
+            },
+            tooltip: '搜索',
+          ),
+          // 消息按钮 - 使用 Material-Icons 的信封图标，颜色改为黑色
           Container(
             margin: const EdgeInsets.only(right: 8),
             child: IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AnimeColors.primaryPink,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AnimeColors.primaryPink.withValues(alpha: 0.3),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.add,
-                  color: Colors.white,
-                  size: 20,
-                ),
+              icon: const Icon(
+                Icons.markunread_outlined,
+                color: Colors.black,
+                size: 24,
               ),
-              onPressed: _showChannelSelectionBottomSheet,
-              tooltip: '发布',
+              onPressed: () {
+                if (!_authService.isLoggedIn) {
+                  _showLoginPrompt('查看消息需要登录');
+                  return;
+                }
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const MessageListPage()),
+                );
+              },
+              tooltip: '消息',
             ),
           ),
-          // if (!_authService.isLoggedIn)
-          //   Container(
-          //     margin: const EdgeInsets.only(right: 16),
-          //     child: ElevatedButton(
-          //       onPressed: () => Navigator.of(context).pushNamed('/login'),
-          //       style: ElevatedButton.styleFrom(
-          //         backgroundColor: AnimeColors.primaryPink,
-          //         foregroundColor: Colors.white,
-          //         elevation: 2,
-          //         shape: RoundedRectangleBorder(
-          //           borderRadius: BorderRadius.circular(20),
-          //         ),
-          //         padding:
-          //             const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          //       ),
-          //       child: const Text(
-          //         '登录',
-          //         style: TextStyle(
-          //           fontWeight: FontWeight.bold,
-          //           fontSize: 14,
-          //         ),
-          //       ),
-          //     ),
-          //   ),
         ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(48),
-          child: Container(
-            decoration: BoxDecoration(
-              color: AnimeColors.cardWhite,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
-            ),
-            child: TabBar(
-              controller: _tabController,
-              labelColor: AnimeColors.primaryPink,
-              unselectedLabelColor: AnimeColors.textLight,
-              indicatorColor: AnimeColors.primaryPink,
-              indicatorWeight: 3,
-              indicatorSize: TabBarIndicatorSize.label,
-              labelStyle: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-              unselectedLabelStyle: const TextStyle(
-                fontWeight: FontWeight.normal,
-                fontSize: 14,
-              ),
-              tabs: tabs.map((tab) => Tab(text: tab)).toList(),
-              isScrollable: false,
-            ),
-          ),
-        ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
           // 推荐页 - 修改为使用 CustomScrollView
           _buildRecommendTab(),
-          // 活动页
-          const HomeEventsTab(),
-          // 新增：关注页
+          // 关注页
           const HomeFollowingTab(),
+        ],
+      ),
+      // 右下角悬浮发布按钮
+      floatingActionButton: FloatingActionButton(
+        onPressed: _handlePublishButtonTap,
+        backgroundColor: AnimeColors.primaryPink,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        mini:  true,
+        child: const Icon(Icons.add),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
+
+  // 显示登录提示
+  void _showLoginPrompt(String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          '登录提示',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.black,
+          ),
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(
+            fontSize: 14,
+            color: Color(0xFF666666),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFF666666),
+            ),
+            child: const Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.of(context).pushNamed('/login');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFED7099),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            ),
+            child: const Text('去登录'),
+          ),
         ],
       ),
     );
