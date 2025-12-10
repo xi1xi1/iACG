@@ -660,7 +660,7 @@ class _UserProfilePageState extends State<UserProfilePage>
   // 紧凑的徽章样式
   Widget _buildCompactRoleBadge(String label, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(12),

@@ -744,6 +744,236 @@ Future<void> _handlePublishButtonTap() async {
       ),
     );
   }
+// 处理发布按钮点击（添加登录检查）
+Future<void> _handlePublishButtonTap() async {
+  // 1. 首先检查用户是否登录
+  final uid = _authService.currentUser?.id;
+  if (uid == null) {
+    // 用户未登录，显示提示
+    if (mounted) {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('需要登录'),
+          shape: RoundedRectangleBorder( // 添加这一行
+          borderRadius: BorderRadius.circular(18), // 设置圆角半径
+        ),
+          content: const Text('登录后才能发布帖子，去登录吧～'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('取消'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // 跳转到登录页面
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const LoginPage(),
+                  ),
+                );
+              },
+              child: const Text('去登录', style: TextStyle(color: Color(0xFFED7099))),
+            ),
+          ],
+        ),
+      );
+    }
+    return;
+  }
+
+  // 2. 用户已登录，显示频道选择
+  showChannelSelectionBottomSheet();
+}
+  // 显示频道选择底部弹窗
+  void showChannelSelectionBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) {
+        return GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            color: Colors.black.withOpacity(0.4),
+            child: DraggableScrollableSheet(
+              initialChildSize: 0.55, // 增加初始高度到55%F
+              minChildSize: 0.45, // 最小高度40%
+              maxChildSize: 0.55, // 最大高度70%
+              snap: true,
+              snapSizes: const [0.54, 0.55], // 设置吸附点
+              builder: (context, scrollController) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: AnimeColors.cardWhite,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 20,
+                        spreadRadius: 2,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // 顶部拖拽指示器
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade300,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      
+                      // 标题
+                      Padding(
+                        padding: const EdgeInsets.only(top: 24, bottom: 20),
+                        child: Text(
+                          '请选择发布频道',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: AnimeColors.textDark,
+                          ),
+                        ),
+                      ),
+                      
+                      // 频道选项 - 使用固定高度确保完全显示
+                      SizedBox(
+                        height: 280, // 固定高度确保三个选项完全显示
+                        child: ListView(
+                          controller: scrollController,
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          physics: const ClampingScrollPhysics(), // 禁用弹性效果
+                          children: [
+                            // COS作品
+                            _buildChannelOption(
+                              label: 'COS作品',
+                              icon: Icons.photo_camera,
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => PostComposePage(initialChannel: 'cos'),
+                                  ),
+                                );
+                              },
+                            ),
+                            
+                            const SizedBox(height: 16),
+                            
+                            // 群岛社区
+                            _buildChannelOption(
+                              label: '群岛社区',
+                              icon: Icons.people,
+                              onTap: () {
+                                Navigator.pop(context);
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => PostComposePage(initialChannel: 'island'),
+                                  ),
+                                );
+                              },
+                            ),
+                            
+                            // 活动 - 只在用户是活动组织者时显示
+                            if (_isOrganizer) ...[
+                              const SizedBox(height: 16),
+                              _buildChannelOption(
+                                label: '活动',
+                                icon: Icons.event,
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => PostComposePage(initialChannel: 'event'),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                            
+                            const SizedBox(height: 24),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // 构建频道选项
+  Widget _buildChannelOption({
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: Colors.grey.shade200,
+          width: 1,
+        ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AnimeColors.primaryPink.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  icon,
+                  color: AnimeColors.primaryPink,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AnimeColors.textDark,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+                color: Colors.grey.shade400,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

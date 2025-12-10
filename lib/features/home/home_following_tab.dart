@@ -47,7 +47,7 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
 
   void _scrollListener() {
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 300 &&
+        _scrollController.position.maxScrollExtent - 300 &&
         !_isLoadingMore &&
         _currentDisplayCount < _allPosts.length) {
       _loadMorePosts();
@@ -163,11 +163,11 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
 
     return _isLoadingMore
         ? const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
-          )
+      padding: EdgeInsets.symmetric(vertical: 20),
+      child: Center(
+        child: CircularProgressIndicator(),
+      ),
+    )
         : const SizedBox.shrink();
   }
 
@@ -337,37 +337,47 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
       return _buildFollowingEmptyView();
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadAllFollowingPosts,
-      child: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          // 瀑布流网格
-          SliverToBoxAdapter(
-            child: MasonryGridView.builder(
-              gridDelegate:
-                  const SliverSimpleGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-              ),
-              mainAxisSpacing: 1,
-              crossAxisSpacing: 1,
-              padding: const EdgeInsets.all(1),
-              physics: const NeverScrollableScrollPhysics(),
-              shrinkWrap: true,
-              itemCount: _displayPosts.length,
-              itemBuilder: (context, index) {
-                return PostCard(
-                  post: _displayPosts[index],
-                );
-              },
+    return Column(
+      children: [
+        // 二级筛选按钮
+        _buildFilterButtons(),
+        const SizedBox(height: 8),
+        // 帖子列表
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadAllFollowingPosts,
+            child: CustomScrollView(
+              controller: _scrollController,
+              slivers: [
+                // 瀑布流网格
+                SliverToBoxAdapter(
+                  child: MasonryGridView.builder(
+                    gridDelegate:
+                    const SliverSimpleGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                    ),
+                    mainAxisSpacing: 1,
+                    crossAxisSpacing: 1,
+                    padding: const EdgeInsets.all(1),
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    itemCount: _displayPosts.length,
+                    itemBuilder: (context, index) {
+                      return PostCard(
+                        post: _displayPosts[index],
+                      );
+                    },
+                  ),
+                ),
+                // 加载更多指示器
+                SliverToBoxAdapter(
+                  child: _buildLoadMoreIndicator(),
+                ),
+              ],
             ),
           ),
-          // 加载更多指示器
-          SliverToBoxAdapter(
-            child: _buildLoadMoreIndicator(),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
