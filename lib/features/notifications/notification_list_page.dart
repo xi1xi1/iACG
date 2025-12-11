@@ -1,14 +1,18 @@
+
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../models/notification.dart';
-import '../../services/notification_service.dart';
 import '../../services/message_service.dart';
+import '../../services/notification_service.dart';
 import '../../services/post_service.dart';
 import '../../services/profile_service.dart';
 import '../../widgets/avatar_widget.dart';
-import '../profile/user_profile_page.dart';
 import '../messages/chat_page.dart';
 import '../post/post_detail_page.dart';
+import '../profile/user_profile_page.dart';
+import 'notification_category_page.dart'; // 🔥 新增：导入分类页面
 
 class NotificationListPage extends StatefulWidget {
   const NotificationListPage({super.key});
@@ -77,19 +81,6 @@ class _NotificationListPageState extends State<NotificationListPage> {
     try {
       final notifications = await _notificationService.fetchNotifications();
 
-      // 调试：打印通知数据详情
-      if (notifications.isNotEmpty) {
-        print('📊 通知数据详情:');
-        for (int i = 0; i < notifications.length && i < 3; i++) {
-          final notification = notifications[i];
-          print('  [$i] 类型: ${notification.type}');
-          print('      refId: ${notification.refId}');
-          print('      refUserId: ${notification.refUserId}');
-          print('      标题: ${notification.title}');
-          print('      内容: ${notification.content}');
-        }
-      }
-
       // 🔥 同时更新全局未读计数
       await _notificationService.fetchUnreadCount();
 
@@ -106,6 +97,32 @@ class _NotificationListPageState extends State<NotificationListPage> {
         _isLoading = false;
       });
     }
+  }
+
+  // 🔥 新增：计算各分类的未读数量
+  int _getCategoryUnreadCount(String category) {
+    if (category == 'interaction') {
+      return _notifications.where((n) => 
+        !n.isRead && (n.type == 'comment' || n.type == 'share')
+      ).length;
+    } else if (category == 'like') {
+      return _notifications.where((n) => 
+        !n.isRead && n.type == 'like'
+      ).length;
+    }
+    return 0;
+  }
+
+  // 🔥 新增：导航到分类页面
+  void _navigateToCategoryPage(String category) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => NotificationCategoryPage(category: category),
+      ),
+    ).then((_) {
+      // 从分类页面返回时刷新列表
+      _loadNotifications();
+    });
   }
 
   Future<void> _markAllAsRead() async {
@@ -145,7 +162,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
   }
 
   Future<void> _markNotificationAsRead(NotificationModel notification) async {
-    if (notification.isRead) return; // 🔥 已读的不需要再标记
+    if (notification.isRead) return;
 
     try {
       await _notificationService.markAsRead(notification.id);
@@ -211,68 +228,64 @@ class _NotificationListPageState extends State<NotificationListPage> {
   }
 
   Future<void> _handleNotificationTap(NotificationModel notification) async {
-    print('🔄 处理通知点击: ${notification.type} - ${notification.title}');
+  print('📄 处理通知点击: ${notification.type} - ${notification.title}');
 
-    // 🔥 先标记为已读
-    await _markNotificationAsRead(notification);
+  // 🔥 先标记为已读
+  await _markNotificationAsRead(notification);
 
-    if (!mounted) return;
+  if (!mounted) return;
 
-    try {
-      switch (notification.type) {
-        case 'follow':
-          // ✅ 关注通知：跳转到关注者的用户主页
-          await _navigateToFollowNotifier(notification);
-          break;
+  try {
+    switch (notification.type) {
+      case 'follow':
+        await _navigateToFollowNotifier(notification);
+        break;
 
-        case 'like':
-        case 'comment':
-        case 'new_post':
-          // ✅ 点赞、评论、新帖子通知：跳转到对应的帖子详情页
-          final postId = _getSafeInt(notification.refId);
-          if (postId != null) {
-            _navigateToPostDetail(postId);
-          } else {
-            _showNotificationDetail(notification);
-          }
-          break;
-
-        case 'message':
-          // ✅ 消息通知：跳转到聊天页
-          final conversationId = _getSafeInt(notification.refId);
-          if (conversationId != null) {
-            await _navigateToChat(conversationId);
-          } else {
-            _showNotificationDetail(notification);
-          }
-          break;
-
-        case 'event':
-          // ✅ 活动通知：跳转到活动详情页（这里是帖子详情页）
-          final eventId = _getSafeInt(notification.refId);
-          if (eventId != null) {
-            _navigateToPostDetail(eventId);
-          } else {
-            _showNotificationDetail(notification);
-          }
-          break;
-
-        case 'system':
-        default:
+      case 'like':
+      case 'comment':
+      case 'share':      // ✅ 添加这一行
+      case 'new_post':
+        final postId = _getSafeInt(notification.refId);
+        if (postId != null) {
+          _navigateToPostDetail(postId);
+        } else {
           _showNotificationDetail(notification);
-          break;
-      }
-    } catch (e) {
-      print('❌ 通知跳转失败: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('跳转失败: $e')),
-        );
-      }
+        }
+        break;
+
+      case 'message':
+        final conversationId = _getSafeInt(notification.refId);
+        if (conversationId != null) {
+          await _navigateToChat(conversationId);
+        } else {
+          _showNotificationDetail(notification);
+        }
+        break;
+
+      case 'event':
+        final eventId = _getSafeInt(notification.refId);
+        if (eventId != null) {
+          _navigateToPostDetail(eventId);
+        } else {
+          _showNotificationDetail(notification);
+        }
+        break;
+
+      case 'system':
+      default:
+        _showNotificationDetail(notification);
+        break;
+    }
+  } catch (e) {
+    print('❌ 通知跳转失败: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('跳转失败: $e')),
+      );
     }
   }
+}
 
-  // ✅ 辅助方法：安全地获取整数值
   int? _getSafeInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;
@@ -283,59 +296,10 @@ class _NotificationListPageState extends State<NotificationListPage> {
   }
 
   Future<void> _navigateToFollowNotifier(NotificationModel notification) async {
-    print('🔍 处理关注通知，获取关注者信息');
-    print('  refUserId: ${notification.refUserId}');
-
     if (notification.refUserId != null && notification.refUserId!.isNotEmpty) {
-      print('✅ 从 refUserId 找到关注者ID: ${notification.refUserId}');
       _navigateToUserProfile(notification.refUserId!);
       return;
     }
-
-    if (notification.content != null) {
-      print('🔍 尝试从内容解析用户名...');
-
-      final patterns = [
-        RegExp(r'用户\s*\[([^\]]+)\]'),
-        RegExp(r'^([^ ]+)\s+关注了你'),
-        RegExp(r'^([^ ]+)\s+回关了你'),
-        RegExp(r'🎉\s*([^ ]+)\s+回关了你'),
-      ];
-
-      String? userName;
-      for (final pattern in patterns) {
-        final match = pattern.firstMatch(notification.content!);
-        if (match != null) {
-          userName = match.group(1);
-          break;
-        }
-      }
-
-      if (userName != null) {
-        print('🔍 从内容解析出用户名: $userName');
-
-        try {
-          final userResponse = await _supabase
-              .from('profiles')
-              .select('id')
-              .ilike('nickname', userName)
-              .maybeSingle();
-
-          if (userResponse != null && userResponse.isNotEmpty) {
-            final userId = userResponse['id'] as String?;
-            if (userId != null && userId.isNotEmpty) {
-              print('✅ 从用户名找到用户ID: $userId');
-              _navigateToUserProfile(userId);
-              return;
-            }
-          }
-        } catch (e) {
-          print('⚠️ 从用户名查找用户失败: $e');
-        }
-      }
-    }
-
-    print('⚠️ 无法确定关注者用户ID');
     _showNotificationDetail(notification);
   }
 
@@ -380,13 +344,10 @@ class _NotificationListPageState extends State<NotificationListPage> {
     }
   }
 
-  // ✅ 获取通知对应的头像URL
-  Future<String?> _getNotificationAvatarUrl(
-      NotificationModel notification) async {
+  Future<String?> _getNotificationAvatarUrl(NotificationModel notification) async {
     switch (notification.type) {
       case 'follow':
-        // 关注通知：使用 ref_user_id（关注者）
-        if (notification.refUserId != null &&
+        if (notification.refUserId != null && 
             notification.refUserId!.isNotEmpty) {
           return await _getUserAvatarUrl(notification.refUserId!);
         }
@@ -395,7 +356,12 @@ class _NotificationListPageState extends State<NotificationListPage> {
       case 'like':
       case 'comment':
       case 'new_post':
-        // 帖子相关通知：通过 ref_id（帖子ID）获取作者头像
+        // 🔥 优先使用 ref_user_id（操作者头像）
+        if (notification.refUserId != null && 
+            notification.refUserId!.isNotEmpty) {
+          return await _getUserAvatarUrl(notification.refUserId!);
+        }
+        // 如果没有，则尝试获取帖子作者头像
         final postId = _getSafeInt(notification.refId);
         if (postId != null) {
           return await _getPostAuthorAvatarUrl(postId);
@@ -403,8 +369,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
         break;
 
       case 'message':
-        // 消息通知：使用 ref_user_id（发消息者）
-        if (notification.refUserId != null &&
+        if (notification.refUserId != null && 
             notification.refUserId!.isNotEmpty) {
           return await _getUserAvatarUrl(notification.refUserId!);
         }
@@ -412,14 +377,12 @@ class _NotificationListPageState extends State<NotificationListPage> {
 
       case 'event':
       case 'system':
-        // 系统和活动通知：默认使用系统头像（返回null会使用默认头像）
         return null;
     }
 
     return null;
   }
 
-  // ✅ 获取用户头像URL（带缓存）
   Future<String?> _getUserAvatarUrl(String userId) async {
     if (_userAvatarCache.containsKey(userId)) {
       return _userAvatarCache[userId];
@@ -440,17 +403,14 @@ class _NotificationListPageState extends State<NotificationListPage> {
     return null;
   }
 
-  // ✅ 通过帖子ID获取作者头像URL（使用 getPostDetail 方法）
   Future<String?> _getPostAuthorAvatarUrl(int postId) async {
     if (_postAuthorAvatarCache.containsKey(postId)) {
       return _postAuthorAvatarCache[postId];
     }
 
     try {
-      // 使用 getPostDetail 方法获取帖子详情
       final post = await _postService.getPostDetail(postId);
       if (post != null) {
-        // 获取作者信息
         final author = post['author'] as Map<String, dynamic>?;
         if (author != null) {
           final avatarUrl = author['avatar_url'] as String?;
@@ -473,7 +433,6 @@ class _NotificationListPageState extends State<NotificationListPage> {
       builder: (context) => AlertDialog(
         title: Row(
           children: [
-            // 使用通知发布方的头像
             FutureBuilder<String?>(
               future: _getNotificationAvatarUrl(notification),
               builder: (context, snapshot) {
@@ -552,6 +511,8 @@ class _NotificationListPageState extends State<NotificationListPage> {
       backgroundColor: Colors.white,
       body: Column(
         children: [
+          // 🔥 新增：分类快捷入口
+          _buildCategoryButtons(),
           // 只有有未读通知时才显示这一行
           if (unreadCount > 0) _buildUnreadHeader(unreadCount),
           Expanded(child: _buildBody()),
@@ -560,12 +521,110 @@ class _NotificationListPageState extends State<NotificationListPage> {
     );
   }
 
-// 构建未读通知状态栏
+  // 🔥 新增：构建分类按钮区域
+  Widget _buildCategoryButtons() {
+    final interactionCount = _getCategoryUnreadCount('interaction');
+    final likeCount = _getCategoryUnreadCount('like');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          // 评论和转发按钮
+          Expanded(
+            child: _buildCategoryButton(
+              label: '评论及转发',
+              icon: Icons.comment_outlined,
+              unreadCount: interactionCount,
+              onTap: () => _navigateToCategoryPage('interaction'),
+            ),
+          ),
+          const SizedBox(width: 12),
+          // 点赞按钮
+          Expanded(
+            child: _buildCategoryButton(
+              label: '点赞',
+              icon: Icons.favorite_outline,
+              unreadCount: likeCount,
+              onTap: () => _navigateToCategoryPage('like'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 🔥 新增：构建单个分类按钮
+  Widget _buildCategoryButton({
+    required String label,
+    required IconData icon,
+    required int unreadCount,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200, width: 1),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 20, color: const Color(0xFFED7099)),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.black87,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (unreadCount > 0) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFED7099),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    unreadCount > 99 ? '99+' : unreadCount.toString(),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildUnreadHeader(int unreadCount) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white, // ✅ 正确：将颜色放在 decoration 中
+        color: Colors.white,
         border: Border(
           bottom: BorderSide(color: Colors.grey.shade200, width: 1),
         ),
@@ -575,8 +634,8 @@ class _NotificationListPageState extends State<NotificationListPage> {
           Container(
             width: 8,
             height: 8,
-            decoration: BoxDecoration(
-              color: const Color(0xFFED7099),
+            decoration: const BoxDecoration(
+              color: Color(0xFFED7099),
               shape: BoxShape.circle,
             ),
           ),
@@ -659,11 +718,11 @@ class _NotificationListPageState extends State<NotificationListPage> {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.notifications_none,
+          children: const [
+            Icon(Icons.notifications_none,
                 size: 80, color: Color(0xFFED7099)),
-            const SizedBox(height: 16),
-            const Text(
+            SizedBox(height: 16),
+            Text(
               '暂无通知',
               style: TextStyle(
                 fontSize: 18,
@@ -671,8 +730,8 @@ class _NotificationListPageState extends State<NotificationListPage> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               '新的互动会在这里显示',
               style: TextStyle(
                 color: Colors.grey,
@@ -725,7 +784,6 @@ class _NotificationListPageState extends State<NotificationListPage> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // 使用通知对应的用户头像
                         FutureBuilder<String?>(
                           future: _getNotificationAvatarUrl(notification),
                           builder: (context, snapshot) {
@@ -809,27 +867,6 @@ class _NotificationListPageState extends State<NotificationListPage> {
         },
       ),
     );
-  }
-
-  Color _getTypeColor(String type) {
-    switch (type) {
-      case 'follow':
-        return Colors.blue.shade600;
-      case 'like':
-        return const Color(0xFFED7099);
-      case 'comment':
-        return Colors.green.shade600;
-      case 'message':
-        return Colors.purple.shade600;
-      case 'event':
-        return Colors.orange.shade600;
-      case 'new_post':
-        return Colors.teal.shade600;
-      case 'system':
-        return Colors.grey.shade600;
-      default:
-        return Colors.grey.shade600;
-    }
   }
 
   String _formatTime(DateTime time) {

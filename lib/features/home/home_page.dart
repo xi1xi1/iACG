@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:iacg/features/auth/login_page.dart';
@@ -7,16 +8,15 @@ import 'package:iacg/features/search/search_page.dart';
 import '../../services/auth_service.dart';
 import '../../services/event_service.dart';
 import '../../services/profile_service.dart';
+import '../../services/notification_service.dart'; // 🔥 新增
 import 'home_recommend_tab.dart';
 import 'home_events_tab.dart';
-import 'home_following_tab.dart'; // 新增关注标签页
+import 'home_following_tab.dart';
 import 'package:iacg/features/post/post_compose_page.dart';
 import 'package:iacg/features/post/post_detail_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../widgets/post_card.dart';
-import 'home_recommend_tab_with_events.dart'; // 新增
-
-
+import 'home_recommend_tab_with_events.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -42,23 +42,62 @@ class _HomePageState extends State<HomePage>
   bool _isOrganizer = false;
   bool _loadingUserRole = true;
 
-  // 未读消息计数
-  int _unreadCount = 0;
+  // 🔥 新增：通知未读计数
+  int _notificationUnreadCount = 0;
 
   @override
   void initState() {
     super.initState();
-    // 修改：长度改为2，只包含推荐和关注（活动已移至底部导航栏）
     _tabController = TabController(length: 2, vsync: this);
     _loadEvents();
     _checkUserRole();
+    
+    // 🔥 新增：初始化通知监听
+    _initNotificationListener();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
     _eventPageController.dispose();
+    // 🔥 新增：移除通知监听
+    NotificationService.removeListener(_updateNotificationCount);
     super.dispose();
+  }
+
+  // 🔥 新增：初始化通知监听器
+  void _initNotificationListener() {
+    // 添加监听器
+    NotificationService.addListener(_updateNotificationCount);
+    
+    // 首次加载未读计数
+    _loadNotificationCount();
+  }
+
+  // 🔥 新增：更新通知计数（监听器回调）
+  void _updateNotificationCount() {
+    if (mounted) {
+      setState(() {
+        _notificationUnreadCount = NotificationService.globalUnreadCount;
+      });
+    }
+  }
+
+  // 🔥 新增：加载通知未读计数
+  Future<void> _loadNotificationCount() async {
+    if (!_authService.isLoggedIn) {
+      setState(() {
+        _notificationUnreadCount = 0;
+      });
+      return;
+    }
+
+    try {
+      await NotificationService().fetchUnreadCount();
+      // fetchUnreadCount 会自动更新 globalUnreadCount 并触发监听器
+    } catch (e) {
+      print('❌ 加载通知未读数失败: $e');
+    }
   }
 
   // 加载活动数据 - 使用新的方法
@@ -69,27 +108,7 @@ class _HomePageState extends State<HomePage>
         _eventsError = null;
       });
 
-      // 使用专门为首页优化的活动查询方法
       final result = await EventService().fetchHomePageEvents();
-
-      // 调试信息
-      print('=== 精选活动数据调试信息 ===');
-      print('获取到 ${result.length} 个精选活动');
-      for (var i = 0; i < result.length; i++) {
-        print('活动 $i: ${result[i]['name']}');
-        print('  - post_media: ${result[i]['post_media']}');
-        if (result[i]['post_media'] != null &&
-            result[i]['post_media'] is List) {
-          final mediaList = result[i]['post_media'] as List;
-          print('  - 图片数量: ${mediaList.length}');
-          for (var j = 0; j < mediaList.length; j++) {
-            if (mediaList[j] is Map) {
-              print('    - 图片 $j URL: ${(mediaList[j] as Map)['media_url']}');
-              print('    - 图片 $j 类型: ${(mediaList[j] as Map)['media_type']}');
-            }
-          }
-        }
-      }
 
       setState(() {
         _events.clear();
@@ -110,7 +129,6 @@ class _HomePageState extends State<HomePage>
   // 检查用户是否是活动组织者
   Future<void> _checkUserRole() async {
     try {
-      // 首先检查用户是否登录
       if (!_authService.isLoggedIn) {
         setState(() {
           _isOrganizer = false;
@@ -119,14 +137,12 @@ class _HomePageState extends State<HomePage>
         return;
       }
 
-      // 获取用户资料并检查角色
       final profile = await ProfileService().fetchMyProfile();
       if (profile != null) {
         setState(() {
           _isOrganizer = profile.role == 'organizer';
           _loadingUserRole = false;
         });
-        print('用户身份检查完成: isOrganizer = $_isOrganizer, role = ${profile.role}');
       } else {
         setState(() => _loadingUserRole = false);
       }
@@ -136,24 +152,20 @@ class _HomePageState extends State<HomePage>
     }
   }
 
-  // 重构的活动卡片设计 - 二次元风格，优化左右空隙
+  // 重构的活动卡片设计
   Widget _buildEventCard(Map<String, dynamic> event) {
     return Container(
-      //color: Colors.red[100],
       margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 0),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
         child: Stack(
           children: [
-            // 活动背景图片 - 占满整个容器
             Container(
               width: double.infinity,
               height: 180,
               color: AnimeColors.backgroundLight,
               child: _getEventImage(event),
             ),
-
-            // 二次元风格渐变遮罩层
             Container(
               width: double.infinity,
               height: 180,
@@ -170,8 +182,6 @@ class _HomePageState extends State<HomePage>
                 ),
               ),
             ),
-
-            // 活动名称 - 二次元风格
             Positioned(
               left: 16,
               bottom: 16,
@@ -179,7 +189,6 @@ class _HomePageState extends State<HomePage>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 活动标题
                   Text(
                     event['name']?.toString() ?? '未知活动',
                     style: const TextStyle(
@@ -199,7 +208,6 @@ class _HomePageState extends State<HomePage>
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
-                  // 活动类型标签
                   if (event['event_type'] != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -220,15 +228,12 @@ class _HomePageState extends State<HomePage>
                 ],
               ),
             ),
-
-            // 点击区域 - 修改点击事件
             Positioned.fill(
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),
                   onTap: () {
-                    // 跳转到活动对应的帖子详情页
                     _navigateToEventPostDetail(event);
                   },
                   splashColor: AnimeColors.primaryPink.withOpacity(0.3),
@@ -241,11 +246,7 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-
-
-  // 新增：跳转到活动帖子详情页的方法
   void _navigateToEventPostDetail(Map<String, dynamic> event) {
-    // 从活动数据中获取关联的帖子ID
     final postId = event['post_id'];
     if (postId != null) {
       Navigator.of(context).push(
@@ -254,7 +255,6 @@ class _HomePageState extends State<HomePage>
         ),
       );
     } else {
-      // 如果没有帖子ID，尝试从 post 字段中获取
       final post = event['post'];
       if (post != null && post is Map && post['id'] != null) {
         Navigator.of(context).push(
@@ -262,29 +262,14 @@ class _HomePageState extends State<HomePage>
             builder: (_) => PostDetailPage(postId: post['id'] as int),
           ),
         );
-      } else {
-        print('活动没有关联的帖子ID，无法跳转');
-        // 可以显示一个提示
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('活动详情暂不可用')),
-        );
       }
     }
   }
 
-  // 获取活动图片 - 从 post_media 中获取
   Widget _getEventImage(Map<String, dynamic> event) {
-    print('=== 图片获取调试 ===');
-    print('活动: ${event['name']}');
-    print('post_media: ${event['post_media']}');
-
-    // 方法1: 从 post_media 中获取第一张图片
     if (event['post_media'] != null && event['post_media'] is List) {
       final mediaList = event['post_media'] as List;
-      print('post_media 数量: ${mediaList.length}');
-
       if (mediaList.isNotEmpty) {
-        // 按 sort_order 排序，获取第一张图片
         List<dynamic> sortedMedia = List.from(mediaList);
         sortedMedia.sort((a, b) {
           final orderA = (a['sort_order'] as num?)?.toInt() ?? 0;
@@ -300,26 +285,20 @@ class _HomePageState extends State<HomePage>
           if (imageUrl != null &&
               imageUrl.toString().isNotEmpty &&
               mediaType == 'image') {
-            print('使用 post_media 图片: $imageUrl');
             return _buildNetworkImage(imageUrl.toString());
           }
         }
       }
     }
 
-    // 方法2: 尝试 events 表的 cover_image 字段
     if (event['cover_image'] != null &&
         event['cover_image'].toString().isNotEmpty) {
-      print('使用 cover_image: ${event['cover_image']}');
       return _buildNetworkImage(event['cover_image'].toString());
     }
 
-    // 如果没有图片，显示占位图
-    print('没有找到活动图片，使用占位图');
     return _buildEventPlaceholder('暂无图片');
   }
 
-  // 构建网络图片组件 - 自适应版本
   Widget _buildNetworkImage(String imageUrl) {
     return FutureBuilder<ImageInfo>(
       future: _getImageInfo(imageUrl),
@@ -329,8 +308,6 @@ class _HomePageState extends State<HomePage>
           final width = imageInfo.image.width.toDouble();
           final height = imageInfo.image.height.toDouble();
           final aspectRatio = width / height;
-          
-          // 限制宽高比范围，避免极端比例
           final clampedAspectRatio = aspectRatio.clamp(0.75, 2.5);
           
           return AspectRatio(
@@ -339,29 +316,13 @@ class _HomePageState extends State<HomePage>
               imageUrl,
               width: double.infinity,
               fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  color: Colors.grey[200],
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                          : null,
-                    ),
-                  ),
-                );
-              },
               errorBuilder: (context, error, stackTrace) {
-                print('图片加载失败: $error - URL: $imageUrl');
                 return _buildEventPlaceholder('图片加载失败');
               },
             ),
           );
         }
         
-        // 加载中或出错时使用默认比例
         return AspectRatio(
           aspectRatio: 16/9,
           child: Container(
@@ -375,7 +336,6 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  // 获取图片信息
   Future<ImageInfo> _getImageInfo(String imageUrl) async {
     final completer = Completer<ImageInfo>();
     final imageProvider = NetworkImage(imageUrl);
@@ -391,7 +351,6 @@ class _HomePageState extends State<HomePage>
     return completer.future;
   }
 
-  // 活动占位图
   Widget _buildEventPlaceholder(String message) {
     return Container(
       color: Colors.grey[300],
@@ -407,156 +366,48 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  // 修改：将活动预览部分重构为独立的组件，优化布局和分页指示器
-  Widget _buildEventsPreview() {
-    if (_isEventsLoading) {
-      return const SizedBox(
-        height: 220,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (_eventsError != null) {
-      return SizedBox(
-        height: 120,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('加载失败: $_eventsError', style: const TextStyle(fontSize: 12)),
-              TextButton(
-                onPressed: _loadEvents,
-                child: const Text('重试'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_events.isEmpty) {
-      return SizedBox(
-        height: 120,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('暂无活动', style: TextStyle(fontSize: 12)),
-              TextButton(
-                onPressed: _loadEvents,
-                child: const Text('刷新'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 180,
-          child: Stack(
-            children: [
-              PageView.builder(
-                controller: _eventPageController,
-                itemCount: _events.length,
-                onPageChanged: (index) {
-                  setState(() {
-                    _currentEventPage = index;
-                  });
-                },
-                itemBuilder: (context, index) {
-                  return _buildEventCard(_events[index]);
-                },
-              ),
-              
-              // 分页指示器 - 放在图片右下角
-              if (_events.length > 1)
-                Positioned(
-                  right: 32,
-                  bottom: 16,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      children: List.generate(_events.length, (index) {
-                        return Container(
-                          width: 6,
-                          height: 6,
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: _currentEventPage == index 
-                                ? Colors.white 
-                                : Colors.white.withOpacity(0.4),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-      ],
-    );
-  }
-
-  // 新增：构建推荐页内容（包含活动预览和帖子列表）
-  // 修改：构建推荐页内容（包含活动预览和帖子列表）
   Widget _buildRecommendTab() {
     return const HomeRecommendTabWithEvents();
   }
-// 处理发布按钮点击（添加登录检查）
-Future<void> _handlePublishButtonTap() async {
-  // 1. 首先检查用户是否登录
-  final uid = _authService.currentUser?.id;
-  if (uid == null) {
-    // 用户未登录，显示提示
-    if (mounted) {
-      await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('需要登录'),
-          shape: RoundedRectangleBorder( // 添加这一行
-          borderRadius: BorderRadius.circular(18), // 设置圆角半径
-        ),
-          content: const Text('登录后才能发布帖子，去登录吧～'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // 跳转到登录页面
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const LoginPage(),
-                  ),
-                );
-              },
-              child: const Text('去登录', style: TextStyle(color: Color(0xFFED7099))),
-            ),
-          ],
-        ),
-      );
+
+  Future<void> _handlePublishButtonTap() async {
+    final uid = _authService.currentUser?.id;
+    if (uid == null) {
+      if (mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('需要登录'),
+            shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+            content: const Text('登录后才能发布帖子，去登录吧～'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('取消'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const LoginPage(),
+                    ),
+                  );
+                },
+                child: const Text('去登录', style: TextStyle(color: Color(0xFFED7099))),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
     }
-    return;
+
+    showChannelSelectionBottomSheet();
   }
 
-  // 2. 用户已登录，显示频道选择
-  showChannelSelectionBottomSheet();
-}
-  // 显示频道选择底部弹窗
   void showChannelSelectionBottomSheet() {
     showModalBottomSheet(
       context: context,
@@ -569,11 +420,11 @@ Future<void> _handlePublishButtonTap() async {
           child: Container(
             color: Colors.black.withOpacity(0.4),
             child: DraggableScrollableSheet(
-              initialChildSize: 0.55, // 增加初始高度到55%F
-              minChildSize: 0.45, // 最小高度40%
-              maxChildSize: 0.55, // 最大高度70%
+              initialChildSize: 0.55,
+              minChildSize: 0.45,
+              maxChildSize: 0.55,
               snap: true,
-              snapSizes: const [0.54, 0.55], // 设置吸附点
+              snapSizes: const [0.54, 0.55],
               builder: (context, scrollController) {
                 return Container(
                   decoration: BoxDecoration(
@@ -593,7 +444,6 @@ Future<void> _handlePublishButtonTap() async {
                   ),
                   child: Column(
                     children: [
-                      // 顶部拖拽指示器
                       Container(
                         margin: const EdgeInsets.only(top: 12),
                         width: 40,
@@ -603,8 +453,6 @@ Future<void> _handlePublishButtonTap() async {
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      
-                      // 标题
                       Padding(
                         padding: const EdgeInsets.only(top: 24, bottom: 20),
                         child: Text(
@@ -616,16 +464,13 @@ Future<void> _handlePublishButtonTap() async {
                           ),
                         ),
                       ),
-                      
-                      // 频道选项 - 使用固定高度确保完全显示
                       SizedBox(
-                        height: 280, // 固定高度确保三个选项完全显示
+                        height: 280,
                         child: ListView(
                           controller: scrollController,
                           padding: const EdgeInsets.symmetric(horizontal: 20),
-                          physics: const ClampingScrollPhysics(), // 禁用弹性效果
+                          physics: const ClampingScrollPhysics(),
                           children: [
-                            // COS作品
                             _buildChannelOption(
                               label: 'COS作品',
                               icon: Icons.photo_camera,
@@ -638,10 +483,7 @@ Future<void> _handlePublishButtonTap() async {
                                 );
                               },
                             ),
-                            
                             const SizedBox(height: 16),
-                            
-                            // 群岛社区
                             _buildChannelOption(
                               label: '群岛社区',
                               icon: Icons.people,
@@ -654,8 +496,6 @@ Future<void> _handlePublishButtonTap() async {
                                 );
                               },
                             ),
-                            
-                            // 活动 - 只在用户是活动组织者时显示
                             if (_isOrganizer) ...[
                               const SizedBox(height: 16),
                               _buildChannelOption(
@@ -671,7 +511,6 @@ Future<void> _handlePublishButtonTap() async {
                                 },
                               ),
                             ],
-                            
                             const SizedBox(height: 24),
                           ],
                         ),
@@ -687,7 +526,6 @@ Future<void> _handlePublishButtonTap() async {
     );
   }
 
-  // 构建频道选项
   Widget _buildChannelOption({
     required String label,
     required IconData icon,
@@ -747,7 +585,6 @@ Future<void> _handlePublishButtonTap() async {
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: AnimeColors.backgroundLight,
@@ -755,8 +592,7 @@ Future<void> _handlePublishButtonTap() async {
         backgroundColor: AnimeColors.cardWhite,
         elevation: 0,
         leading: Container(
-          //color: Colors.red[100],
-          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           child: Image.asset(
             'assets/images/IACG_L.PNG',
             fit: BoxFit.contain,
@@ -766,7 +602,6 @@ Future<void> _handlePublishButtonTap() async {
         title: Container(
           width: 160,
           color: AnimeColors.cardWhite,
-          //color: Colors.red[100],
           child: TabBar(
             controller: _tabController,
             labelColor: AnimeColors.primaryPink,
@@ -782,7 +617,7 @@ Future<void> _handlePublishButtonTap() async {
               fontWeight: FontWeight.normal,
               fontSize: 16,
             ),
-            tabs: [
+            tabs: const [
               Tab(text: '推荐'),
               Tab(text: '关注'),
             ],
@@ -791,7 +626,6 @@ Future<void> _handlePublishButtonTap() async {
         ),
         centerTitle: true,
         actions: [
-          // 搜索按钮（放大镜图标）- 放在消息按钮左侧
           IconButton(
             icon: const Icon(
               Icons.search,
@@ -805,52 +639,70 @@ Future<void> _handlePublishButtonTap() async {
             },
             tooltip: '搜索',
           ),
-          // 消息按钮 - 使用 Material-Icons 的信封图标，颜色改为黑色
+          // 🔥 修改：添加小红点的信封按钮
           Container(
             margin: const EdgeInsets.only(right: 8),
-            child: IconButton(
-              icon: const Icon(
-                Icons.markunread_outlined,
-                color: Colors.black,
-                size: 24,
-              ),
-              onPressed: () {
-                if (!_authService.isLoggedIn) {
-                  _showLoginPrompt('查看消息需要登录');
-                  return;
-                }
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const MessageListPage()),
-                );
-              },
-              tooltip: '消息',
+            child: Stack(
+              children: [
+                IconButton(
+                  icon: const Icon(
+                    Icons.markunread_outlined,
+                    color: Colors.black,
+                    size: 24,
+                  ),
+                  onPressed: () {
+                    if (!_authService.isLoggedIn) {
+                      _showLoginPrompt('查看通知需要登录');
+                      return;
+                    }
+                    // 🔥 修改：跳转到消息页面（保持原有逻辑）
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const MessageListPage()),
+                    ).then((_) {
+                      // 🔥 从消息页面返回时刷新未读计数
+                      _loadNotificationCount();
+                    });
+                  },
+                  tooltip: '消息',
+                ),
+                // 🔥 新增：小红点
+                if (_notificationUnreadCount > 0)
+                  Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFED7099),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ],
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          // 推荐页 - 修改为使用 CustomScrollView
-          _buildRecommendTab(),
-          // 关注页
-          const HomeFollowingTab(),
+        children: const [
+          HomeRecommendTabWithEvents(),
+          HomeFollowingTab(),
         ],
       ),
-      // 右下角悬浮发布按钮
       floatingActionButton: FloatingActionButton(
         onPressed: _handlePublishButtonTap,
         backgroundColor: AnimeColors.primaryPink,
         foregroundColor: Colors.white,
         elevation: 4,
-        mini:  true,
+        mini: true,
         child: const Icon(Icons.add),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
-  // 显示登录提示
   void _showLoginPrompt(String message) {
     showDialog(
       context: context,
