@@ -200,15 +200,17 @@ class _PostComposePageState extends State<PostComposePage> {
   }
 
   // 添加时间选择方法
+// 首先，修改日期选择器的lastDate参数，允许选择更远的日期
 Future<void> _pickEventTime({required bool isStart}) async {
   final now = DateTime.now();
   final initial = isStart ? _eventStartTime : _eventEndTime;
   
+  // ✅ 修改：允许选择未来2年内的日期
   final picked = await showDatePicker(
     context: context,
     initialDate: initial ?? now,
     firstDate: now,
-    lastDate: DateTime(now.year + 1),
+    lastDate: DateTime(now.year + 2, 12, 31), // 允许最多2年后
   );
   
   if (picked != null) {
