@@ -70,34 +70,96 @@ class _NotificationListPageState extends State<NotificationListPage> {
       print('❌ 订阅通知失败: $e');
     }
   }
+// 修改 _loadNotifications 方法
+Future<void> _loadNotifications() async {
+  print('🔄 加载通知列表...');
+  setState(() {
+    _isLoading = true;
+    _error = null;
+  });
 
-  Future<void> _loadNotifications() async {
-    print('🔄 加载通知列表...');
+  try {
+    final notifications = await _notificationService.fetchNotifications();
+    
+    // ✅ 新增：过滤掉评论、点赞、转发的通知（只在下面整个列表中过滤）
+    final filteredNotifications = notifications.where((notification) {
+      return notification.type != 'comment' && 
+             notification.type != 'like' && 
+             notification.type != 'share';
+    }).toList();
+
+    // 🔥 同时更新全局未读计数
+    await _notificationService.fetchUnreadCount();
+
     setState(() {
-      _isLoading = true;
-      _error = null;
+      _notifications = filteredNotifications; // ✅ 使用过滤后的列表
+      _isLoading = false;
     });
 
-    try {
-      final notifications = await _notificationService.fetchNotifications();
-
-      // 🔥 同时更新全局未读计数
-      await _notificationService.fetchUnreadCount();
-
-      setState(() {
-        _notifications = notifications;
-        _isLoading = false;
-      });
-
-      print('✅ 通知加载完成，共 ${notifications.length} 条');
-    } catch (e) {
-      print('❌ 加载通知失败: $e');
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
-    }
+    print('✅ 通知加载完成，外部列表过滤后共 ${filteredNotifications.length} 条');
+    print('📌 包含的类型: ${filteredNotifications.map((n) => n.type).toSet()}');
+  } catch (e) {
+    print('❌ 加载通知失败: $e');
+    setState(() {
+      _error = e.toString();
+      _isLoading = false;
+    });
   }
+}
+
+// // 修改实时通知订阅
+// void _subscribeToNotifications() {
+//   try {
+//     _subscription = _notificationService.subscribeToNotifications(
+//       (newNotification) {
+//         print('🔄 收到新实时通知: ${newNotification.title} - 类型: ${newNotification.type}');
+        
+//         // ✅ 新增：过滤掉评论、点赞、转发的实时通知（不显示在下面列表）
+//         if (newNotification.type == 'comment' || 
+//             newNotification.type == 'like' || 
+//             newNotification.type == 'share') {
+//           print('📌 此通知属于分类页面，不在外部列表显示');
+//           return; // 直接返回，不添加到外部列表
+//         }
+        
+//         if (mounted) {
+//           setState(() {
+//             _notifications.insert(0, newNotification);
+//           });
+//         }
+//       },
+//     );
+//   } catch (e) {
+//     print('❌ 订阅通知失败: $e');
+//   }
+// }
+  // Future<void> _loadNotifications() async {
+  //   print('🔄 加载通知列表...');
+  //   setState(() {
+  //     _isLoading = true;
+  //     _error = null;
+  //   });
+
+  //   try {
+  //     final notifications = await _notificationService.fetchNotifications();
+
+  //     // 🔥 同时更新全局未读计数
+  //     await _notificationService.fetchUnreadCount();
+
+  //     setState(() {
+  //       _notifications = notifications;
+  //       _isLoading = false;
+  //     });
+
+  //     print('✅ 通知加载完成，共 ${notifications.length} 条');
+  //   } catch (e) {
+  //     print('❌ 加载通知失败: $e');
+  //     setState(() {
+  //       _error = e.toString();
+  //       _isLoading = false;
+  //     });
+  //   }
+  // }
 
   // 🔥 新增：计算各分类的未读数量
   int _getCategoryUnreadCount(String category) {
