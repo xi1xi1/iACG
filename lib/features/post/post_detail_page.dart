@@ -12,7 +12,7 @@ import '../profile/user_profile_page.dart';
 import '../tag/tag_posts_page.dart';
 import 'post_image_preview.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
-
+import 'package:url_launcher/url_launcher.dart';
 class PostDetailPage extends StatefulWidget {
   final int postId;
   const PostDetailPage({super.key, required this.postId});
@@ -1241,23 +1241,87 @@ void _goToPostCompose(String channel, String eventTag) {
     );
   }
 
-  // ✅ 新增：活动信息行
-  Widget _buildEventInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 60,
-            child: Text('$label：',
-                style: const TextStyle(fontWeight: FontWeight.w500)),
-          ),
-          Expanded(child: Text(value)),
-        ],
-      ),
-    );
+  // // ✅ 新增：活动信息行
+  // Widget _buildEventInfoRow(String label, String value) {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(vertical: 4),
+  //     child: Row(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         SizedBox(
+  //           width: 60,
+  //           child: Text('$label：',
+  //               style: const TextStyle(fontWeight: FontWeight.w500)),
+  //         ),
+  //         Expanded(child: Text(value)),
+  //       ],
+  //     ),
+  //   );
+  // }
+  // ✅ 修改：活动信息行（为购票链接添加点击跳转）
+Widget _buildEventInfoRow(String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 60,
+          child: Text('$label：',
+              style: const TextStyle(fontWeight: FontWeight.w500)),
+        ),
+        Expanded(
+          child: label == '购票'
+              ? InkWell(
+                  onTap: () {
+                    _launchTicketUrl(value);
+                  },
+                  child: Text(
+                    value,
+                    style: const TextStyle(
+                      color: Colors.blue,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                )
+              : Text(value),
+        ),
+      ],
+    ),
+  );
+}
+
+// ✅ 新增：打开购票链接的方法
+Future<void> _launchTicketUrl(String url) async {
+  try {
+    // 确保URL有协议前缀
+    String formattedUrl = url;
+    if (!formattedUrl.toLowerCase().startsWith('http://') &&
+        !formattedUrl.toLowerCase().startsWith('https://')) {
+      formattedUrl = 'https://$formattedUrl';
+    }
+
+    final canLaunch = await canLaunchUrl(Uri.parse(formattedUrl));
+    if (canLaunch) {
+      await launchUrl(
+        Uri.parse(formattedUrl),
+        mode: LaunchMode.externalApplication,
+      );
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('无法打开链接: $formattedUrl')),
+        );
+      }
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('打开链接失败: $e')),
+      );
+    }
   }
+}
 
   // ✅ 新增：活动时间格式化
   String _formatEventDate(dynamic date) {
