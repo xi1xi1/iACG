@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import '../core/supabase_client.dart';
@@ -164,7 +165,7 @@ class PostService {
           .map((f) => f['following_id'] as String)
           .toList();
 
-      // 使用获取到的ID列表查询帖子
+      // 使用获取到的ID列表查询帖子 - 包括所有类型的帖子（cos, island, event等）
       final response = await _client
           .from('posts')
           .select('''
@@ -173,14 +174,41 @@ class PostService {
           post_media(*),
           post_tags(tag:tags(*))
         ''')
-          .inFilter('author_id', followingIds) // 这里改为使用实际的ID列表
+          .inFilter('author_id', followingIds)
           .eq('is_deleted', false)
           .eq('status', 'normal')
           .eq('visibility', 'public')
           .order('created_at', ascending: false)
-          .limit(50);
+          .limit(100); // 增加限制数量
 
-      return (response as List).cast<Map<String, dynamic>>();
+      // 调试：打印获取到的帖子类型分布
+      final posts = (response as List).cast<Map<String, dynamic>>();
+      final cosCount = posts.where((p) => p['channel'] == 'cos').length;
+      final islandCount = posts.where((p) => p['channel'] == 'island').length;
+      final eventCount = posts.where((p) => p['channel'] == 'event').length;
+      final otherCount = posts.length - cosCount - islandCount - eventCount;
+      
+      print('=== fetchFollowingPosts 统计 ===');
+      print('总帖子数: ${posts.length}');
+      print('COS帖子: $cosCount');
+      print('群岛帖子: $islandCount');
+      print('活动帖子: $eventCount');
+      print('其他类型: $otherCount');
+      
+      // 打印所有COS帖子的详细信息
+      final cosPosts = posts.where((p) => p['channel'] == 'cos').toList();
+      print('=== COS帖子详细信息 ===');
+      for (int i = 0; i < cosPosts.length; i++) {
+        final post = cosPosts[i];
+        print('COS帖子 $i: id=${post['id']}, title=${post['title']}');
+        print('媒体数量: ${(post['post_media'] as List?)?.length ?? 0}');
+        print('作者: ${post['author']?['nickname']}');
+        print('内容: ${post['content']?.toString().substring(0, min(50, (post['content']?.toString().length ?? 0)))}...');
+        print('---');
+      }
+      print('=============================');
+
+      return posts;
     } catch (e) {
       print('获取关注帖子失败: $e');
       throw Exception('获取关注内容失败');
@@ -246,7 +274,184 @@ class PostService {
   }
 
   // ==================== 原有的帖子相关方法 ====================
+/// 获取热门帖子（带时间衰减的热度算法） - 修正版
+Future<List<Map<String, dynamic>>> fetchHotPostsWithTimeDecay({
+  int limit = 20,
+  int offset = 0,
+}) async {
+  try {
+    print('🔥 开始获取热门帖子，limit=$limit, offset=$offset');
+    
+    // ✅ 修复1：增加获取数量（覆盖分页范围 + 缓冲）
+    final fetchLimit = offset + limit + 50; // 多取50条作为缓冲
+    
+    // ✅ 修复2：优化查询，避免获取过多不必要的数据
+    final allPosts = await _client
+        .from('posts')
+        .select('''
+          id, channel, title, content, main_category, created_at,
+          like_count, favorite_count, comment_count, view_count,
+          author_id,
+          author:profiles!posts_author_id_fkey(id, nickname, avatar_url, is_coser),
+          post_media(media_url, media_type, sort_order)
+        ''')
+        .eq('channel', 'cos')
+        .eq('is_deleted', false)
+        .eq('status', 'normal')
+        .eq('visibility', 'public')
+        .order('created_at', ascending: false)
+        .limit(fetchLimit) // ✅ 动态限制
+        .then((resp) => (resp as List).cast<Map<String, dynamic>>());
 
+    print('📊 从数据库获取到 ${allPosts.length} 条帖子');
+
+    if (allPosts.isEmpty) {
+      print('📭 没有符合条件的帖子');
+      return [];
+    }
+
+    // ✅ 修复3：改进的热度计算算法
+    final now = DateTime.now();
+    final List<Map<String, dynamic>> scoredPosts = allPosts.map((post) {
+      try {
+        final createdAtStr = post['created_at']?.toString() ?? '';
+        if (createdAtStr.isEmpty) {
+          print('⚠️ 帖子 ${post['id']} 缺少创建时间');
+          return {
+            'post': post,
+            'hotScore': 0.0,
+            'createdAt': null,
+          };
+        }
+        
+        final createdAt = DateTime.parse(createdAtStr);
+        final hoursAgo = now.difference(createdAt).inHours.toDouble();
+        
+        // ✅ 基础分数（优化权重）
+        final likeCount = (post['like_count'] as int? ?? 0);
+        final favCount = (post['favorite_count'] as int? ?? 0);
+        final commentCount = (post['comment_count'] as int? ?? 0);
+        final viewCount = (post['view_count'] as int? ?? 0);
+        
+        // 权重：点赞 > 收藏 > 评论 > 浏览
+        final baseScore = 
+          likeCount * 5.0 +      // 点赞权重 5
+          favCount * 4.0 +       // 收藏权重 4
+          commentCount * 3.0 +   // 评论权重 3
+          viewCount * 0.01;      // 浏览权重很低（防刷）
+        
+        // ✅ 改进的时间衰减函数（更平滑）
+        // 公式：热度 = 基础分 / (时间衰减因子)
+        // 新帖子有初始热度加成，随时间自然衰减
+        double timeFactor;
+        
+        if (hoursAgo < 1) {
+          // 1小时内：热度加成 50%
+          timeFactor = 0.67; // 1/1.5 = 0.67，相当于加成50%
+        } else if (hoursAgo < 24) {
+          // 24小时内：线性衰减
+          timeFactor = 1.0 / (1.0 + (hoursAgo - 1) * 0.05);
+        } else if (hoursAgo < 168) { // 7天
+          // 1-7天：衰减加快
+          timeFactor = 1.0 / (1.0 + 24 * 0.05 + (hoursAgo - 24) * 0.1);
+        } else {
+          // 7天以上：缓慢衰减，但不会归零
+          timeFactor = 1.0 / (1.0 + 24 * 0.05 + 144 * 0.1 + (hoursAgo - 168) * 0.02);
+        }
+        
+        final hotScore = baseScore * timeFactor;
+        
+        if (kDebugMode && post['id'] == allPosts.first['id']) {
+          print('📈 热度计算示例：');
+          print('  帖子ID: ${post['id']}');
+          print('  发布时间: $createdAt (${hoursAgo.toStringAsFixed(1)}小时前)');
+          print('  互动数据: 👍${likeCount} ❤️${favCount} 💬${commentCount} 👁️${viewCount}');
+          print('  基础分: ${baseScore.toStringAsFixed(2)}');
+          print('  时间因子: ${timeFactor.toStringAsFixed(4)}');
+          print('  最终热度: ${hotScore.toStringAsFixed(2)}');
+        }
+        
+        return {
+          'post': post,
+          'hotScore': hotScore,
+          'createdAt': createdAt,
+        };
+      } catch (e) {
+        print('❌ 计算帖子热度失败 ${post['id']}: $e');
+        return {
+          'post': post,
+          'hotScore': 0.0,
+          'createdAt': null,
+        };
+      }
+    }).toList();
+
+    // ✅ 修复4：按热度分排序（添加空值检查）
+    scoredPosts.sort((a, b) {
+      final scoreA = a['hotScore'] as double? ?? 0.0;
+      final scoreB = b['hotScore'] as double? ?? 0.0;
+      return scoreB.compareTo(scoreA); // 降序排序
+    });
+    
+    // ✅ 调试：打印前10的热度分布
+    if (kDebugMode && scoredPosts.isNotEmpty) {
+      print('🏆 热度排名前10:');
+      for (int i = 0; i < min(10, scoredPosts.length); i++) {
+        final item = scoredPosts[i];
+        final hotScore = item['hotScore'] as double? ?? 0.0;
+        final post = item['post'] as Map<String, dynamic>;
+        print('  ${i + 1}. 帖子ID: ${post['id']} '
+              '热度: ${hotScore.toStringAsFixed(2)} '
+              '👍${post['like_count']}');
+      }
+    }
+
+    // ✅ 修复5：正确处理分页边界
+    final startIndex = offset;
+    final endIndex = min(offset + limit, scoredPosts.length);
+    
+    if (startIndex >= scoredPosts.length) {
+      print('📭 分页超出范围: offset=$offset, 总数=${scoredPosts.length}');
+      return [];
+    }
+    
+    final result = scoredPosts
+        .sublist(startIndex, endIndex)
+        .map((item) => item['post'] as Map<String, dynamic>)
+        .toList();
+
+    print('✅ 返回 ${result.length} 条帖子 (offset=$offset, limit=$limit)');
+    return result;
+    
+  } catch (e, stackTrace) {
+    print('❌ 获取热门帖子失败: $e');
+    print('堆栈: $stackTrace');
+    
+    // ✅ 降级方案：如果算法失败，返回简单排序的帖子
+    print('🔄 尝试降级方案...');
+    try {
+      return await _client
+          .from('posts')
+          .select('''
+            id, channel, title, content, main_category, created_at,
+            like_count, favorite_count, comment_count, view_count,
+            author_id, post_media(media_url, media_type, sort_order),
+            author:profiles!posts_author_id_fkey(id, nickname, avatar_url, is_coser)
+          ''')
+          .eq('channel', 'cos')
+          .eq('is_deleted', false)
+          .eq('status', 'normal')
+          .eq('visibility', 'public')
+          .order('like_count', ascending: false)
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1)
+          .then((resp) => (resp as List).cast<Map<String, dynamic>>());
+    } catch (fallbackError) {
+      print('❌ 降级方案也失败: $fallbackError');
+      return [];
+    }
+  }
+}
   /// 推荐流（COS）——按时间降序；支持分页；每条只带首图封面
   Future<List<Map<String, dynamic>>> fetchRecommendPosts({
     int limit = 20,
