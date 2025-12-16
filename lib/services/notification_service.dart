@@ -207,10 +207,10 @@ class NotificationService {
 
       final count = (response as List).length;
       print('✅ 未读通知数量: $count');
-      
+
       // 🔥 更新全局状态
       updateGlobalUnreadCount(count);
-      
+
       return count;
     } catch (e) {
       print('❌ 获取未读数量失败: $e');
@@ -229,9 +229,9 @@ class NotificationService {
           .update({'is_read': true})
           .eq('id', notificationId)
           .eq('user_id', userId);
-      
+
       print('✅ 标记通知为已读: $notificationId');
-      
+
       // 🔥 立即更新全局未读计数
       if (_globalUnreadCount > 0) {
         updateGlobalUnreadCount(_globalUnreadCount - 1);
@@ -253,9 +253,9 @@ class NotificationService {
           .update({'is_read': true})
           .eq('user_id', userId)
           .eq('is_read', false);
-      
+
       print('✅ 全部标记为已读');
-      
+
       // 🔥 立即更新全局未读计数为0
       updateGlobalUnreadCount(0);
     } catch (e) {
@@ -264,10 +264,48 @@ class NotificationService {
     }
   }
 
+  // 在notification_service.dart中添加这个方法
+  Future<void> markCategoryAsRead(String category) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+
+    try {
+      List<String> types;
+
+      // 根据分类确定需要标记的通知类型
+      if (category == 'interaction') {
+        types = ['comment', 'share'];
+      } else if (category == 'like') {
+        types = ['like'];
+      } else {
+        print('❌ 未知的分类类型: $category');
+        return;
+      }
+
+      print('🔄 标记分类通知为已读: $category, 类型: $types');
+
+      // 使用OR查询来更新多种类型的通知
+      await _client
+          .from('notifications')
+          .update({'is_read': true})
+          .eq('user_id', userId)
+          .eq('is_read', false)
+          .or(types.map((type) => 'type.eq.$type').join(','));
+
+      print('✅ 分类通知标记为已读成功: $category');
+
+      // 更新全局未读计数（需要重新获取）
+      await fetchUnreadCount();
+    } catch (e) {
+      print('❌ 分类通知标记已读失败: $e');
+      rethrow;
+    }
+  }
+
   /// 订阅新通知（实时）
   RealtimeChannel subscribeToNotifications(
-    void Function(NotificationModel) onNewNotification,
-  ) {
+      void Function(NotificationModel) onNewNotification,
+      ) {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) throw Exception('未登录');
 
@@ -276,34 +314,34 @@ class NotificationService {
     return _client
         .channel('notifications:user_id=eq.$userId')
         .onPostgresChanges(
-          event: PostgresChangeEvent.insert,
-          schema: 'public',
-          table: 'notifications',
-          filter: PostgresChangeFilter(
-            type: PostgresChangeFilterType.eq,
-            column: 'user_id',
-            value: userId,
-          ),
-          callback: (payload) {
-            print('🔔 收到实时通知: ${payload.newRecord}');
-            try {
-              final notification = NotificationModel.fromJson(payload.newRecord!);
-              print('✅ 解析通知成功: ${notification.title}');
-              
-              // 🔥 新增：更新全局未读计数
-              updateGlobalUnreadCount(_globalUnreadCount + 1);
-              
-              onNewNotification(notification);
-            } catch (e) {
-              print('❌ 解析通知失败: $e');
-            }
-                    },
-        )
+      event: PostgresChangeEvent.insert,
+      schema: 'public',
+      table: 'notifications',
+      filter: PostgresChangeFilter(
+        type: PostgresChangeFilterType.eq,
+        column: 'user_id',
+        value: userId,
+      ),
+      callback: (payload) {
+        print('🔔 收到实时通知: ${payload.newRecord}');
+        try {
+          final notification = NotificationModel.fromJson(payload.newRecord!);
+          print('✅ 解析通知成功: ${notification.title}');
+
+          // 🔥 新增：更新全局未读计数
+          updateGlobalUnreadCount(_globalUnreadCount + 1);
+
+          onNewNotification(notification);
+        } catch (e) {
+          print('❌ 解析通知失败: $e');
+        }
+      },
+    )
         .subscribe((status, error) {
-          print('📡 通知订阅状态: $status');
-          if (error != null) {
-            print('❌ 通知订阅错误: $error');
-          }
-        });
+      print('📡 通知订阅状态: $status');
+      if (error != null) {
+        print('❌ 通知订阅错误: $error');
+      }
+    });
   }
 }
