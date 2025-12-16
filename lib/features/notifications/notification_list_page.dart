@@ -27,7 +27,8 @@ class _NotificationListPageState extends State<NotificationListPage> {
   final PostService _postService = PostService();
   final ProfileService _profileService = ProfileService();
   final SupabaseClient _supabase = Supabase.instance.client;
-
+  int _interactionUnreadCount = 0;
+  int _likeUnreadCount = 0;
   List<NotificationModel> _notifications = [];
   bool _isLoading = true;
   String? _error;
@@ -57,7 +58,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
   void _subscribeToNotifications() {
     try {
       _subscription = _notificationService.subscribeToNotifications(
-        (newNotification) {
+            (newNotification) {
           print('🔄 收到新实时通知: ${newNotification.title}');
           if (mounted) {
             setState(() {
@@ -71,41 +72,48 @@ class _NotificationListPageState extends State<NotificationListPage> {
     }
   }
 // 修改 _loadNotifications 方法
-Future<void> _loadNotifications() async {
-  print('🔄 加载通知列表...');
-  setState(() {
-    _isLoading = true;
-    _error = null;
-  });
-
-  try {
-    final notifications = await _notificationService.fetchNotifications();
-    
-    // ✅ 新增：过滤掉评论、点赞、转发的通知（只在下面整个列表中过滤）
-    final filteredNotifications = notifications.where((notification) {
-      return notification.type != 'comment' && 
-             notification.type != 'like' && 
-             notification.type != 'share';
-    }).toList();
-
-    // 🔥 同时更新全局未读计数
-    await _notificationService.fetchUnreadCount();
-
+  Future<void> _loadNotifications() async {
+    print('🔄 加载通知列表...');
     setState(() {
-      _notifications = filteredNotifications; // ✅ 使用过滤后的列表
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
 
-    print('✅ 通知加载完成，外部列表过滤后共 ${filteredNotifications.length} 条');
-    print('📌 包含的类型: ${filteredNotifications.map((n) => n.type).toSet()}');
-  } catch (e) {
-    print('❌ 加载通知失败: $e');
-    setState(() {
-      _error = e.toString();
-      _isLoading = false;
-    });
+    try {
+      final notifications = await _notificationService.fetchNotifications();
+      // ✅ 计算分类未读数量
+      _interactionUnreadCount = notifications
+          .where((n) => !n.isRead && (n.type == 'comment' || n.type == 'share'))
+          .length;
+      _likeUnreadCount = notifications
+          .where((n) => !n.isRead && n.type == 'like')
+          .length;
+
+      // ✅ 新增：过滤掉评论、点赞、转发的通知（只在下面整个列表中过滤）
+      final filteredNotifications = notifications.where((notification) {
+        return notification.type != 'comment' &&
+            notification.type != 'like' &&
+            notification.type != 'share';
+      }).toList();
+
+      // 🔥 同时更新全局未读计数
+      await _notificationService.fetchUnreadCount();
+
+      setState(() {
+        _notifications = filteredNotifications; // ✅ 使用过滤后的列表
+        _isLoading = false;
+      });
+
+      print('✅ 通知加载完成，外部列表过滤后共 ${filteredNotifications.length} 条');
+      print('📌 包含的类型: ${filteredNotifications.map((n) => n.type).toSet()}');
+    } catch (e) {
+      print('❌ 加载通知失败: $e');
+      setState(() {
+        _error = e.toString();
+        _isLoading = false;
+      });
+    }
   }
-}
 
 // // 修改实时通知订阅
 // void _subscribeToNotifications() {
@@ -113,15 +121,15 @@ Future<void> _loadNotifications() async {
 //     _subscription = _notificationService.subscribeToNotifications(
 //       (newNotification) {
 //         print('🔄 收到新实时通知: ${newNotification.title} - 类型: ${newNotification.type}');
-        
+
 //         // ✅ 新增：过滤掉评论、点赞、转发的实时通知（不显示在下面列表）
-//         if (newNotification.type == 'comment' || 
-//             newNotification.type == 'like' || 
+//         if (newNotification.type == 'comment' ||
+//             newNotification.type == 'like' ||
 //             newNotification.type == 'share') {
 //           print('📌 此通知属于分类页面，不在外部列表显示');
 //           return; // 直接返回，不添加到外部列表
 //         }
-        
+
 //         if (mounted) {
 //           setState(() {
 //             _notifications.insert(0, newNotification);
@@ -162,19 +170,27 @@ Future<void> _loadNotifications() async {
   // }
 
   // 🔥 新增：计算各分类的未读数量
+  // int _getCategoryUnreadCount(String category) {
+  //   if (category == 'interaction') {
+  //     return _notifications.where((n) =>
+  //       !n.isRead && (n.type == 'comment' || n.type == 'share')
+  //     ).length;
+  //   } else if (category == 'like') {
+  //     return _notifications.where((n) =>
+  //       !n.isRead && n.type == 'like'
+  //     ).length;
+  //   }
+  //   return 0;
+  // }
+// 🔥 修改：计算各分类的未读数量
   int _getCategoryUnreadCount(String category) {
     if (category == 'interaction') {
-      return _notifications.where((n) => 
-        !n.isRead && (n.type == 'comment' || n.type == 'share')
-      ).length;
+      return _interactionUnreadCount;
     } else if (category == 'like') {
-      return _notifications.where((n) => 
-        !n.isRead && n.type == 'like'
-      ).length;
+      return _likeUnreadCount;
     }
     return 0;
   }
-
   // 🔥 新增：导航到分类页面
   void _navigateToCategoryPage(String category) {
     Navigator.of(context).push(
@@ -270,83 +286,83 @@ Future<void> _loadNotifications() async {
 
   Future<bool> _showDeleteConfirmation(NotificationModel notification) async {
     return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('删除通知'),
-            content: Text('确定要删除 "${notification.title}" 吗？'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('取消'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('删除', style: TextStyle(color: Colors.red)),
-              ),
-            ],
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除通知'),
+        content: Text('确定要删除 "${notification.title}" 吗？'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
           ),
-        ) ??
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('删除', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    ) ??
         false;
   }
 
   Future<void> _handleNotificationTap(NotificationModel notification) async {
-  print('📄 处理通知点击: ${notification.type} - ${notification.title}');
+    print('📄 处理通知点击: ${notification.type} - ${notification.title}');
 
-  // 🔥 先标记为已读
-  await _markNotificationAsRead(notification);
+    // 🔥 先标记为已读
+    await _markNotificationAsRead(notification);
 
-  if (!mounted) return;
+    if (!mounted) return;
 
-  try {
-    switch (notification.type) {
-      case 'follow':
-        await _navigateToFollowNotifier(notification);
-        break;
+    try {
+      switch (notification.type) {
+        case 'follow':
+          await _navigateToFollowNotifier(notification);
+          break;
 
-      case 'like':
-      case 'comment':
-      case 'share':      // ✅ 添加这一行
-      case 'new_post':
-        final postId = _getSafeInt(notification.refId);
-        if (postId != null) {
-          _navigateToPostDetail(postId);
-        } else {
+        case 'like':
+        case 'comment':
+        case 'share':      // ✅ 添加这一行
+        case 'new_post':
+          final postId = _getSafeInt(notification.refId);
+          if (postId != null) {
+            _navigateToPostDetail(postId);
+          } else {
+            _showNotificationDetail(notification);
+          }
+          break;
+
+        case 'message':
+          final conversationId = _getSafeInt(notification.refId);
+          if (conversationId != null) {
+            await _navigateToChat(conversationId);
+          } else {
+            _showNotificationDetail(notification);
+          }
+          break;
+
+        case 'event':
+          final eventId = _getSafeInt(notification.refId);
+          if (eventId != null) {
+            _navigateToPostDetail(eventId);
+          } else {
+            _showNotificationDetail(notification);
+          }
+          break;
+
+        case 'system':
+        default:
           _showNotificationDetail(notification);
-        }
-        break;
-
-      case 'message':
-        final conversationId = _getSafeInt(notification.refId);
-        if (conversationId != null) {
-          await _navigateToChat(conversationId);
-        } else {
-          _showNotificationDetail(notification);
-        }
-        break;
-
-      case 'event':
-        final eventId = _getSafeInt(notification.refId);
-        if (eventId != null) {
-          _navigateToPostDetail(eventId);
-        } else {
-          _showNotificationDetail(notification);
-        }
-        break;
-
-      case 'system':
-      default:
-        _showNotificationDetail(notification);
-        break;
-    }
-  } catch (e) {
-    print('❌ 通知跳转失败: $e');
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('跳转失败: $e')),
-      );
+          break;
+      }
+    } catch (e) {
+      print('❌ 通知跳转失败: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('跳转失败: $e')),
+        );
+      }
     }
   }
-}
 
   int? _getSafeInt(dynamic value) {
     if (value == null) return null;
@@ -385,7 +401,7 @@ Future<void> _loadNotifications() async {
     try {
       final conversations = await _messageService.fetchConversations();
       final conversation = conversations.firstWhere(
-        (c) => c.id == conversationId,
+            (c) => c.id == conversationId,
         orElse: () => throw Exception('会话不存在'),
       );
 
@@ -409,7 +425,7 @@ Future<void> _loadNotifications() async {
   Future<String?> _getNotificationAvatarUrl(NotificationModel notification) async {
     switch (notification.type) {
       case 'follow':
-        if (notification.refUserId != null && 
+        if (notification.refUserId != null &&
             notification.refUserId!.isNotEmpty) {
           return await _getUserAvatarUrl(notification.refUserId!);
         }
@@ -418,8 +434,8 @@ Future<void> _loadNotifications() async {
       case 'like':
       case 'comment':
       case 'new_post':
-        // 🔥 优先使用 ref_user_id（操作者头像）
-        if (notification.refUserId != null && 
+      // 🔥 优先使用 ref_user_id（操作者头像）
+        if (notification.refUserId != null &&
             notification.refUserId!.isNotEmpty) {
           return await _getUserAvatarUrl(notification.refUserId!);
         }
@@ -431,7 +447,7 @@ Future<void> _loadNotifications() async {
         break;
 
       case 'message':
-        if (notification.refUserId != null && 
+        if (notification.refUserId != null &&
             notification.refUserId!.isNotEmpty) {
           return await _getUserAvatarUrl(notification.refUserId!);
         }
@@ -623,6 +639,66 @@ Future<void> _loadNotifications() async {
   }
 
   // 🔥 新增：构建单个分类按钮
+  // Widget _buildCategoryButton({
+  //   required String label,
+  //   required IconData icon,
+  //   required int unreadCount,
+  //   required VoidCallback onTap,
+  // }) {
+  //   return Material(
+  //     color: Colors.transparent,
+  //     child: InkWell(
+  //       onTap: onTap,
+  //       borderRadius: BorderRadius.circular(12),
+  //       child: Container(
+  //         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+  //         decoration: BoxDecoration(
+  //           color: Colors.grey.shade50,
+  //           borderRadius: BorderRadius.circular(12),
+  //           border: Border.all(color: Colors.grey.shade200, width: 1),
+  //         ),
+  //         child: Row(
+  //           mainAxisAlignment: MainAxisAlignment.center,
+  //           children: [
+  //             Icon(icon, size: 20, color: const Color(0xFFED7099)),
+  //             const SizedBox(width: 8),
+  //             Flexible(
+  //               child: Text(
+  //                 label,
+  //                 style: const TextStyle(
+  //                   fontSize: 14,
+  //                   fontWeight: FontWeight.w500,
+  //                   color: Colors.black87,
+  //                 ),
+  //                 overflow: TextOverflow.ellipsis,
+  //               ),
+  //             ),
+  //             if (unreadCount > 0) ...[
+  //               const SizedBox(width: 6),
+  //               Container(
+  //                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+  //                 decoration: BoxDecoration(
+  //                   color: const Color(0xFFED7099),
+  //                   borderRadius: BorderRadius.circular(10),
+  //                 ),
+  //                 child: Text(
+  //                   unreadCount > 99 ? '99+' : unreadCount.toString(),
+  //                   style: const TextStyle(
+  //                     fontSize: 11,
+  //                     color: Colors.white,
+  //                     fontWeight: FontWeight.bold,
+  //                   ),
+  //                 ),
+  //               ),
+  //             ],
+  //           ],
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
+
+  // 🔥 修改：构建单个分类按钮，添加小红点提示
   Widget _buildCategoryButton({
     required String label,
     required IconData icon,
@@ -639,19 +715,48 @@ Future<void> _loadNotifications() async {
           decoration: BoxDecoration(
             color: Colors.grey.shade50,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200, width: 1),
+            border: Border.all(
+                color: unreadCount > 0
+                    ? const Color(0xFFED7099).withOpacity(0.3)
+                    : Colors.grey.shade200,
+                width: 1
+            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 20, color: const Color(0xFFED7099)),
+              // 图标 - 保持原来的颜色
+              Stack(
+                children: [
+                  Icon(
+                    icon,
+                    size: 20,
+                    color: const Color(0xFFED7099), // 🔥 保持原来的颜色
+                  ),
+                  // 🔥 图标右上角小红点
+                  if (unreadCount > 0)
+                    Positioned(
+                      top: -3,
+                      right: -3,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFED7099),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 1.5),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.w500,
                     color: Colors.black87,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -833,7 +938,7 @@ Future<void> _loadNotifications() async {
             onDismissed: (direction) => _deleteNotification(notification),
             child: Container(
               color:
-                  notification.isRead ? Colors.white : const Color(0xFFF0F8FF),
+              notification.isRead ? Colors.white : const Color(0xFFF0F8FF),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
