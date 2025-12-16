@@ -92,84 +92,165 @@ class _HomeRecommendTabWithEventsState
     }
   }
 
-  Future<void> _loadPosts({bool isRefresh = false}) async {
-    try {
-      setState(() {
-        if (isRefresh) {
-          _currentPage = 1;
-          _hasMore = true;
-          _posts.clear();
-        }
-        _isPostsLoading = true;
-        _postsError = null;
-      });
-
-      final result = await _postService.fetchRecommendPosts(
-        limit: _pageSize,
-        offset: (isRefresh ? 0 : _currentPage - 1) * _pageSize,
-      );
-
-      setState(() {
-        if (isRefresh) {
-          _posts.clear();
-        }
-        _posts.addAll(result);
-        _hasMore = result.length >= _pageSize;
-        _postsError = null;
-      });
-    } catch (e) {
-      setState(() {
-        _postsError = '加载失败: ${e.toString()}';
-        if (isRefresh) {
-          _posts.clear();
-        }
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isPostsLoading = false;
-        });
+// 修改后的 _loadPosts 方法
+Future<void> _loadPosts({bool isRefresh = false}) async {
+  try {
+    setState(() {
+      if (isRefresh) {
+        _currentPage = 1;
+        _hasMore = true;
+        _posts.clear();
       }
+      _isPostsLoading = true;
+      _postsError = null;
+    });
+
+    // 使用新的热门帖子算法
+    final result = await _postService.fetchHotPostsWithTimeDecay(
+      limit: _pageSize,
+      offset: isRefresh ? 0 : (_currentPage - 1) * _pageSize,
+    );
+
+    setState(() {
+      if (isRefresh) {
+        _posts.clear();
+      }
+      _posts.addAll(result);
+      _hasMore = result.length >= _pageSize;
+      _postsError = null;
+    });
+  } catch (e) {
+    setState(() {
+      _postsError = '加载失败: ${e.toString()}';
+      if (isRefresh) {
+        _posts.clear();
+      }
+    });
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isPostsLoading = false;
+      });
     }
   }
+}
 
-  Future<void> _loadMorePosts() async {
-    if (_isLoadingMore || !_hasMore) return;
+// 修改后的 _loadMorePosts 方法
+Future<void> _loadMorePosts() async {
+  if (_isLoadingMore || !_hasMore) return;
 
-    try {
-      setState(() {
-        _isLoadingMore = true;
-      });
+  try {
+    setState(() {
+      _isLoadingMore = true;
+    });
 
-      _currentPage++;
+    _currentPage++;
 
-      final result = await _postService.fetchRecommendPosts(
-        limit: _pageSize,
-        offset: (_currentPage - 1) * _pageSize,
+    final result = await _postService.fetchHotPostsWithTimeDecay(
+      limit: _pageSize,
+      offset: (_currentPage - 1) * _pageSize,
+    );
+
+    setState(() {
+      _posts.addAll(result);
+      _hasMore = result.length >= _pageSize;
+    });
+  } catch (e) {
+    _currentPage--; // 加载失败，回退页码
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('加载更多失败: ${e.toString()}'),
+          duration: const Duration(seconds: 2),
+        ),
       );
-
+    }
+  } finally {
+    if (mounted) {
       setState(() {
-        _posts.addAll(result);
-        _hasMore = result.length >= _pageSize;
+        _isLoadingMore = false;
       });
-    } catch (e) {
-      _currentPage--; // 加载失败，回退页码
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('加载更多失败: ${e.toString()}'),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingMore = false;
-        });
-      }
     }
   }
+}
+  // Future<void> _loadPosts({bool isRefresh = false}) async {
+  //   try {
+  //     setState(() {
+  //       if (isRefresh) {
+  //         _currentPage = 1;
+  //         _hasMore = true;
+  //         _posts.clear();
+  //       }
+  //       _isPostsLoading = true;
+  //       _postsError = null;
+  //     });
+
+  //     final result = await _postService.fetchRecommendPosts(
+  //       limit: _pageSize,
+  //       offset: (isRefresh ? 0 : _currentPage - 1) * _pageSize,
+  //     );
+
+  //     setState(() {
+  //       if (isRefresh) {
+  //         _posts.clear();
+  //       }
+  //       _posts.addAll(result);
+  //       _hasMore = result.length >= _pageSize;
+  //       _postsError = null;
+  //     });
+  //   } catch (e) {
+  //     setState(() {
+  //       _postsError = '加载失败: ${e.toString()}';
+  //       if (isRefresh) {
+  //         _posts.clear();
+  //       }
+  //     });
+  //   } finally {
+  //     if (mounted) {
+  //       setState(() {
+  //         _isPostsLoading = false;
+  //       });
+  //     }
+  //   }
+  // }
+
+  // Future<void> _loadMorePosts() async {
+  //   if (_isLoadingMore || !_hasMore) return;
+
+  //   try {
+  //     setState(() {
+  //       _isLoadingMore = true;
+  //     });
+
+  //     _currentPage++;
+
+  //     final result = await _postService.fetchRecommendPosts(
+  //       limit: _pageSize,
+  //       offset: (_currentPage - 1) * _pageSize,
+  //     );
+
+  //     setState(() {
+  //       _posts.addAll(result);
+  //       _hasMore = result.length >= _pageSize;
+  //     });
+  //   } catch (e) {
+  //     _currentPage--; // 加载失败，回退页码
+  //     if (mounted) {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: Text('加载更多失败: ${e.toString()}'),
+  //           duration: const Duration(seconds: 2),
+  //         ),
+  //       );
+  //     }
+  //   } finally {
+  //     if (mounted) {
+  //       setState(() {
+  //         _isLoadingMore = false;
+  //       });
+  //     }
+  //   }
+  // }
 
   // 构建活动预览部分
   Widget _buildEventsPreview() {
