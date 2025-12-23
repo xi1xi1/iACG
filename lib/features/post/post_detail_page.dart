@@ -192,28 +192,55 @@ void _navigateToEventPostCompose() async {
   final uid = Supabase.instance.client.auth.currentUser?.id;
   if (uid == null) {
     // 用户未登录，显示提示
-    if (mounted) {
+   if (mounted) {
       await showDialog(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('需要登录'),
-          content: const Text('登录后才能发布帖子，去登录吧～'),
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: const Text(
+            '登录提示',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          content: const Text(
+            '登录后才能发布帖子，去登录吧～',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF666666),
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF666666),
+              ),
               child: const Text('取消'),
             ),
-            TextButton(
+            ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                // 跳转到登录页面
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const LoginPage(),
                   ),
                 );
               },
-              child: const Text('去登录', style: TextStyle(color: Color(0xFFED7099))),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFED7099),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              child: const Text('去登录'),
             ),
           ],
         ),
@@ -645,132 +672,279 @@ void _goToPostCompose(String channel, String eventTag) {
       ],
     );
   }
+Widget _buildRelatedPostCard(Map<String, dynamic> post) {
+  final mediaList = (post['post_media'] as List? ?? [])
+    ..sort((a, b) => (a['sort_order'] ?? 0).compareTo(b['sort_order'] ?? 0));
+  final hasImage = mediaList.isNotEmpty;
+  final firstImage = hasImage ? mediaList.first['media_url'] as String? : null;
+  final title = post['title'] ?? '';
+  final content = post['content'] ?? '';
+  final previewContent = content.length > 20 ? '${content.substring(0, 20)}...' : content;
 
-  // ✅ 修改：单个相关帖子卡片（横向布局）
-  Widget _buildRelatedPostCard(Map<String, dynamic> post) {
-    final mediaList = (post['post_media'] as List? ?? [])
-      ..sort((a, b) => (a['sort_order'] ?? 0).compareTo(b['sort_order'] ?? 0));
-    final hasImage = mediaList.isNotEmpty;
-    final firstImage =
-        hasImage ? mediaList.first['media_url'] as String? : null;
-    final title = post['title'] ?? '';
-    final content = post['content'] ?? '';
-    final previewContent =
-        content.length > 25 ? '${content.substring(0, 25)}...' : content;
-
-    return SizedBox(
-      width: 280, // 固定卡片宽度
-      child: Card(
-        elevation: 1,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        child: InkWell(
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => PostDetailPage(postId: post['id'] as int),
-              ),
-            );
-          },
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 图片区域（只在有图片时显示）
-                if (hasImage && firstImage != null) ...[
-                  Container(
-                    width: 60, // 更小的图片宽度
-                    height: 60, // 正方形图片
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6),
-                      color: Colors.grey[100],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: CachedNetworkImage(
-                        imageUrl: firstImage,
-                        fit: BoxFit.cover,
-                        // ✅ 添加图片尺寸限制
-                        memCacheWidth: 300, // 相关帖子图片小，用固定值
-                        maxWidthDiskCache: 300,
-                        
-                        placeholder: (_, __) => Container(color: Colors.grey[200]),
-                        errorWidget: (_, __, ___) {
-                          // ✅ 添加自动重试逻辑
-                          Future.delayed(const Duration(milliseconds: 300), () async {
-                            try {
-                              await DefaultCacheManager().removeFile(firstImage);
-                              if (mounted) setState(() {});
-                            } catch (_) {}
-                          });
-                          
-                          return Container(
+  // 获取屏幕宽度
+  final screenWidth = MediaQuery.of(context).size.width;
+  
+  // 手机端和Web端不同的宽度策略
+  final isMobile = screenWidth < 600;
+  
+  return SizedBox(
+    // ✅ 调整到更合理的宽度：手机端85%，Web端300固定
+    width: isMobile ? screenWidth * 0.85 : 300,
+    child: Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: InkWell(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => PostDetailPage(postId: post['id'] as int),
+            ),
+          );
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ✅ 图片区域 - 调整到更合适的尺寸
+              if (hasImage && firstImage != null) ...[
+                SizedBox(
+                  width: isMobile ? 90 : 100, // ✅ 固定宽度更稳定
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.grey[100],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: CachedNetworkImage(
+                          imageUrl: firstImage,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.center,
+                          placeholder: (_, __) => Container(
                             color: Colors.grey[200],
-                            alignment: Alignment.center,
-                            child: const Icon(Icons.image, size: 20, color: Colors.grey),
-                          );
-                        },
+                            child: Center(
+                              child: Icon(
+                                Icons.photo_library_outlined,
+                                size: 24,
+                                color: Colors.grey[400],
+                              ),
+                            ),
+                          ),
+                          errorWidget: (_, __, ___) {
+                            Future.delayed(const Duration(milliseconds: 300), () async {
+                              try {
+                                await DefaultCacheManager().removeFile(firstImage);
+                                if (mounted) setState(() {});
+                              } catch (_) {}
+                            });
+                            
+                            return Container(
+                              color: Colors.grey[200],
+                              alignment: Alignment.center,
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                size: 24,
+                                color: Colors.grey[400],
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                ],
+                ),
+                const SizedBox(width: 12),
+              ],
 
-                // 内容区域
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // 标题
+              // 内容区域
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (title.isNotEmpty)
                       Text(
                         title,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                        style: TextStyle(
+                          fontSize: isMobile ? 16 : 17, // ✅ 固定字体大小
+                          fontWeight: FontWeight.w700,
                           height: 1.2,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
 
-                      const SizedBox(height: 4),
-
-                      // 内容预览
-                      if (previewContent.isNotEmpty)
-                        Text(
+                    if (previewContent.isNotEmpty)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          top: title.isNotEmpty ? 4 : 0,
+                        ),
+                        child: Text(
                           previewContent,
                           style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
+                            fontSize: isMobile ? 14 : 15,
+                            color: Colors.grey[700],
                             height: 1.3,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
+                      ),
 
-                      const Spacer(),
-
-                      // 活动时间（如果有）
-                      if (post['event_start_time'] != null)
-                        Text(
+                    if (post['event_start_time'] != null)
+                      Padding(
+                        padding: EdgeInsets.only(
+                          top: (title.isNotEmpty || previewContent.isNotEmpty) ? 4 : 0,
+                        ),
+                        child: Text(
                           _formatEventDateShort(post['event_start_time']),
                           style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[500],
+                            fontSize: isMobile ? 12 : 13,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
+  // ✅ 修改：单个相关帖子卡片（横向布局）
+  // Widget _buildRelatedPostCard(Map<String, dynamic> post) {
+  //   final mediaList = (post['post_media'] as List? ?? [])
+  //     ..sort((a, b) => (a['sort_order'] ?? 0).compareTo(b['sort_order'] ?? 0));
+  //   final hasImage = mediaList.isNotEmpty;
+  //   final firstImage =
+  //       hasImage ? mediaList.first['media_url'] as String? : null;
+  //   final title = post['title'] ?? '';
+  //   final content = post['content'] ?? '';
+  //   final previewContent =
+  //       content.length > 25 ? '${content.substring(0, 25)}...' : content;
+
+  //   return SizedBox(
+  //     width: 280, // 固定卡片宽度
+  //     child: Card(
+  //       elevation: 1,
+  //       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+  //       child: InkWell(
+  //         onTap: () {
+  //           Navigator.of(context).push(
+  //             MaterialPageRoute(
+  //               builder: (_) => PostDetailPage(postId: post['id'] as int),
+  //             ),
+  //           );
+  //         },
+  //         borderRadius: BorderRadius.circular(8),
+  //         child: Padding(
+  //           padding: const EdgeInsets.all(12),
+  //           child: Row(
+  //             crossAxisAlignment: CrossAxisAlignment.start,
+  //             children: [
+  //               // 图片区域（只在有图片时显示）
+  //               if (hasImage && firstImage != null) ...[
+  //                 Container(
+  //                   width: 60, // 更小的图片宽度
+  //                   height: 60, // 正方形图片
+  //                   decoration: BoxDecoration(
+  //                     borderRadius: BorderRadius.circular(6),
+  //                     color: Colors.grey[100],
+  //                   ),
+  //                   child: ClipRRect(
+  //                     borderRadius: BorderRadius.circular(6),
+  //                     child: CachedNetworkImage(
+  //                       imageUrl: firstImage,
+  //                       fit: BoxFit.cover,
+  //                       // ✅ 添加图片尺寸限制
+  //                       memCacheWidth: 300, // 相关帖子图片小，用固定值
+  //                       maxWidthDiskCache: 300,
+                        
+  //                       placeholder: (_, __) => Container(color: Colors.grey[200]),
+  //                       errorWidget: (_, __, ___) {
+  //                         // ✅ 添加自动重试逻辑
+  //                         Future.delayed(const Duration(milliseconds: 300), () async {
+  //                           try {
+  //                             await DefaultCacheManager().removeFile(firstImage);
+  //                             if (mounted) setState(() {});
+  //                           } catch (_) {}
+  //                         });
+                          
+  //                         return Container(
+  //                           color: Colors.grey[200],
+  //                           alignment: Alignment.center,
+  //                           child: const Icon(Icons.image, size: 20, color: Colors.grey),
+  //                         );
+  //                       },
+  //                     ),
+  //                   ),
+  //                 ),
+  //                 const SizedBox(width: 12),
+  //               ],
+
+  //               // 内容区域
+  //               Expanded(
+  //                 child: Column(
+  //                   crossAxisAlignment: CrossAxisAlignment.start,
+  //                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //                   children: [
+  //                     // 标题
+  //                     Text(
+  //                       title,
+  //                       style: const TextStyle(
+  //                         fontSize: 14,
+  //                         fontWeight: FontWeight.w600,
+  //                         height: 1.2,
+  //                       ),
+  //                       maxLines: 2,
+  //                       overflow: TextOverflow.ellipsis,
+  //                     ),
+
+  //                     const SizedBox(height: 4),
+
+  //                     // 内容预览
+  //                     if (previewContent.isNotEmpty)
+  //                       Text(
+  //                         previewContent,
+  //                         style: TextStyle(
+  //                           fontSize: 12,
+  //                           color: Colors.grey[600],
+  //                           height: 1.3,
+  //                         ),
+  //                         maxLines: 2,
+  //                         overflow: TextOverflow.ellipsis,
+  //                       ),
+
+  //                     const Spacer(),
+
+  //                     // 活动时间（如果有）
+  //                     if (post['event_start_time'] != null)
+  //                       Text(
+  //                         _formatEventDateShort(post['event_start_time']),
+  //                         style: TextStyle(
+  //                           fontSize: 11,
+  //                           color: Colors.grey[500],
+  //                         ),
+  //                       ),
+  //                   ],
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
 
   // ✅ 新增：简短时间格式化
   String _formatEventDateShort(dynamic date) {
@@ -1366,30 +1540,31 @@ Future<void> _launchTicketUrl(String url) async {
       // ✅ 新增：悬浮发布按钮（只在活动帖子显示）
     floatingActionButton: _showEventFab
         ? Container(
-            margin: const EdgeInsets.only(bottom: 70, right: 16), // 避免被底部输入栏遮挡
+            margin: const EdgeInsets.only(bottom: 0, right: 0), // 避免被底部输入栏遮挡
             child: FloatingActionButton(
+              mini:  true,
               onPressed: _navigateToEventPostCompose,
               backgroundColor: const Color(0xFFED7099), // 粉色主题色
               foregroundColor: Colors.white,
               elevation: 4,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(45),
               ),
               child: const Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.add, size: 20),
                   SizedBox(height: 2),
-                  Text(
-                    '发布',
-                    style: TextStyle(fontSize: 10),
-                  ),
+                  // Text(
+                  //   '发布',
+                  //   style: TextStyle(fontSize: 10),
+                  // ),
                 ],
               ),
             ),
           )
         : null,
-    
+
     floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
 
       bottomNavigationBar: AnimatedPadding(

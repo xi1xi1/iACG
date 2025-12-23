@@ -26,11 +26,8 @@ class _TagPostsPageState extends State<TagPostsPage> {
 
   static const _pageSize = 20;
 
-  // 新增：参与量（总数），以及"最新/最热"筛选
   int? _totalCount;
-  String _sort = 'latest'; // 'latest' | 'hot'
-
-  // 解析出来的 tagId（用于计数）
+  String _sort = 'latest';
   int? _tagId;
 
   @override
@@ -48,25 +45,18 @@ class _TagPostsPageState extends State<TagPostsPage> {
   }
 
   Future<void> _bootstrap() async {
-    // 先查 tagId（以便显示参与量）
     try {
       final r = await _tagService.searchTags(widget.tagName, limit: 1);
       if (!mounted) return;
       if (r.isNotEmpty) {
         _tagId = r.first['id'] as int;
-        // 用 RPC 计数
         final n = await _tagService.countTagPosts(tagId: _tagId!, channel: null);
         if (!mounted) return;
         setState(() => _totalCount = n);
       } else {
-        // 没找到就显示 0，不影响列表加载（按 name 拉）
         setState(() => _totalCount = 0);
       }
-    } catch (_) {
-      // 失败也不影响帖子加载
-    }
-
-    // 加载列表
+    } catch (_) {}
     await _load(reset: true);
   }
 
@@ -86,22 +76,16 @@ class _TagPostsPageState extends State<TagPostsPage> {
 
     try {
       final offset = reset ? 0 : _posts.length;
-
       List<Map<String, dynamic>> rows = const [];
 
-      // 优先尝试带排序参数（与你的 PostService 对接"最热/最新"）
       try {
         rows = await _postService.fetchPostsByTag(
           widget.tagName,
           limit: _pageSize,
           offset: offset,
-          // 你可以在 PostService 中按此参数决定 order by：
-          // latest -> created_at desc
-          // hot    -> like_count/comment_count/view_count 的权重排序
-          orderBy: _sort, // 新增的可选参数；若 PostService 尚未支持，将进入下方 catch
+          orderBy: _sort,
         );
       } catch (_) {
-        // 兼容：你的 PostService 还没有 orderBy 参数时，退回原有接口
         rows = await _postService.fetchPostsByTag(
           widget.tagName,
           limit: _pageSize,
@@ -110,7 +94,6 @@ class _TagPostsPageState extends State<TagPostsPage> {
       }
 
       if (!mounted) return;
-
       setState(() {
         if (reset) {
           _posts.clear();
@@ -133,7 +116,6 @@ class _TagPostsPageState extends State<TagPostsPage> {
   }
 
   Future<void> _refresh() async {
-    // 刷新时也顺便刷新参与量（如果有 tagId）
     if (_tagId != null) {
       try {
         final n = await _tagService.countTagPosts(tagId: _tagId!, channel: null);
@@ -143,16 +125,37 @@ class _TagPostsPageState extends State<TagPostsPage> {
     await _load(reset: true);
   }
 
+  // 将帖子列表分成两列
+  List<List<Map<String, dynamic>>> _splitPostsIntoTwoColumns() {
+    final column1 = <Map<String, dynamic>>[];
+    final column2 = <Map<String, dynamic>>[];
+
+    for (int i = 0; i < _posts.length; i++) {
+      if (i % 2 == 0) {
+        column1.add(_posts[i]);
+      } else {
+        column2.add(_posts[i]);
+      }
+    }
+
+    return [column1, column2];
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = '#${widget.tagName}'
         '${_totalCount == null ? '' : ' · 参与量 $_totalCount'}';
 
+    // 分割帖子到两列
+    final columns = _splitPostsIntoTwoColumns();
+    final column1 = columns[0];
+    final column2 = columns[1];
+
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: Column(
         children: [
-          // 顶部筛选栏：最新 / 最热 - 使用 OutlinedButton 替代 SegmentedButton
+          // 顶部筛选栏
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
             child: Row(
@@ -272,32 +275,71 @@ class _TagPostsPageState extends State<TagPostsPage> {
                   Center(child: Text('暂无相关帖子')),
                 ],
               )
-                  : ListView.separated(
+                  : SingleChildScrollView(
                 controller: _scroll,
-                itemCount: _posts.length + 1,
-                separatorBuilder: (_, __) => const Divider(height: 1),
-                itemBuilder: (context, i) {
-                  if (i == _posts.length) {
-                    if (_end) return const SizedBox(height: 48);
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-                  final p = _posts[i];
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => PostDetailPage(
-                            postId: (p['id'] as num).toInt(),
-                          ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // 第一列
+                      Expanded(
+                        child: Column(
+                          children: [
+                            ...column1.map((post) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 4, horizontal: 4),
+                                child: GestureDetector(
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => PostDetailPage(
+                                          postId: (post['id'] as num).toInt(),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: PostCard(post: post),
+                                ),
+                              );
+                            }).toList(),
+                            // 加载状态
+                            if (!_end && _loading)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 16),
+                                child: Center(child: CircularProgressIndicator()),
+                              ),
+                            if (_end) const SizedBox(height: 48),
+                          ],
                         ),
-                      );
-                    },
-                    child: PostCard(post: p),
-                  );
-                },
+                      ),
+                      // 第二列
+                      Expanded(
+                        child: Column(
+                          children: column2.map((post) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 4, horizontal: 4),
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => PostDetailPage(
+                                        postId: (post['id'] as num).toInt(),
+                                      ),
+                                    ),
+                                  );
+                                },
+                                child: PostCard(post: post),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),

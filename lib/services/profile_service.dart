@@ -1082,39 +1082,41 @@ Future<void> _sendFollowNotification(String followerId, String followingId, bool
     }
   }
 
-  /// 获取关注者列表(关注我的人)
-  Future<List<UserProfile>> fetchFollowers(String userId) async {
-    try {
-      final response = await _client
-          .from('follows')
-          .select('follower:profiles!follows_follower_id_fkey(*)')
-          .eq('following_id', userId);
+/// 获取关注者列表(关注我的人) - 降序：新关注的在前
+Future<List<UserProfile>> fetchFollowers(String userId) async {
+  try {
+    final response = await _client
+        .from('follows')
+        .select('follower:profiles!follows_follower_id_fkey(*)')
+        .eq('following_id', userId)
+        .order('created_at', ascending: false); // 🔥 降序：新关注的在前
 
-      return (response as List)
-          .map((item) => UserProfile.fromJson(Map<String, dynamic>.from(item['follower'])))
-          .toList();
-    } catch (e) {
-      print('❌ 获取关注者列表失败: $e');
-      return [];
-    }
+    return (response as List)
+        .map((item) => UserProfile.fromJson(Map<String, dynamic>.from(item['follower'])))
+        .toList();
+  } catch (e) {
+    print('❌ 获取关注者列表失败: $e');
+    return [];
   }
+}
 
-  /// 获取关注列表(我关注的人)
-  Future<List<UserProfile>> fetchFollowing(String userId) async {
-    try {
-      final response = await _client
-          .from('follows')
-          .select('following:profiles!follows_following_id_fkey(*)')
-          .eq('follower_id', userId);
+Future<List<UserProfile>> fetchFollowing(String userId) async {
+  try {
+    final response = await _client
+        .from('follows')
+        .select('following:profiles!follows_following_id_fkey(*)')
+        .eq('follower_id', userId)
+        .order('created_at', ascending: false); // 降序：新关注的在前
+        // .order('created_at', ascending: true); // 升序：早关注的在前
 
-      return (response as List)
-          .map((item) => UserProfile.fromJson(Map<String, dynamic>.from(item['following'])))
-          .toList();
-    } catch (e) {
-      print('❌ 获取关注列表失败: $e');
-      return [];
-    }
+    return (response as List)
+        .map((item) => UserProfile.fromJson(Map<String, dynamic>.from(item['following'])))
+        .toList();
+  } catch (e) {
+    print('❌ 获取关注列表失败: $e');
+    return [];
   }
+}
 
   /// 获取用户统计数据(帖子数、关注数、粉丝数)
   Future<Map<String, int>> fetchUserStats(String userId) async {

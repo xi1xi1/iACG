@@ -815,7 +815,7 @@ Future<void> _publish() async {
           TextField(
             controller: _tagsCtrl,
             decoration: InputDecoration(
-              hintText: '例：每日一水，经验分享（用逗号分隔）',
+              hintText: '例：水帖，分享（用逗号分隔）',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide(color: Colors.grey.shade300),
@@ -958,28 +958,36 @@ Future<void> _publish() async {
         ),
         actions: [
           Container(
-            margin: const EdgeInsets.only(right: 16),
-            child: _buildAnimeButton(
-              onPressed: _publishing ? null : _publish,
-              isPrimary: true,
-              child: _publishing
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            margin: const EdgeInsets.only(right: 0),
+            child: Transform.scale( // 缩放整个按钮
+              scale: 0.6, // 0.8倍缩小（可调整：0.7/0.9 等）
+              child: _buildAnimeButton(
+                onPressed: _publishing ? null : _publish,
+                isPrimary: true,
+                child: _publishing
+                    ? const SizedBox(
+                  width: 8,
+                  height: 8,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+                    : const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.send, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      '发布',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 24,
                       ),
-                    )
-                  : const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.send, size: 16),
-                        SizedBox(width: 4),
-                        Text('发布',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
-                      ],
                     ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],

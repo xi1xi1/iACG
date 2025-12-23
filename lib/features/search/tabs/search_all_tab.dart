@@ -1,5 +1,6 @@
 // lib/pages/search/tabs/search_all_tab.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:iacg/services/search_service.dart';
 import 'package:iacg/widgets/post_card.dart';
 
@@ -261,29 +262,59 @@ class _SearchAllTabState extends State<SearchAllTab> with AutomaticKeepAliveClie
                 );
               }
 
-              return ListView.builder(
-                controller: _scrollController,
-                itemCount: _posts.length + (_hasMore ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index == _posts.length) {
-                    return _hasMore 
-                        ? const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Center(child: CircularProgressIndicator()),
-                          )
-                        : const SizedBox();
-                  }
-                  final post = _posts[index];
-                  return PostCard(
-                    post: post,
-                    compactMode: true, // 使用紧凑模式，让卡片变小
-                  );
+              return RefreshIndicator(
+                onRefresh: () async {
+                  _refreshSearch();
+                  return;
                 },
-                  physics: const BouncingScrollPhysics(),
-                  // 关键改动：把这3个参数改成这样
-                  addAutomaticKeepAlives: true,  // 改为true，保持Widget状态
-                  addRepaintBoundaries: true, // 改为true，添加重绘边界
-                  cacheExtent: 1000, // 增加到1000，预渲染更多
+                child: CustomScrollView(
+                  controller: _scrollController,
+                  slivers: [
+                    // 瀑布流网格 - 双列布局
+                    SliverToBoxAdapter(
+                      child: MasonryGridView.builder(
+                        gridDelegate:
+                            const SliverSimpleGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                        ),
+                        mainAxisSpacing: 4, // 垂直间距
+                        crossAxisSpacing: 4, // 水平间距
+                        padding: const EdgeInsets.all(4), // 整体边距
+                        physics: const NeverScrollableScrollPhysics(),
+                        shrinkWrap: true,
+                        itemCount: _posts.length,
+                        itemBuilder: (context, index) {
+                          return PostCard(
+                            post: _posts[index],
+                            isLeftColumn: index.isEven, // 传递列位置信息
+                          );
+                        },
+                      ),
+                    ),
+                    // 加载更多指示器
+                    SliverToBoxAdapter(
+                      child: _hasMore 
+                          ? const Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: Center(child: CircularProgressIndicator()),
+                            )
+                          : _posts.isNotEmpty
+                              ? const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 20),
+                                  child: Center(
+                                    child: Text(
+                                      '已经到底了～',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox(),
+                    ),
+                  ],
+                ),
               );
             },
           ),

@@ -16,7 +16,8 @@ class NotificationCategoryPage extends StatefulWidget {
   });
 
   @override
-  State<NotificationCategoryPage> createState() => _NotificationCategoryPageState();
+  State<NotificationCategoryPage> createState() =>
+      _NotificationCategoryPageState();
 }
 
 class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
@@ -63,15 +64,13 @@ class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
       List<NotificationModel> filtered;
       if (widget.category == 'interaction') {
         // 评论和转发
-        filtered = allNotifications.where((n) =>
-        n.type == 'comment' || n.type == 'share'
-        ).toList();
+        filtered = allNotifications
+            .where((n) => n.type == 'comment' || n.type == 'share')
+            .toList();
         print('✅ 评论和转发通知数: ${filtered.length}');
       } else {
         // 点赞
-        filtered = allNotifications.where((n) =>
-        n.type == 'like'
-        ).toList();
+        filtered = allNotifications.where((n) => n.type == 'like').toList();
         print('✅ 点赞通知数: ${filtered.length}');
       }
 
@@ -87,6 +86,7 @@ class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
       });
     }
   }
+
 // 一键已读
   Future<void> _markAllCategoryAsRead() async {
     try {
@@ -104,7 +104,7 @@ class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
             refUserId: notif.refUserId,
             title: notif.title,
             content: notif.content,
-            isRead: true,  // 全部标记为已读
+            isRead: true, // 全部标记为已读
             createdAt: notif.createdAt,
           );
         }).toList();
@@ -131,14 +131,41 @@ class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
   }
 
   Future<void> _markAsReadAndNavigate(NotificationModel notification) async {
-    // 标记为已读
-    if (!notification.isRead) {
-      try {
-        await _notificationService.markAsRead(notification.id);
-      } catch (e) {
-        print('❌ 标记已读失败: $e');
-      }
+    // // 标记为已读
+    // if (!notification.isRead) {
+    //   try {
+    //     await _notificationService.markAsRead(notification.id);
+    //   } catch (e) {
+    //     print('❌ 标记已读失败: $e');
+    //   }
+    // }
+      // 标记为已读
+  if (!notification.isRead) {
+    try {
+      await _notificationService.markAsRead(notification.id);
+      
+      // 🔥 关键修改：立即更新本地状态
+      setState(() {
+        final index = _notifications.indexWhere((n) => n.id == notification.id);
+        if (index != -1) {
+          _notifications[index] = NotificationModel(
+            id: notification.id,
+            userId: notification.userId,
+            type: notification.type,
+            refId: notification.refId,
+            refUserId: notification.refUserId,
+            title: notification.title,
+            content: notification.content,
+            isRead: true, // 🔥 标记为已读
+            createdAt: notification.createdAt,
+          );
+        }
+      });
+      
+    } catch (e) {
+      print('❌ 标记已读失败: $e');
     }
+  }
 
     // 跳转到帖子详情
     final postId = _getSafeInt(notification.refId);
@@ -162,7 +189,8 @@ class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
   }
 
   // 获取通知对应的头像URL
-  Future<String?> _getNotificationAvatarUrl(NotificationModel notification) async {
+  Future<String?> _getNotificationAvatarUrl(
+      NotificationModel notification) async {
     // 对于点赞和评论，使用 ref_user_id（操作者的头像）
     if (notification.refUserId != null && notification.refUserId!.isNotEmpty) {
       return await _getUserAvatarUrl(notification.refUserId!);
@@ -185,7 +213,9 @@ class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
 
     try {
       final profile = await _profileService.fetchUserProfile(userId);
-      if (profile != null && profile.avatarUrl != null && profile.avatarUrl!.isNotEmpty) {
+      if (profile != null &&
+          profile.avatarUrl != null &&
+          profile.avatarUrl!.isNotEmpty) {
         _userAvatarCache[userId] = profile.avatarUrl!;
         return profile.avatarUrl;
       }
@@ -221,7 +251,7 @@ class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
     return null;
   }
 
-  String _formatTime(DateTime time) {
+  /* String _formatTime(DateTime time) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
@@ -236,6 +266,27 @@ class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
       return '$daysAgo天前';
     } else {
       return '${time.month}月${time.day}日';
+    }
+  } */
+
+  String _formatTime(DateTime time) {
+    // 🔥 关键修改：将 UTC 时间转换为本地时间
+    final localTime = time.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final notificationDay =
+        DateTime(localTime.year, localTime.month, localTime.day);
+
+    if (notificationDay == today) {
+      return '${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
+    } else if (notificationDay == yesterday) {
+      return '昨天 ${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
+    } else if (now.difference(localTime).inDays < 7) {
+      final daysAgo = now.difference(localTime).inDays;
+      return '$daysAgo天前';
+    } else {
+      return '${localTime.month}月${localTime.day}日';
     }
   }
 
@@ -259,11 +310,11 @@ class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
           ),
         ),
         centerTitle: true,
-
       ),
       body: _buildBody(),
     );
   }
+
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(
@@ -300,11 +351,15 @@ class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.notifications_none, size: 80, color: Color(0xFFED7099)),
+            const Icon(Icons.notifications_none,
+                size: 80, color: Color(0xFFED7099)),
             const SizedBox(height: 16),
             Text(
               '暂无${_pageTitle}通知',
-              style: const TextStyle(fontSize: 18, color: Colors.black87, fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                  fontSize: 18,
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -375,7 +430,8 @@ class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
             child: ListView.separated(
               padding: const EdgeInsets.symmetric(vertical: 8),
               itemCount: _notifications.length,
-              separatorBuilder: (context, index) => Divider(height: 1, color: Colors.grey.shade100),
+              separatorBuilder: (context, index) =>
+                  Divider(height: 1, color: Colors.grey.shade100),
               itemBuilder: (context, index) {
                 final notification = _notifications[index];
                 return _buildNotificationItem(notification);
@@ -494,9 +550,13 @@ class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
                             child: Text(
                               notification.title,
                               style: TextStyle(
-                                fontWeight: notification.isRead ? FontWeight.normal : FontWeight.w600,
+                                fontWeight: notification.isRead
+                                    ? FontWeight.normal
+                                    : FontWeight.w600,
                                 fontSize: 14,
-                                color: notification.isRead ? Colors.grey.shade700 : Colors.black,
+                                color: notification.isRead
+                                    ? Colors.grey.shade700
+                                    : Colors.black,
                               ),
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
@@ -510,7 +570,9 @@ class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
                           notification.content!,
                           style: TextStyle(
                             fontSize: 13,
-                            color: notification.isRead ? Colors.grey.shade600 : Colors.black87,
+                            color: notification.isRead
+                                ? Colors.grey.shade600
+                                : Colors.black87,
                           ),
                           maxLines: 3,
                           overflow: TextOverflow.ellipsis,
@@ -519,7 +581,8 @@ class _NotificationCategoryPageState extends State<NotificationCategoryPage> {
                       const SizedBox(height: 6),
                       Text(
                         _formatTime(notification.createdAt),
-                        style: const TextStyle(fontSize: 11, color: Colors.grey),
+                        style:
+                            const TextStyle(fontSize: 11, color: Colors.grey),
                       ),
                     ],
                   ),

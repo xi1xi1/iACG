@@ -62,7 +62,7 @@ class _SearchTagsTabState extends State<SearchTagsTab> with AutomaticKeepAliveCl
 
   Future<void> _loadMoreData({bool reset = false}) async {
     if (_isLoading || !_hasMore) return;
-    
+
     if (reset) {
       _currentPage = 1;
       _hasMore = true;
@@ -136,7 +136,7 @@ class _SearchTagsTabState extends State<SearchTagsTab> with AutomaticKeepAliveCl
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    
+
     if (widget.keyword.isEmpty) {
       return const Center(
         child: Text(
@@ -285,22 +285,23 @@ class _SearchTagsTabState extends State<SearchTagsTab> with AutomaticKeepAliveCl
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 标签类型
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: textColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      _getTypeDisplayName(tagType),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: textColor,
-                        fontWeight: FontWeight.w600,
+                  // 新增：仅当标签类型不是user时，才显示类型
+                  if (tagType != 'user')
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: textColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        _getTypeDisplayName(tagType),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: textColor,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
 
                   const SizedBox(height: 8),
 

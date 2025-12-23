@@ -272,7 +272,449 @@ class PostService {
         .eq('follower_id', _client.auth.currentUser!.id)
         .eq('following_id', targetUserId);
   }
+  /// 获取热门帖子（带时间衰减的热度算法） - 支持筛选的版本
+Future<List<Map<String, dynamic>>> fetchHotPostsWithTimeDecayFiltered({
+  int limit = 20,
+  int offset = 0,
+  String? category,  // 新增：分类筛选
+  String? ipTag,     // 新增：IP标签筛选
+  String postType = 'cos', // 新增：帖子类型，默认cos
+}) async {
+  try {
+    print('🔥 开始获取热门帖子（筛选版），category=$category, ipTag=$ipTag, limit=$limit, offset=$offset');
+    
+    // ✅ 获取更多数据用于缓冲
+    final fetchLimit = offset + limit + 50;
+    
+    // ✅ 修复：先查询有指定IP标签的帖子ID
+    Set<int> ipFilteredPostIds = {};
+    if (ipTag != null && ipTag.isNotEmpty && ipTag != '全部') {
+      print('🔍 开始查询IP标签: $ipTag');
+      
+      try {
+        // 1. 先查询标签ID
+        final tagResult = await _client
+            .from('tags')
+            .select('id')
+            .eq('name', ipTag)
+            .eq('type', 'ip')
+            .maybeSingle();
+            
+        if (tagResult != null) {
+          final tagId = tagResult['id'] as int;
+          print('✅ 找到IP标签ID: $tagId');
+          
+          // 2. 查询有该标签的帖子ID
+          final taggedPostsResult = await _client
+              .from('post_tags')
+              .select('post_id')
+              .eq('tag_id', tagId);
+              
+          if ((taggedPostsResult as List).isNotEmpty) {
+            ipFilteredPostIds = (taggedPostsResult as List)
+                .map((r) => r['post_id'] as int)
+                .toSet();
+            print('✅ 找到 ${ipFilteredPostIds.length} 个有该标签的帖子');
+            
+            if (ipFilteredPostIds.isEmpty) {
+              print('⚠️ 没有帖子有这个IP标签');
+              return []; // 直接返回空列表
+            }
+          } else {
+            print('⚠️ 没有帖子有这个IP标签');
+            return []; // 直接返回空列表
+          }
+        } else {
+          print('⚠️ IP标签不存在: $ipTag');
+          return []; // 直接返回空列表
+        }
+      } catch (e) {
+        print('❌ IP标签查询失败: $e');
+        // 如果查询失败，返回空列表避免错误数据
+        return [];
+      }
+    }
+    
+    // ✅ 基础查询
+    var query = _client
+        .from('posts')
+        .select('''
+          id, channel, title, content, main_category, created_at,
+          like_count, favorite_count, comment_count, view_count,
+          author_id,
+          author:profiles!posts_author_id_fkey(id, nickname, avatar_url, is_coser),
+          post_media(media_url, media_type, sort_order),
+          post_tags(tag:tags(id, name, type))
+        ''')
+        .eq('channel', postType) // 使用传入的postType
+        .eq('is_deleted', false)
+        .eq('status', 'normal')
+        .eq('visibility', 'public');
+    
+    // ✅ 添加分类筛选
+    if (category != null && category.isNotEmpty && category != '全部') {
+      final dbCategory = getCategoryDbValue(category);
+      if (dbCategory != null) {
+        query = query.eq('main_category', dbCategory);
+        print('🔍 应用分类筛选: $category -> $dbCategory');
+      }
+    }
+    
+    // ✅ 应用IP标签筛选（如果有）
+    if (ipFilteredPostIds.isNotEmpty) {
+      print('🔍 应用IP标签筛选，帖子ID列表: ${ipFilteredPostIds.take(10).toList()}...');
+      query = query.inFilter('id', ipFilteredPostIds.toList());
+    }
+    
+    // ✅ 执行查询
+    final allPosts = await query
+        .order('created_at', ascending: false)
+        .limit(fetchLimit)
+        .then((resp) => (resp as List).cast<Map<String, dynamic>>());
 
+    print('📊 从数据库获取到 ${allPosts.length} 条帖子（筛选后）');
+
+    if (allPosts.isEmpty) {
+      print('📭 没有符合条件的帖子');
+      return [];
+    }
+
+    // ✅ 热度计算算法（与原有方法相同）
+    final now = DateTime.now();
+    final List<Map<String, dynamic>> scoredPosts = allPosts.map((post) {
+      try {
+        final createdAtStr = post['created_at']?.toString() ?? '';
+        if (createdAtStr.isEmpty) {
+          print('⚠️ 帖子 ${post['id']} 缺少创建时间');
+          return {
+            'post': post,
+            'hotScore': 0.0,
+            'createdAt': null,
+          };
+        }
+        
+        final createdAt = DateTime.parse(createdAtStr);
+        final hoursAgo = now.difference(createdAt).inHours.toDouble();
+        
+        // 基础分数
+        final likeCount = (post['like_count'] as int? ?? 0);
+        final favCount = (post['favorite_count'] as int? ?? 0);
+        final commentCount = (post['comment_count'] as int? ?? 0);
+        final viewCount = (post['view_count'] as int? ?? 0);
+        
+        final baseScore = 
+          likeCount * 5.0 +
+          favCount * 4.0 +
+          commentCount * 3.0 +
+          viewCount * 0.01;
+        
+        // 时间衰减函数 - 强化时间因素
+        double timeFactor;
+
+        if (hoursAgo < 1) {
+          // 1小时内：增加优势到80%
+          timeFactor = 0.55; // 1/1.8 = 0.55，相当于加成80%
+        } else if (hoursAgo < 6) {
+          // 1-6小时：较快的衰减
+          timeFactor = 1.0 / (1.0 + (hoursAgo - 1) * 0.15);
+        } else if (hoursAgo < 24) {
+          // 6-24小时：继续衰减
+          timeFactor = 1.0 / (1.0 + 5 * 0.15 + (hoursAgo - 6) * 0.1);
+        } else if (hoursAgo < 168) { // 7天
+          // 1-3天：加快衰减
+          timeFactor = 1.0 / (1.0 + 5 * 0.15 + 18 * 0.1 + (hoursAgo - 24) * 0.15);
+        } else if (hoursAgo < 720) { // 30天
+          // 3-7天：更快的衰减
+          timeFactor = 1.0 / (1.0 + 5 * 0.15 + 18 * 0.1 + 48 * 0.15 + (hoursAgo - 72) * 0.2);
+        } else {
+          // 7天以上：非常缓慢地衰减，但基本上失去权重
+          timeFactor = 1.0 / (1.0 + 5 * 0.15 + 18 * 0.1 + 48 * 0.15 + 96 * 0.2 + (hoursAgo - 168) * 0.3);
+        }
+        
+        final hotScore = baseScore * timeFactor;
+        
+        // 调试信息
+        if (kDebugMode && post['id'] == allPosts.first['id']) {
+          print('📊 热度计算示例 - 帖子ID: ${post['id']}');
+          print('  发布时间: ${hoursAgo.toStringAsFixed(1)}小时前');
+          print('  互动数据: 👍$likeCount ❤️$favCount 💬$commentCount 👁️$viewCount');
+          print('  基础分: ${baseScore.toStringAsFixed(2)}, 时间因子: ${timeFactor.toStringAsFixed(4)}');
+          print('  最终热度: ${hotScore.toStringAsFixed(2)}');
+        }
+        
+        return {
+          'post': post,
+          'hotScore': hotScore,
+          'createdAt': createdAt,
+        };
+      } catch (e) {
+        print('❌ 计算帖子热度失败 ${post['id']}: $e');
+        return {
+          'post': post,
+          'hotScore': 0.0,
+          'createdAt': null,
+        };
+      }
+    }).toList();
+
+    // ✅ 按热度分排序
+    scoredPosts.sort((a, b) {
+      final scoreA = a['hotScore'] as double? ?? 0.0;
+      final scoreB = b['hotScore'] as double? ?? 0.0;
+      return scoreB.compareTo(scoreA); // 降序排序
+    });
+    
+    // ✅ 调试输出
+    if (kDebugMode && scoredPosts.isNotEmpty) {
+      print('🏆 热度排名前5（筛选版）:');
+      for (int i = 0; i < min(5, scoredPosts.length); i++) {
+        final item = scoredPosts[i];
+        final hotScore = item['hotScore'] as double? ?? 0.0;
+        final post = item['post'] as Map<String, dynamic>;
+        print('  ${i + 1}. 帖子ID: ${post['id']} '
+              '热度: ${hotScore.toStringAsFixed(2)} '
+              '👍${post['like_count']} '
+              '❤️${post['favorite_count']} '
+              '💬${post['comment_count']}');
+      }
+    }
+
+    // ✅ 分页处理
+    final startIndex = offset;
+    final endIndex = min(offset + limit, scoredPosts.length);
+    
+    if (startIndex >= scoredPosts.length) {
+      print('📭 分页超出范围: offset=$offset, 总数=${scoredPosts.length}');
+      return [];
+    }
+    
+    final result = scoredPosts
+        .sublist(startIndex, endIndex)
+        .map((item) => item['post'] as Map<String, dynamic>)
+        .toList();
+
+    print('✅ 返回 ${result.length} 条帖子 (筛选版, offset=$offset, limit=$limit)');
+    
+    // ✅ 验证结果（调试用）
+    if (ipTag != null && ipTag.isNotEmpty && ipTag != '全部' && result.isNotEmpty) {
+      final firstPostTags = (result.first['post_tags'] as List?)
+          ?.map((t) => (t['tag']?['name'] as String?) ?? '')
+          .where((name) => name.isNotEmpty)
+          .toList() ?? [];
+      
+      print('🔍 验证IP筛选结果 - 第一条帖子的标签: $firstPostTags');
+      print('🔍 是否包含筛选的IP标签 "$ipTag": ${firstPostTags.contains(ipTag)}');
+    }
+    
+    return result;
+    
+  } catch (e, stackTrace) {
+    print('❌ 获取热门帖子（筛选版）失败: $e');
+    print('堆栈: $stackTrace');
+    
+    // ✅ 降级方案：使用原始的 fetchCosPosts 方法
+    print('🔄 尝试降级到原始COS查询...');
+    try {
+      final dbCategory = category == '全部' ? null : category;
+      final dbIpTag = ipTag == '全部' ? null : ipTag;
+      
+      return await fetchCosPosts(
+        category: dbCategory,
+        ipTag: dbIpTag,
+        limit: limit,
+        offset: offset,
+      );
+    } catch (fallbackError) {
+      print('❌ 降级方案也失败: $fallbackError');
+      return [];
+    }
+  }
+}
+// /// 获取热门帖子（带时间衰减的热度算法） - 支持筛选的版本
+// Future<List<Map<String, dynamic>>> fetchHotPostsWithTimeDecayFiltered({
+//   int limit = 20,
+//   int offset = 0,
+//   String? category,  // 新增：分类筛选
+//   String? ipTag,     // 新增：IP标签筛选
+//   String postType = 'cos', // 新增：帖子类型，默认cos
+// }) async {
+//   try {
+//     print('🔥 开始获取热门帖子（筛选版），category=$category, ipTag=$ipTag, limit=$limit, offset=$offset');
+    
+//     // ✅ 获取更多数据用于缓冲
+//     final fetchLimit = offset + limit + 50;
+    
+//     // ✅ 基础查询
+//     var query = _client
+//         .from('posts')
+//         .select('''
+//           id, channel, title, content, main_category, created_at,
+//           like_count, favorite_count, comment_count, view_count,
+//           author_id,
+//           author:profiles!posts_author_id_fkey(id, nickname, avatar_url, is_coser),
+//           post_media(media_url, media_type, sort_order),
+//           post_tags(tag:tags(id, name, type))
+//         ''')
+//         .eq('channel', postType) // 使用传入的postType
+//         .eq('is_deleted', false)
+//         .eq('status', 'normal')
+//         .eq('visibility', 'public');
+    
+//     // ✅ 添加分类筛选
+//     if (category != null && category.isNotEmpty && category != '全部') {
+//       final dbCategory = getCategoryDbValue(category);
+//       if (dbCategory != null) {
+//         query = query.eq('main_category', dbCategory);
+//         print('🔍 应用分类筛选: $category -> $dbCategory');
+//       }
+//     }
+    
+//     // ✅ 添加IP标签筛选
+//     if (ipTag != null && ipTag.isNotEmpty && ipTag != '全部') {
+//       // 使用inner join确保只获取有该标签的帖子
+//       query = query.eq('post_tags.tag.name', ipTag);
+//       print('🔍 应用IP标签筛选: $ipTag');
+//     }
+    
+//     final allPosts = await query
+//         .order('created_at', ascending: false)
+//         .limit(fetchLimit)
+//         .then((resp) => (resp as List).cast<Map<String, dynamic>>());
+
+//     print('📊 从数据库获取到 ${allPosts.length} 条帖子（筛选后）');
+
+//     if (allPosts.isEmpty) {
+//       print('📭 没有符合条件的帖子');
+//       return [];
+//     }
+
+//     // ✅ 热度计算算法（与原有方法相同）
+//     final now = DateTime.now();
+//     final List<Map<String, dynamic>> scoredPosts = allPosts.map((post) {
+//       try {
+//         final createdAtStr = post['created_at']?.toString() ?? '';
+//         if (createdAtStr.isEmpty) {
+//           return {
+//             'post': post,
+//             'hotScore': 0.0,
+//             'createdAt': null,
+//           };
+//         }
+        
+//         final createdAt = DateTime.parse(createdAtStr);
+//         final hoursAgo = now.difference(createdAt).inHours.toDouble();
+        
+//         // 基础分数
+//         final likeCount = (post['like_count'] as int? ?? 0);
+//         final favCount = (post['favorite_count'] as int? ?? 0);
+//         final commentCount = (post['comment_count'] as int? ?? 0);
+//         final viewCount = (post['view_count'] as int? ?? 0);
+        
+//         final baseScore = 
+//           likeCount * 5.0 +
+//           favCount * 4.0 +
+//           commentCount * 3.0 +
+//           viewCount * 0.01;
+        
+//         // 时间衰减函数 - 强化时间因素
+// double timeFactor;
+
+// if (hoursAgo < 1) {
+//   // 1小时内：增加优势到80%
+//   timeFactor = 0.55; // 1/1.8 = 0.55，相当于加成80%
+// } else if (hoursAgo < 6) {
+//   // 1-6小时：较快的衰减
+//   timeFactor = 1.0 / (1.0 + (hoursAgo - 1) * 0.15);
+// } else if (hoursAgo < 24) {
+//   // 6-24小时：继续衰减
+//   timeFactor = 1.0 / (1.0 + 5 * 0.15 + (hoursAgo - 6) * 0.1);
+// } else if (hoursAgo < 168) { // 7天
+//   // 1-3天：加快衰减
+//   timeFactor = 1.0 / (1.0 + 5 * 0.15 + 18 * 0.1 + (hoursAgo - 24) * 0.15);
+// } else if (hoursAgo < 720) { // 30天
+//   // 3-7天：更快的衰减
+//   timeFactor = 1.0 / (1.0 + 5 * 0.15 + 18 * 0.1 + 48 * 0.15 + (hoursAgo - 72) * 0.2);
+// } else {
+//   // 7天以上：非常缓慢地衰减，但基本上失去权重
+//   timeFactor = 1.0 / (1.0 + 5 * 0.15 + 18 * 0.1 + 48 * 0.15 + 96 * 0.2 + (hoursAgo - 168) * 0.3);
+// }
+        
+//         final hotScore = baseScore * timeFactor;
+        
+//         return {
+//           'post': post,
+//           'hotScore': hotScore,
+//           'createdAt': createdAt,
+//         };
+//       } catch (e) {
+//         print('❌ 计算帖子热度失败 ${post['id']}: $e');
+//         return {
+//           'post': post,
+//           'hotScore': 0.0,
+//           'createdAt': null,
+//         };
+//       }
+//     }).toList();
+
+//     // ✅ 按热度分排序
+//     scoredPosts.sort((a, b) {
+//       final scoreA = a['hotScore'] as double? ?? 0.0;
+//       final scoreB = b['hotScore'] as double? ?? 0.0;
+//       return scoreB.compareTo(scoreA);
+//     });
+    
+//     // ✅ 调试输出
+//     if (kDebugMode && scoredPosts.isNotEmpty) {
+//       print('🏆 热度排名前5（筛选版）:');
+//       for (int i = 0; i < min(5, scoredPosts.length); i++) {
+//         final item = scoredPosts[i];
+//         final hotScore = item['hotScore'] as double? ?? 0.0;
+//         final post = item['post'] as Map<String, dynamic>;
+//         print('  ${i + 1}. 帖子ID: ${post['id']} '
+//               '热度: ${hotScore.toStringAsFixed(2)} '
+//               '👍${post['like_count']}');
+//       }
+//     }
+
+//     // ✅ 分页处理
+//     final startIndex = offset;
+//     final endIndex = min(offset + limit, scoredPosts.length);
+    
+//     if (startIndex >= scoredPosts.length) {
+//       print('📭 分页超出范围: offset=$offset, 总数=${scoredPosts.length}');
+//       return [];
+//     }
+    
+//     final result = scoredPosts
+//         .sublist(startIndex, endIndex)
+//         .map((item) => item['post'] as Map<String, dynamic>)
+//         .toList();
+
+//     print('✅ 返回 ${result.length} 条帖子 (筛选版, offset=$offset, limit=$limit)');
+//     return result;
+    
+//   } catch (e, stackTrace) {
+//     print('❌ 获取热门帖子（筛选版）失败: $e');
+//     print('堆栈: $stackTrace');
+    
+//     // ✅ 降级方案：使用原始的 fetchCosPosts 方法
+//     print('🔄 尝试降级到原始COS查询...');
+//     try {
+//       final dbCategory = category == '全部' ? null : category;
+//       final dbIpTag = ipTag == '全部' ? null : ipTag;
+      
+//       return await fetchCosPosts(
+//         category: dbCategory,
+//         ipTag: dbIpTag,
+//         limit: limit,
+//         offset: offset,
+//       );
+//     } catch (fallbackError) {
+//       print('❌ 降级方案也失败: $fallbackError');
+//       return [];
+//     }
+//   }
+// }
   // ==================== 原有的帖子相关方法 ====================
 /// 获取热门帖子（带时间衰减的热度算法） - 修正版
 Future<List<Map<String, dynamic>>> fetchHotPostsWithTimeDecay({
@@ -336,9 +778,9 @@ Future<List<Map<String, dynamic>>> fetchHotPostsWithTimeDecay({
         // 权重：点赞 > 收藏 > 评论 > 浏览
         final baseScore = 
           likeCount * 5.0 +      // 点赞权重 5
-          favCount * 4.0 +       // 收藏权重 4
+          favCount * 6.0 +       // 收藏权重 6
           commentCount * 3.0 +   // 评论权重 3
-          viewCount * 0.01;      // 浏览权重很低（防刷）
+          viewCount * 0.1;      // 浏览权重很低（防刷）
         
         // ✅ 改进的时间衰减函数（更平滑）
         // 公式：热度 = 基础分 / (时间衰减因子)
@@ -591,57 +1033,106 @@ Future<List<Map<String, dynamic>>> fetchHotPostsWithTimeDecay({
       return [];
     }
   }
-
-  /// 群岛列表（可按类型筛选，带可选封面），支持分页
-  Future<List<Map<String, dynamic>>> fetchIslandPosts({
-    String? islandType, // '求助' / '分享' / ... / '全部'
-    int limit = 20,
-    int offset = 0,
-  }) async {
-    try {
-      if (kDebugMode) {
-        debugPrint('=== 开始获取群岛帖子 ===');
-        debugPrint('请求类型: $islandType, limit=$limit, offset=$offset');
-      }
-
-      var query = _client
-          .from('posts')
-          .select('''
-            id, channel, title, content, island_type, created_at,
-            comment_count, view_count, author_id,
-            author:profiles!posts_author_id_fkey(id, nickname, avatar_url),
-            post_media(media_url, media_type, sort_order)
-          ''')
-          .eq('channel', 'island')
-          .eq('is_deleted', false)
-          .eq('status', 'normal');
-
-      if (islandType != null && islandType.isNotEmpty && islandType != '全部') {
-        query = query.eq('island_type', islandType);
-      }
-
-      final resp = await query
-          // 子表首图（可选）
-          .order('sort_order', ascending: true, referencedTable: 'post_media')
-          .limit(1, referencedTable: 'post_media')
-          // 主列表
-          .order('created_at', ascending: false)
-          .range(offset, offset + limit - 1)
-          .timeout(const Duration(seconds: 15));
-
-      if (kDebugMode) {
-        debugPrint('✅ 群岛查询成功，获取到 ${(resp as List).length} 条帖子');
-      }
-
-      return (resp as List).cast<Map<String, dynamic>>();
-    } on TimeoutException {
-      if (kDebugMode) debugPrint('❌ 群岛查询超时');
-      throw Exception('请求超时，请稍后重试');
-    } catch (e) {
-      if (kDebugMode) debugPrint('❌ 获取群岛帖子时出错: $e');
-      throw Exception('加载失败: ${e.toString()}');
+/// 群岛列表（可按类型筛选，带可选封面），支持分页
+Future<List<Map<String, dynamic>>> fetchIslandPosts({
+  String? islandType, // '求助' / '分享' / ... / '全部'
+  int limit = 20,
+  int offset = 0,
+}) async {
+  try {
+    if (kDebugMode) {
+      debugPrint('=== 开始获取群岛帖子 ===');
+      debugPrint('请求类型: $islandType, limit=$limit, offset=$offset');
     }
+
+    var query = _client
+        .from('posts')
+        .select('''
+          id, channel, title, content, island_type, created_at,
+          comment_count, view_count, like_count, favorite_count, author_id,
+          author:profiles!posts_author_id_fkey(id, nickname, avatar_url),
+          post_media(media_url, media_type, sort_order)
+        ''')
+        .eq('channel', 'island')
+        .eq('is_deleted', false)
+        .eq('status', 'normal');
+
+    if (islandType != null && islandType.isNotEmpty && islandType != '全部') {
+      query = query.eq('island_type', islandType);
+    }
+
+    final resp = await query
+        // 子表首图（可选）
+        .order('sort_order', ascending: true, referencedTable: 'post_media')
+        .limit(1, referencedTable: 'post_media')
+        // 主列表
+        .order('created_at', ascending: false)
+        .range(offset, offset + limit - 1)
+        .timeout(const Duration(seconds: 15));
+
+    if (kDebugMode) {
+      debugPrint('✅ 群岛查询成功，获取到 ${(resp as List).length} 条帖子');
+    }
+
+    return (resp as List).cast<Map<String, dynamic>>();
+  } on TimeoutException {
+    if (kDebugMode) debugPrint('❌ 群岛查询超时');
+    throw Exception('请求超时，请稍后重试');
+  } catch (e) {
+    if (kDebugMode) debugPrint('❌ 获取群岛帖子时出错: $e');
+    throw Exception('加载失败: ${e.toString()}');
   }
+}
+  // /// 群岛列表（可按类型筛选，带可选封面），支持分页
+  // Future<List<Map<String, dynamic>>> fetchIslandPosts({
+  //   String? islandType, // '求助' / '分享' / ... / '全部'
+  //   int limit = 20,
+  //   int offset = 0,
+  // }) async {
+  //   try {
+  //     if (kDebugMode) {
+  //       debugPrint('=== 开始获取群岛帖子 ===');
+  //       debugPrint('请求类型: $islandType, limit=$limit, offset=$offset');
+  //     }
+
+  //     var query = _client
+  //         .from('posts')
+  //         .select('''
+  //           id, channel, title, content, island_type, created_at,
+  //           comment_count, view_count, author_id,
+  //           author:profiles!posts_author_id_fkey(id, nickname, avatar_url),
+  //           post_media(media_url, media_type, sort_order)
+  //         ''')
+  //         .eq('channel', 'island')
+  //         .eq('is_deleted', false)
+  //         .eq('status', 'normal');
+
+  //     if (islandType != null && islandType.isNotEmpty && islandType != '全部') {
+  //       query = query.eq('island_type', islandType);
+  //     }
+
+  //     final resp = await query
+  //         // 子表首图（可选）
+  //         .order('sort_order', ascending: true, referencedTable: 'post_media')
+  //         .limit(1, referencedTable: 'post_media')
+  //         // 主列表
+  //         .order('created_at', ascending: false)
+  //         .range(offset, offset + limit - 1)
+  //         .timeout(const Duration(seconds: 15));
+
+  //     if (kDebugMode) {
+  //       debugPrint('✅ 群岛查询成功，获取到 ${(resp as List).length} 条帖子');
+  //     }
+
+  //     return (resp as List).cast<Map<String, dynamic>>();
+  //   } on TimeoutException {
+  //     if (kDebugMode) debugPrint('❌ 群岛查询超时');
+  //     throw Exception('请求超时，请稍后重试');
+  //   } catch (e) {
+  //     if (kDebugMode) debugPrint('❌ 获取群岛帖子时出错: $e');
+  //     throw Exception('加载失败: ${e.toString()}');
+  //   }
+  // }
 
   /// 按标签名聚合帖子（COS + 群岛），支持分页 & 排序（latest/hot）
   Future<List<Map<String, dynamic>>> fetchPostsByTag(

@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -58,7 +56,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
   void _subscribeToNotifications() {
     try {
       _subscription = _notificationService.subscribeToNotifications(
-            (newNotification) {
+        (newNotification) {
           print('🔄 收到新实时通知: ${newNotification.title}');
           if (mounted) {
             setState(() {
@@ -71,6 +69,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
       print('❌ 订阅通知失败: $e');
     }
   }
+
 // 修改 _loadNotifications 方法
   Future<void> _loadNotifications() async {
     print('🔄 加载通知列表...');
@@ -85,9 +84,8 @@ class _NotificationListPageState extends State<NotificationListPage> {
       _interactionUnreadCount = notifications
           .where((n) => !n.isRead && (n.type == 'comment' || n.type == 'share'))
           .length;
-      _likeUnreadCount = notifications
-          .where((n) => !n.isRead && n.type == 'like')
-          .length;
+      _likeUnreadCount =
+          notifications.where((n) => !n.isRead && n.type == 'like').length;
 
       // ✅ 新增：过滤掉评论、点赞、转发的通知（只在下面整个列表中过滤）
       final filteredNotifications = notifications.where((notification) {
@@ -191,53 +189,80 @@ class _NotificationListPageState extends State<NotificationListPage> {
     }
     return 0;
   }
+
   // 🔥 新增：导航到分类页面
   void _navigateToCategoryPage(String category) {
-    Navigator.of(context).push(
+    Navigator.of(context)
+        .push(
       MaterialPageRoute(
         builder: (_) => NotificationCategoryPage(category: category),
       ),
-    ).then((_) {
+    )
+        .then((_) {
       // 从分类页面返回时刷新列表
       _loadNotifications();
     });
   }
 
   Future<void> _markAllAsRead() async {
-    try {
-      await _notificationService.markAllAsRead();
-
-      // 🔥 立即更新本地状态
-      setState(() {
-        _notifications = _notifications.map((notif) {
-          return NotificationModel(
-            id: notif.id,
-            userId: notif.userId,
-            type: notif.type,
-            refId: notif.refId,
-            refUserId: notif.refUserId,
-            title: notif.title,
-            content: notif.content,
-            isRead: true,
-            createdAt: notif.createdAt,
-          );
-        }).toList();
-      });
-
+  try {
+    // ✅ 只标记当前页面显示的通知（不包含分类页面的通知）
+    final currentPageNotificationIds = _notifications
+        .where((n) => !n.isRead)  // 只处理未读的
+        .map((n) => n.id)
+        .toList();
+    
+    if (currentPageNotificationIds.isEmpty) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已全部标记为已读')),
+          const SnackBar(content: Text('没有未读通知')),
         );
       }
-    } catch (e) {
-      print('❌ 全部标记已读失败: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('操作失败: $e')),
+      return;
+    }
+    
+    // ✅ 逐个标记当前页面的通知为已读
+    for (final notificationId in currentPageNotificationIds) {
+      await _notificationService.markAsRead(notificationId);
+    }
+    
+    // 🔥 立即更新本地状态
+    setState(() {
+      _notifications = _notifications.map((notif) {
+        return NotificationModel(
+          id: notif.id,
+          userId: notif.userId,
+          type: notif.type,
+          refId: notif.refId,
+          refUserId: notif.refUserId,
+          title: notif.title,
+          content: notif.content,
+          isRead: true, // 全部标记为已读
+          createdAt: notif.createdAt,
         );
-      }
+      }).toList();
+    });
+
+    // 🔥 更新未读计数
+    await _notificationService.fetchUnreadCount();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('已标记 ${currentPageNotificationIds.length} 条通知为已读'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  } catch (e) {
+    print('❌ 标记当前页通知已读失败: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('操作失败: $e')),
+      );
     }
   }
+}
 
   Future<void> _markNotificationAsRead(NotificationModel notification) async {
     if (notification.isRead) return;
@@ -286,22 +311,22 @@ class _NotificationListPageState extends State<NotificationListPage> {
 
   Future<bool> _showDeleteConfirmation(NotificationModel notification) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('删除通知'),
-        content: Text('确定要删除 "${notification.title}" 吗？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('取消'),
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('删除通知'),
+            content: Text('确定要删除 "${notification.title}" 吗？'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('取消'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('删除', style: TextStyle(color: Colors.red)),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('删除', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    ) ??
+        ) ??
         false;
   }
 
@@ -321,7 +346,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
 
         case 'like':
         case 'comment':
-        case 'share':      // ✅ 添加这一行
+        case 'share': // ✅ 添加这一行
         case 'new_post':
           final postId = _getSafeInt(notification.refId);
           if (postId != null) {
@@ -401,7 +426,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
     try {
       final conversations = await _messageService.fetchConversations();
       final conversation = conversations.firstWhere(
-            (c) => c.id == conversationId,
+        (c) => c.id == conversationId,
         orElse: () => throw Exception('会话不存在'),
       );
 
@@ -422,7 +447,8 @@ class _NotificationListPageState extends State<NotificationListPage> {
     }
   }
 
-  Future<String?> _getNotificationAvatarUrl(NotificationModel notification) async {
+  Future<String?> _getNotificationAvatarUrl(
+      NotificationModel notification) async {
     switch (notification.type) {
       case 'follow':
         if (notification.refUserId != null &&
@@ -434,7 +460,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
       case 'like':
       case 'comment':
       case 'new_post':
-      // 🔥 优先使用 ref_user_id（操作者头像）
+        // 🔥 优先使用 ref_user_id（操作者头像）
         if (notification.refUserId != null &&
             notification.refUserId!.isNotEmpty) {
           return await _getUserAvatarUrl(notification.refUserId!);
@@ -719,8 +745,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
                 color: unreadCount > 0
                     ? const Color(0xFFED7099).withOpacity(0.3)
                     : Colors.grey.shade200,
-                width: 1
-            ),
+                width: 1),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -756,7 +781,8 @@ class _NotificationListPageState extends State<NotificationListPage> {
                   label,
                   style: TextStyle(
                     fontSize: 14,
-                    fontWeight: unreadCount > 0 ? FontWeight.w600 : FontWeight.w500,
+                    fontWeight:
+                        unreadCount > 0 ? FontWeight.w600 : FontWeight.w500,
                     color: Colors.black87,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -765,7 +791,8 @@ class _NotificationListPageState extends State<NotificationListPage> {
               if (unreadCount > 0) ...[
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
                     color: const Color(0xFFED7099),
                     borderRadius: BorderRadius.circular(10),
@@ -886,8 +913,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: const [
-            Icon(Icons.notifications_none,
-                size: 80, color: Color(0xFFED7099)),
+            Icon(Icons.notifications_none, size: 80, color: Color(0xFFED7099)),
             SizedBox(height: 16),
             Text(
               '暂无通知',
@@ -938,7 +964,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
             onDismissed: (direction) => _deleteNotification(notification),
             child: Container(
               color:
-              notification.isRead ? Colors.white : const Color(0xFFF0F8FF),
+                  notification.isRead ? Colors.white : const Color(0xFFF0F8FF),
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -1015,7 +1041,10 @@ class _NotificationListPageState extends State<NotificationListPage> {
                               ],
                               const SizedBox(height: 6),
                               Text(
-                                _formatTime(notification.createdAt),
+                                // _formatTime(notification.createdAt),
+                                notification.type == 'follow' 
+                                ? _formatFollowTime(notification.createdAt)  // 关注通知使用新方法
+                                : _formatTime(notification.createdAt),        // 其他通知使用原方法
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: Colors.grey,
@@ -1036,7 +1065,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
     );
   }
 
-  String _formatTime(DateTime time) {
+  /* String _formatTime(DateTime time) {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final yesterday = today.subtract(const Duration(days: 1));
@@ -1052,5 +1081,55 @@ class _NotificationListPageState extends State<NotificationListPage> {
     } else {
       return '${time.month}月${time.day}日';
     }
+  } */
+
+  String _formatTime(DateTime time) {
+    // 🔥 关键修改：将 UTC 时间转换为本地时间
+    final localTime = time.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final yesterday = today.subtract(const Duration(days: 1));
+    final notificationDay =
+        DateTime(localTime.year, localTime.month, localTime.day);
+
+    if (notificationDay == today) {
+      return '${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
+    } else if (notificationDay == yesterday) {
+      return '昨天 ${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
+    } else if (now.difference(localTime).inDays < 7) {
+      final daysAgo = now.difference(localTime).inDays;
+      return '$daysAgo天前';
+    } else {
+      return '${localTime.month}月${localTime.day}日';
+    }
   }
+  String _formatFollowTime(DateTime time) {
+  // ✅ 直接使用传入的时间，不做任何转换
+  final now = DateTime.now();
+  
+  // 计算时间差
+  final difference = now.difference(time);
+  
+  // 🔥 关键修改：24小时内显示具体时间
+  if (difference.inHours < 24) {
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+  
+  // 昨天
+  final today = DateTime(now.year, now.month, now.day);
+  final yesterday = today.subtract(const Duration(days: 1));
+  final notificationDay = DateTime(time.year, time.month, time.day);
+  
+  if (notificationDay == yesterday) {
+    return '昨天 ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+  
+  // 7天内显示"X天前"
+  if (difference.inDays < 7) {
+    return '${difference.inDays}天前';
+  }
+  
+  // 超过7天显示日期
+  return '${time.month}月${time.day}日';
+}
 }

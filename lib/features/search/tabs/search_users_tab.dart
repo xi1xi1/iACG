@@ -4,7 +4,7 @@ import 'package:iacg/features/profile/user_profile_page.dart';
 import 'package:iacg/services/profile_service.dart';
 import 'package:iacg/services/search_service.dart';
 import 'package:iacg/widgets/avatar_widget.dart';
-
+import 'package:iacg/services/auth_service.dart';
 class SearchUsersTab extends StatefulWidget {
   final SearchService searchService;
   final String keyword;
@@ -332,21 +332,27 @@ class _SearchUsersTabState extends State<SearchUsersTab> with AutomaticKeepAlive
     }
   }
 
-  // 构建关注按钮
-  Widget _buildFollowButton(String? userId, bool isFollowing) {
-    if (userId == null) {
-      return const SizedBox(width: 60);
-    }
-
-    return SizedBox(
-      width: 60,
-      height: 28,
-      child: _FollowButton(
-        userId: userId,
-        initialIsFollowing: isFollowing,
-      ),
-    );
+ // 构建关注按钮
+Widget _buildFollowButton(String? userId, bool isFollowing) {
+  if (userId == null) {
+    return const SizedBox(width: 60);
   }
+  
+  // 🔥 新增：判断是否是自己的用户
+  final AuthService authService = AuthService();
+  if (authService.currentUserId == userId) {
+    return const SizedBox(width: 60); // 是自己的用户，不显示按钮
+  }
+
+  return SizedBox(
+    width: 60,
+    height: 28,
+    child: _FollowButton(
+      userId: userId,
+      initialIsFollowing: isFollowing,
+    ),
+  );
+}
 }
 
 // 关注按钮组件

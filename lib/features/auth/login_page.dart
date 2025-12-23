@@ -12,6 +12,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
   bool _isLogin = true;
@@ -21,15 +22,54 @@ class _LoginPageState extends State<LoginPage> {
   final Color _backgroundColor = const Color(0xFFF5F5F8);
 
   Future<void> _submit() async {
+    // 验证邮箱和密码是否填写
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('请填写邮箱和密码'),
+          content: Text(_isLogin ? '请填写邮箱和密码' : '请填写所有必填项'),
           backgroundColor: _primaryColor,
           behavior: SnackBarBehavior.floating,
         ),
       );
       return;
+    }
+
+    // 注册模式下验证确认密码
+    if (!_isLogin) {
+      if (_confirmPasswordController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('请确认密码'),
+            backgroundColor: _primaryColor,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      // 验证两次密码是否一致
+      if (_passwordController.text != _confirmPasswordController.text) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('两次输入的密码不一致'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      // 验证密码长度（可选，建议至少6位）
+      if (_passwordController.text.length < 6) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('密码长度至少6位'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
     }
 
     setState(() {
@@ -69,6 +109,7 @@ class _LoginPageState extends State<LoginPage> {
             _isLogin = true; // 切换回登录模式
             _emailController.clear();
             _passwordController.clear();
+            _confirmPasswordController.clear();
           });
         }
         return;
@@ -77,7 +118,7 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('操作失败: $e'),
+            content: Text('操作失败: 邮箱或密码不正确'),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -198,6 +239,39 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
 
+              // 注册模式下显示确认密码输入框
+              if (!_isLogin) ...[
+                const SizedBox(height: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: const Color(0xFFE9ECEF),
+                      width: 1,
+                    ),
+                  ),
+                  child: TextField(
+                    controller: _confirmPasswordController,
+                    style: const TextStyle(color: Colors.black),
+                    obscureText: true,
+                    decoration: InputDecoration(
+                      labelText: '确认密码',
+                      labelStyle: const TextStyle(color: Color(0xFF666666)),
+                      border: InputBorder.none,
+                      prefixIcon: Icon(
+                        Icons.lock_rounded,
+                        color: _primaryColor,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 32),
 
               // 登录/注册按钮
@@ -257,12 +331,13 @@ class _LoginPageState extends State<LoginPage> {
                       _isLogin = !_isLogin;
                       _emailController.clear();
                       _passwordController.clear();
+                      _confirmPasswordController.clear();
                     });
                   },
                   child: Text(
                     _isLogin ? '没有账号？立即注册' : '已有账号？立即登录',
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 14, 
                       color: _primaryColor,
                       fontWeight: FontWeight.w500,
                     ),
@@ -280,6 +355,7 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 }

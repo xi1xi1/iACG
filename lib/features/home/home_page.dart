@@ -51,10 +51,20 @@ class _HomePageState extends State<HomePage>
     _tabController = TabController(length: 2, vsync: this);
     _loadEvents();
     _checkUserRole();
-    
+    //_tabController.addListener(_handleTabSelection);
     // 🔥 新增：初始化通知监听
     _initNotificationListener();
   }
+
+//   void _handleTabSelection() {
+//   if (_tabController.indexIsChanging) {
+//     final newIndex = _tabController.index;
+//     if (newIndex == 1 && !_authService.isLoggedIn) {
+//       _tabController.index = 0; // 回到推荐标签
+//       _showLoginPrompt('查看关注内容需要登录');
+//     }
+//   }
+// }
 
   @override
   void dispose() {
@@ -604,6 +614,12 @@ class _HomePageState extends State<HomePage>
           color: AnimeColors.cardWhite,
           child: TabBar(
             controller: _tabController,
+              onTap: (index) {
+                  if (index == 1 && !_authService.isLoggedIn) {
+                    _showLoginPrompt('查看关注内容需要登录');
+                    return; // 阻止切换
+                  }
+                },
             labelColor: AnimeColors.primaryPink,
             unselectedLabelColor: AnimeColors.textLight,
             indicatorColor: AnimeColors.primaryPink,
@@ -626,22 +642,33 @@ class _HomePageState extends State<HomePage>
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.search,
-              color: Colors.black,
-              size: 24,
-            ),
-            onPressed: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SearchPage()),
-              );
-            },
-            tooltip: '搜索',
-          ),
-          // 🔥 修改：添加小红点的信封按钮
+          // 🔥 统一容器样式，保证搜索图标和消息图标高度一致
           Container(
-            margin: const EdgeInsets.only(right: 8),
+            margin: const EdgeInsets.only(right: 8), // 和消息按钮保持相同右边距
+            child: IconButton(
+              icon: const Icon(
+                Icons.search,
+                color: Colors.black,
+                size: 24,
+              ),
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SearchPage()),
+                );
+              },
+              tooltip: '搜索',
+              // 统一点击区域大小
+              iconSize: 24,
+              padding: const EdgeInsets.all(8), // 和消息按钮的默认padding一致
+              constraints: const BoxConstraints(
+                minWidth: 40,
+                minHeight: 40,
+              ),
+            ),
+          ),
+          // 🔥 消息信封按钮（保持原有逻辑，统一尺寸）
+          Container(
+            margin: const EdgeInsets.only(right: 8,top:8),
             child: Stack(
               children: [
                 IconButton(
@@ -655,17 +682,22 @@ class _HomePageState extends State<HomePage>
                       _showLoginPrompt('查看通知需要登录');
                       return;
                     }
-                    // 🔥 修改：跳转到消息页面（保持原有逻辑）
                     Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const MessageListPage()),
                     ).then((_) {
-                      // 🔥 从消息页面返回时刷新未读计数
                       _loadNotificationCount();
                     });
                   },
                   tooltip: '消息',
+                  // 统一尺寸参数
+                  iconSize: 24,
+                  padding: const EdgeInsets.all(8),
+                  constraints: const BoxConstraints(
+                    minWidth: 40,
+                    minHeight: 40,
+                  ),
                 ),
-                // 🔥 新增：小红点
+                // 小红点
                 if (_notificationUnreadCount > 0)
                   Positioned(
                     right: 8,
@@ -703,54 +735,62 @@ class _HomePageState extends State<HomePage>
     );
   }
 
-  void _showLoginPrompt(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: const Text(
-          '登录提示',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.black,
-          ),
-        ),
-        content: Text(
-          message,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Color(0xFF666666),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFF666666),
-            ),
-            child: const Text('取消'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.of(context).pushNamed('/login');
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFED7099),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            ),
-            child: const Text('去登录'),
-          ),
-        ],
+// 添加登录提示弹窗方法
+void _showLoginPrompt(String message) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
       ),
-    );
-  }
+      title: const Text(
+        '登录提示',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.black,
+        ),
+      ),
+      content: Text(
+        message,
+        style: const TextStyle(
+          fontSize: 14,
+          color: Color(0xFF666666),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          style: TextButton.styleFrom(
+            foregroundColor: const Color(0xFF666666),
+          ),
+          child: const Text('取消'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.pop(context);
+            _navigateToLogin();
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFED7099),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          ),
+          child: const Text('去登录'),
+        ),
+      ],
+    ),
+  );
+}
+
+// 跳转到登录页面
+void _navigateToLogin() {
+  Navigator.of(context).push(
+    MaterialPageRoute(builder: (_) => const LoginPage()),
+  );
+}
 }

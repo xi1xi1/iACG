@@ -140,16 +140,26 @@ class _RootShellState extends State<RootShell> {
       return;
     }
 
-    if (index == 3) {
-      if (!_authService.isLoggedIn) {
-        _showLoginPrompt('此功能需要登录');
-        return;
-      }
-      setState(() {
-        _currentIndex = index;
-      });
-      return;
-    }
+      // ❌ 删除这里的登录判断
+  // if (index == 3) {
+  //   if (!_authService.isLoggedIn) {
+  //     _showLoginPrompt('此功能需要登录');
+  //     return;
+  //   }
+  //   setState(() {
+  //     _currentIndex = index;
+  //   });
+  //   return;
+  // }
+
+  // ✅ 直接跳转活动页
+  if (index == 3) {
+    setState(() {
+      _currentIndex = index;
+    });
+    return;
+  }
+
 
     if (index == 4) {
       if (!_authService.isLoggedIn) {

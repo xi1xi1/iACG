@@ -26,7 +26,7 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
   String _selectedType = '全部';
 
   // 分页相关变量
-  final int _pageSize = 10;
+  int _pageSize = 1;
   int _currentDisplayCount = 0;
 
   final ScrollController _scrollController = ScrollController();
@@ -47,7 +47,7 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
 
   void _scrollListener() {
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 300 &&
+        _scrollController.position.maxScrollExtent - 300 &&
         !_isLoadingMore &&
         _currentDisplayCount < _allPosts.length) {
       _loadMorePosts();
@@ -86,6 +86,28 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
       // 一次性获取所有关注帖子
       final result = await _postService.fetchFollowingPosts();
 
+      // 调试：打印获取到的帖子信息
+      print('=== 关注列表调试信息 ===');
+      print('获取到 ${result.length} 条帖子');
+      _pageSize = result.length;
+
+      // 按channel分组统计
+      final cosPosts = result.where((p) => p['channel'] == 'cos').toList();
+      final islandPosts = result.where((p) => p['channel'] == 'island').toList();
+      final eventPosts = result.where((p) => p['channel'] == 'event').toList();
+
+      print('按channel分组统计:');
+      print('  COS帖子: ${cosPosts.length} 条');
+      print('  群岛帖子: ${islandPosts.length} 条');
+      print('  活动帖子: ${eventPosts.length} 条');
+
+      // 打印前几个帖子
+      for (int i = 0; i < result.length && i < 5; i++) {
+        final post = result[i];
+        print('帖子 $i: id=${post['id']}, channel=${post['channel']}, title=${post['title']}');
+      }
+      print('====================');
+
       setState(() {
         _allPosts.clear();
         _displayPosts.clear();
@@ -93,6 +115,13 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
 
         // 根据筛选类型过滤帖子
         final filteredPosts = _filterPosts(_allPosts);
+
+        // 调试：打印筛选后的帖子信息
+        print('筛选后帖子: ${filteredPosts.length} 条');
+        for (int i = 0; i < filteredPosts.length && i < 3; i++) {
+          final post = filteredPosts[i];
+          print('筛选后帖子 $i: channel=${post['channel']}');
+        }
 
         // 初始显示第一页
         _currentDisplayCount = _pageSize;
@@ -104,6 +133,7 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
         _error = null;
       });
     } catch (e) {
+      print('加载关注帖子失败: $e');
       setState(() {
         _error = e.toString();
       });
@@ -130,7 +160,7 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
     Future.delayed(const Duration(milliseconds: 500), () {
       final nextCount = _currentDisplayCount + _pageSize;
       final endIndex =
-          nextCount > filteredPosts.length ? filteredPosts.length : nextCount;
+      nextCount > filteredPosts.length ? filteredPosts.length : nextCount;
 
       setState(() {
         _displayPosts
@@ -163,15 +193,15 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
 
     return _isLoadingMore
         ? const Padding(
-            padding: EdgeInsets.symmetric(vertical: 20),
-            child: Center(
-              child: CircularProgressIndicator(),
-            ),
-          )
+      padding: EdgeInsets.symmetric(vertical: 20),
+      child: Center(
+        child: CircularProgressIndicator(),
+      ),
+    )
         : const SizedBox.shrink();
   }
 
-  // 未登录状态视图
+  // 未登录状态视图（核心修改：添加刷新按钮）
   Widget _buildNotLoggedInView() {
     return Center(
       child: Column(
@@ -184,11 +214,23 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
             style: TextStyle(fontSize: 16, color: Colors.grey),
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
+
+          // 新增：刷新登录状态按钮
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: const Color(0xFFED7099), // 按钮背景色
+              foregroundColor: Colors.white, // 文字颜色
+             // padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            ),
             onPressed: () {
-              Navigator.of(context).pushNamed('/login');
+              // 点击刷新登录状态并重新加载数据
+              setState(() {
+                // 重置加载状态
+                _isLoading = true;
+              });
+              _loadAllFollowingPosts(); // 重新检查登录状态+加载数据
             },
-            child: const Text('立即登录'),
+            child: const Text('刷新'),
           ),
         ],
       ),
@@ -223,17 +265,33 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
     return GestureDetector(
       onTap: () {
         if (!isSelected) {
+          print('=== 点击筛选按钮: $type ===');
+          print('当前筛选类型: $_selectedType');
+          print('所有帖子数量: ${_allPosts.length}');
+
           setState(() {
             _selectedType = type;
             // 重新筛选并显示帖子
             _displayPosts.clear();
             final filteredPosts = _filterPosts(_allPosts);
+
+            print('筛选后帖子数量: ${filteredPosts.length}');
+            _pageSize= filteredPosts.length;
+            print('筛选后帖子详情:');
+            for (int i = 0; i < filteredPosts.length && i < 5; i++) {
+              final post = filteredPosts[i];
+              print('  帖子 $i: id=${post['id']}, channel=${post['channel']}, title=${post['title']}');
+            }
+
             _currentDisplayCount = _pageSize;
             if (filteredPosts.length <= _pageSize) {
               _displayPosts.addAll(filteredPosts);
             } else {
               _displayPosts.addAll(filteredPosts.sublist(0, _pageSize));
             }
+
+            print('显示帖子数量: ${_displayPosts.length}');
+            print('====================');
           });
         }
       },
@@ -249,7 +307,7 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
             Text(
               type,
               style: TextStyle(
-                color: isSelected ? Color(0xFFED7099) : Color(0xFF666666),
+                color: isSelected ? const Color(0xFFED7099) : const Color(0xFF666666),
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 fontSize: isSelected ? 16 : 14,
               ),
@@ -260,7 +318,7 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
               height: 3,
               width: 24,
               decoration: BoxDecoration(
-                color: isSelected ? Color(0xFFED7099) : Colors.transparent,
+                color: isSelected ? const Color(0xFFED7099) : Colors.transparent,
                 borderRadius: BorderRadius.circular(1.5),
               ),
             ),
@@ -313,11 +371,15 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
           ],
           const SizedBox(height: 16),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFED7099),
+              foregroundColor: Colors.white,
+            ),
             onPressed: () {
               // 可以跳转到发现页面
               // Navigator.of(context).pushNamed('/discover');
             },
-            child: const Text('去发现'),
+            child: const Text('刷新'),
           ),
         ],
       ),
@@ -346,7 +408,7 @@ class _HomeFollowingTabState extends State<HomeFollowingTab> {
           SliverToBoxAdapter(
             child: MasonryGridView.builder(
               gridDelegate:
-                  const SliverSimpleGridDelegateWithFixedCrossAxisCount(
+              const SliverSimpleGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
               ),
               mainAxisSpacing: 1,

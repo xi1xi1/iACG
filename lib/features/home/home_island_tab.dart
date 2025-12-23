@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:iacg/features/auth/login_page.dart';
 import 'package:iacg/widgets/post_card.dart';
 import '../../services/post_service.dart';
@@ -72,20 +73,118 @@ class _HomeIslandTabState extends State<HomeIslandTab>
     super.dispose();
   }
 
-  void _handleTabSelection() {
-    if (_tabController.indexIsChanging) {
-      setState(() {
-        _selectedTopTab = _tabController.index;
-        _currentPage = 1;
-        _hasMore = true;
-      });
-      _loadPosts(isRefresh: true);
+void _handleTabSelection() {
+  if (_tabController.indexIsChanging) {
+    final newIndex = _tabController.index;
+    final oldIndex = _selectedTopTab;
+    
+    print('🔍 Tab切换: $oldIndex -> $newIndex');
+    
+    // 🔥 如果是切换到"关注"标签，检查是否登录
+    if (newIndex == 1) {
+      if (!_authService.isLoggedIn) {
+        print('❌ 未登录，阻止切换到关注标签');
+        
+        // 🔥 关键：立即阻止切换，而不是等切换后再重置
+        // 取消当前的切换
+        _tabController.index = oldIndex;
+        
+        // 显示登录提示（稍后执行，避免同步问题）
+        Future.delayed(Duration.zero, () {
+          _showLoginPrompt('查看关注内容需要登录');
+        });
+        
+        return; // 🔥 直接返回，不执行任何其他代码
+      }
     }
+    
+    print('✅ 允许切换到标签: $newIndex');
+    
+    // 只有通过检查才执行切换
+    _performTabSwitch(newIndex);
   }
+}
 
+// 执行标签切换
+void _performTabSwitch(int newIndex) {
+  // 🔥 确保状态一致
+  if (_selectedTopTab == newIndex) {
+    print('⚠️ 已经是目标标签，跳过切换');
+    return;
+  }
+  
+  print('🔄 执行标签切换到: $newIndex');
+  
+  setState(() {
+    _selectedTopTab = newIndex;
+    _currentPage = 1;
+    _hasMore = true;
+  });
+
+  _loadPosts(isRefresh: true);
+}
+
+// 添加登录提示弹窗方法
+void _showLoginPrompt(String message) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      title: const Text(
+        '登录提示',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Colors.black,
+        ),
+      ),
+      content: Text(
+        message,
+        style: const TextStyle(
+          fontSize: 14,
+          color: Color(0xFF666666),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          style: TextButton.styleFrom(
+            foregroundColor: const Color(0xFF666666),
+          ),
+          child: const Text('取消'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            Navigator.pop(context);
+            _navigateToLogin();
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFED7099),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          ),
+          child: const Text('去登录'),
+        ),
+      ],
+    ),
+  );
+}
+
+// 跳转到登录页面
+void _navigateToLogin() {
+  Navigator.of(context).push(
+    MaterialPageRoute(builder: (_) => const LoginPage()),
+  );
+}
   void _scrollListener() {
     if (_scrollController.position.pixels >=
-            _scrollController.position.maxScrollExtent - 300 &&
+        _scrollController.position.maxScrollExtent - 300 &&
         !_isLoadingMore &&
         _hasMore) {
       _loadMorePosts();
@@ -246,14 +345,14 @@ class _HomeIslandTabState extends State<HomeIslandTab>
           offset: (_currentPage - 1) * _pageSize,
         );
       } else {
-        // 关注标签：获取关注用户的群岛帖子
-        if (!_authService.isLoggedIn) {
-          return;
-        }
+        // // 关注标签：获取关注用户的群岛帖子
+        // if (!_authService.isLoggedIn) {
+        //   return;
+        // }
 
-        final userId = _authService.currentUser?.id;
-        if (userId == null) return;
-
+        // final userId = _authService.currentUser?.id;
+        // if (userId == null) return;
+        final userId = _authService.currentUser!.id; // 使用!，因为已确保登录
         // 获取关注用户的ID列表
         final followsResponse = await _postService.fetchFollowingPosts();
         if (followsResponse.isEmpty) {
@@ -300,29 +399,28 @@ class _HomeIslandTabState extends State<HomeIslandTab>
     }
   }
 
-  // 自定义方法：获取关注用户的群岛帖子
+// 1. 修改 _fetchFollowIslandPosts
   Future<List<Map<String, dynamic>>> _fetchFollowIslandPosts(
-    List<String> followingIds, {
-    int limit = 20,
-    int offset = 0,
-  }) async {
+      List<String> followingIds, {
+        int limit = 20,
+        int offset = 0,
+      }) async {
     try {
       if (kDebugMode) {
         debugPrint('开始获取关注用户的群岛帖子，关注用户数: ${followingIds.length}, limit=$limit, offset=$offset');
       }
 
-      // 使用PostService的client直接查询
       final client = AppSupabaseClient().client;
-      
+
       final response = await client
           .from('posts')
           .select('''
-            id, channel, title, content, island_type, created_at,
-            comment_count, view_count, author_id,
-            author:profiles!posts_author_id_fkey(id, nickname, avatar_url),
-            post_media(media_url, media_type, sort_order)
-          ''')
-          .eq('channel', 'island')  // 只获取群岛帖子
+          id, channel, title, content, island_type, created_at,
+          comment_count, view_count, like_count, favorite_count, author_id,
+          author:profiles!posts_author_id_fkey(id, nickname, avatar_url),
+          post_media(media_url, media_type, sort_order)
+        ''')
+          .eq('channel', 'island')
           .eq('is_deleted', false)
           .eq('status', 'normal')
           .inFilter('author_id', followingIds)
@@ -342,29 +440,28 @@ class _HomeIslandTabState extends State<HomeIslandTab>
     }
   }
 
-  // 自定义方法：获取关注用户的COS帖子
+// 2. 修改 _fetchFollowCosPosts
   Future<List<Map<String, dynamic>>> _fetchFollowCosPosts(
-    List<String> followingIds, {
-    int limit = 20,
-    int offset = 0,
-  }) async {
+      List<String> followingIds, {
+        int limit = 20,
+        int offset = 0,
+      }) async {
     try {
       if (kDebugMode) {
         debugPrint('开始获取关注用户的COS帖子，关注用户数: ${followingIds.length}, limit=$limit, offset=$offset');
       }
 
-      // 使用PostService的client直接查询
       final client = AppSupabaseClient().client;
-      
+
       final response = await client
           .from('posts')
           .select('''
-            id, channel, title, content, island_type, created_at,
-            comment_count, view_count, author_id,
-            author:profiles!posts_author_id_fkey(id, nickname, avatar_url),
-            post_media(media_url, media_type, sort_order)
-          ''')
-          .eq('channel', 'cos')  // 只获取COS帖子
+          id, channel, title, content, island_type, created_at,
+          comment_count, view_count, like_count, favorite_count, author_id,
+          author:profiles!posts_author_id_fkey(id, nickname, avatar_url),
+          post_media(media_url, media_type, sort_order)
+        ''')
+          .eq('channel', 'cos')
           .eq('is_deleted', false)
           .eq('status', 'normal')
           .inFilter('author_id', followingIds)
@@ -384,29 +481,28 @@ class _HomeIslandTabState extends State<HomeIslandTab>
     }
   }
 
-  // 自定义方法：获取关注用户的全部帖子（COS + 群岛）
+// 3. 修改 _fetchFollowAllPosts
   Future<List<Map<String, dynamic>>> _fetchFollowAllPosts(
-    List<String> followingIds, {
-    int limit = 20,
-    int offset = 0,
-  }) async {
+      List<String> followingIds, {
+        int limit = 20,
+        int offset = 0,
+      }) async {
     try {
       if (kDebugMode) {
         debugPrint('开始获取关注用户的全部帖子，关注用户数: ${followingIds.length}, limit=$limit, offset=$offset');
       }
 
-      // 使用PostService的client直接查询
       final client = AppSupabaseClient().client;
-      
+
       final response = await client
           .from('posts')
           .select('''
-            id, channel, title, content, island_type, created_at,
-            comment_count, view_count, author_id,
-            author:profiles!posts_author_id_fkey(id, nickname, avatar_url),
-            post_media(media_url, media_type, sort_order)
-          ''')
-          .inFilter('channel', ['cos', 'island'])  // 获取COS和群岛帖子
+          id, channel, title, content, island_type, created_at,
+          comment_count, view_count, like_count, favorite_count, author_id,
+          author:profiles!posts_author_id_fkey(id, nickname, avatar_url),
+          post_media(media_url, media_type, sort_order)
+        ''')
+          .inFilter('channel', ['cos', 'island'])
           .eq('is_deleted', false)
           .eq('status', 'normal')
           .inFilter('author_id', followingIds)
@@ -565,37 +661,37 @@ class _HomeIslandTabState extends State<HomeIslandTab>
 
     return _isLoadingMore
         ? Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24),
-            child: Column(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFED7099).withOpacity(0.1),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFFED7099).withOpacity(0.3),
-                      width: 1,
-                    ),
-                  ),
-                  child: const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFED7099)),
-                    strokeWidth: 2,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '加载中...',
-                  style: TextStyle(
-                    color: Colors.grey[600],
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Column(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: const Color(0xFFED7099).withOpacity(0.1),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: const Color(0xFFED7099).withOpacity(0.3),
+                width: 1,
+              ),
             ),
-          )
+            child: const CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFED7099)),
+              strokeWidth: 2,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '加载中...',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    )
         : const SizedBox.shrink();
   }
 
@@ -672,47 +768,47 @@ class _HomeIslandTabState extends State<HomeIslandTab>
   }
 
 // 处理发布按钮点击（添加登录检查）
-Future<void> _handlePublishButtonTap() async {
-  // 1. 首先检查用户是否登录
-  final uid = _authService.currentUser?.id;
-  if (uid == null) {
-    // 用户未登录，显示提示
-    if (mounted) {
-      await showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('需要登录'),
-          shape: RoundedRectangleBorder( // 添加这一行
-          borderRadius: BorderRadius.circular(18), // 设置圆角半径
-        ),
-          content: const Text('登录后才能发布帖子，去登录吧～'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
+  Future<void> _handlePublishButtonTap() async {
+    // 1. 首先检查用户是否登录
+    final uid = _authService.currentUser?.id;
+    if (uid == null) {
+      // 用户未登录，显示提示
+      if (mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('需要登录'),
+            shape: RoundedRectangleBorder( // 添加这一行
+              borderRadius: BorderRadius.circular(18), // 设置圆角半径
             ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                // 跳转到登录页面
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const LoginPage(),
-                  ),
-                );
-              },
-              child: const Text('去登录', style: TextStyle(color: Color(0xFFED7099))),
-            ),
-          ],
-        ),
-      );
+            content: const Text('登录后才能发布帖子，去登录吧～'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('取消'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  // 跳转到登录页面
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const LoginPage(),
+                    ),
+                  );
+                },
+                child: const Text('去登录', style: TextStyle(color: Color(0xFFED7099))),
+              ),
+            ],
+          ),
+        );
+      }
+      return;
     }
-    return;
-  }
 
-  // 2. 用户已登录，显示频道选择
-  showChannelSelectionBottomSheet();
-}
+    // 2. 用户已登录，显示频道选择
+    showChannelSelectionBottomSheet();
+  }
 
   // 显示频道选择底部弹窗
   void showChannelSelectionBottomSheet() {
@@ -845,11 +941,47 @@ Future<void> _handlePublishButtonTap() async {
     );
   }
 
+  // 未登录状态视图（新增：参考HomeFollowingTab的刷新按钮功能）
+  Widget _buildNotLoggedInView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.person_outline, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          const Text(
+            '登录后查看关注内容',
+            style: TextStyle(fontSize: 16, color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
+          // 新增：刷新登录状态按钮
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: const Color(0xFFED7099), // 按钮背景色
+              foregroundColor: Colors.white, // 文字颜色
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            ),
+            onPressed: () {
+              // 点击刷新登录状态并重新加载数据
+              setState(() {
+                // 重置加载状态
+                _isLoading = true;
+              });
+              // 重新加载数据（会重新检查登录状态）
+              _loadPosts(isRefresh: true);
+            },
+            child: const Text('刷新'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // 构建空状态 - 增强二次元风格
   Widget _buildEmptyState() {
     String title;
     String subtitle;
-    
+
     if (_selectedTopTab == 0) {
       // 全部标签
       title = _selectedType == '全部' ? '暂无群岛帖子' : '暂无$_selectedType类型的帖子';
@@ -857,8 +989,8 @@ Future<void> _handlePublishButtonTap() async {
     } else {
       // 关注标签
       if (!_authService.isLoggedIn) {
-        title = '请先登录查看关注内容';
-        subtitle = '登录后可以查看你关注的用户发布的帖子';
+        // 未登录时显示带刷新按钮的视图
+        return _buildNotLoggedInView();
       } else {
         title = '暂无关注的用户发布的帖子';
         subtitle = '关注更多用户，发现更多精彩内容';
@@ -869,87 +1001,66 @@ Future<void> _handlePublishButtonTap() async {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.grey[200]!,
-                width: 2,
-              ),
-            ),
-            child: Icon(
-              _selectedTopTab == 0 ? Icons.forum_outlined : Icons.people_outline,
-              size: 48,
-              color: Colors.grey[400],
-            ),
-          ),
-          const SizedBox(height: 24),
+          const Icon(Icons.person_outline, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
-            ),
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16, color: Colors.grey),
           ),
-          const SizedBox(height: 12),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[400],
+          if (subtitle.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () => _loadPosts(isRefresh: true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8B5CF6),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
+          ],
+          const SizedBox(height: 16),
+          // 对于已登录但无数据的情况，可以添加去发现的按钮
+          if (_selectedTopTab == 1 && _authService.isLoggedIn)
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFED7099),
+                foregroundColor: Colors.white,
               ),
-              elevation: 2,
+              onPressed: () {
+                // 可以跳转到发现页面
+                // Navigator.of(context).pushNamed('/discover');
+              },
+              child: const Text('刷新'),
             ),
-            child: const Text(
-              '重新加载',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  // 构建单列布局
+  // 构建双瀑布流布局
   Widget _buildSingleColumnLayout() {
     return RefreshIndicator(
       onRefresh: () => _loadPosts(isRefresh: true),
       child: CustomScrollView(
         controller: _scrollController,
         slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: PostCard(
-                      post: _posts[index],
-                      isLeftColumn: true, // 保持原有参数，但现在是单列
-                    ),
-                  );
-                },
-                childCount: _posts.length,
+          // 瀑布流网格 - 双列布局
+          SliverToBoxAdapter(
+            child: MasonryGridView.builder(
+              gridDelegate:
+              const SliverSimpleGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
               ),
+              mainAxisSpacing: 4, // 垂直间距
+              crossAxisSpacing: 4, // 水平间距
+              padding: const EdgeInsets.all(4), // 整体边距
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              itemCount: _posts.length,
+              itemBuilder: (context, index) {
+                return PostCard(
+                  post: _posts[index],
+                  isLeftColumn: index.isEven, // 传递列位置信息
+                );
+              },
             ),
           ),
           // 加载更多指示器
@@ -970,20 +1081,20 @@ Future<void> _handlePublishButtonTap() async {
       body: Column(
         children: [
           // 二级筛选按钮 - 只在全部标签显示群岛类型筛选
-          if (_selectedTopTab == 0) 
+          if (_selectedTopTab == 0)
             _buildislandTypesButtons(),
           const SizedBox(height: 8),
           // 帖子列表
           Expanded(
             child: _isLoading
                 ? const LoadingView()
-                : _error != null
-                    ? ErrorView(
-                        error: _error!,
-                        onRetry: () => _loadPosts(isRefresh: true))
-                    : _posts.isEmpty
-                        ? _buildEmptyState()
-                        : _buildSingleColumnLayout(),
+            // : _error != null
+            //     ? ErrorView(
+            //         error: _error!,
+            //         onRetry: () => _loadPosts(isRefresh: true))
+                : _posts.isEmpty
+                ? _buildEmptyState()
+                : _buildSingleColumnLayout(),
           ),
         ],
       ),

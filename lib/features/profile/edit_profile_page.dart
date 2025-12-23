@@ -217,7 +217,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
         ),
         const SizedBox(height: 8),
         Text(
-          '点击更换头像',
+          '点击相机图标更换头像',
           style: TextStyle(
             fontSize: 12,
             color: _primaryColor.withOpacity(0.7),

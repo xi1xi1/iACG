@@ -7,7 +7,7 @@ import '../../widgets/loading_view.dart';
 import '../../widgets/error_view.dart';
 import '../../widgets/empty_view.dart';
 import 'package:iacg/features/post/post_detail_page.dart';
-
+import 'package:flutter/foundation.dart'; 
 class HomeRecommendTabWithEvents extends StatefulWidget {
   const HomeRecommendTabWithEvents({super.key});
 
@@ -25,7 +25,7 @@ class _HomeRecommendTabWithEventsState
   bool _isLoadingMore = false;
   String? _postsError;
   String? _eventsError;
-
+final Set<int> _loadedPostIds = <int>{};
   // 分页相关变量
   int _currentPage = 1;
   bool _hasMore = true;
@@ -91,88 +91,208 @@ class _HomeRecommendTabWithEventsState
       });
     }
   }
-
-// 修改后的 _loadPosts 方法
-Future<void> _loadPosts({bool isRefresh = false}) async {
-  try {
-    setState(() {
-      if (isRefresh) {
-        _currentPage = 1;
-        _hasMore = true;
-        _posts.clear();
-      }
-      _isPostsLoading = true;
-      _postsError = null;
-    });
-
-    // 使用新的热门帖子算法
-    final result = await _postService.fetchHotPostsWithTimeDecay(
-      limit: _pageSize,
-      offset: isRefresh ? 0 : (_currentPage - 1) * _pageSize,
-    );
-
-    setState(() {
-      if (isRefresh) {
-        _posts.clear();
-      }
-      _posts.addAll(result);
-      _hasMore = result.length >= _pageSize;
-      _postsError = null;
-    });
-  } catch (e) {
-    setState(() {
-      _postsError = '加载失败: ${e.toString()}';
-      if (isRefresh) {
-        _posts.clear();
-      }
-    });
-  } finally {
-    if (mounted) {
+  // 修改后的 _loadPosts 方法
+  Future<void> _loadPosts({bool isRefresh = false}) async {
+    try {
       setState(() {
-        _isPostsLoading = false;
+        if (isRefresh) {
+          _currentPage = 1;
+          _hasMore = true;
+          _posts.clear();
+          _loadedPostIds.clear(); // ✅ 刷新时清空已加载的ID
+        }
+        _isPostsLoading = true;
+        _postsError = null;
       });
-    }
-  }
-}
 
-// 修改后的 _loadMorePosts 方法
-Future<void> _loadMorePosts() async {
-  if (_isLoadingMore || !_hasMore) return;
-
-  try {
-    setState(() {
-      _isLoadingMore = true;
-    });
-
-    _currentPage++;
-
-    final result = await _postService.fetchHotPostsWithTimeDecay(
-      limit: _pageSize,
-      offset: (_currentPage - 1) * _pageSize,
-    );
-
-    setState(() {
-      _posts.addAll(result);
-      _hasMore = result.length >= _pageSize;
-    });
-  } catch (e) {
-    _currentPage--; // 加载失败，回退页码
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('加载更多失败: ${e.toString()}'),
-          duration: const Duration(seconds: 2),
-        ),
+      // 使用新的热门帖子算法
+      final result = await _postService.fetchHotPostsWithTimeDecay(
+        limit: _pageSize,
+        offset: isRefresh ? 0 : (_currentPage - 1) * _pageSize,
       );
-    }
-  } finally {
-    if (mounted) {
+
+      // ✅ 新增：过滤掉已经加载过的帖子
+      final newPosts = <Map<String, dynamic>>[];
+      for (final post in result) {
+        final postId = post['id'] as int?;
+        if (postId != null && !_loadedPostIds.contains(postId)) {
+          newPosts.add(post);
+          _loadedPostIds.add(postId);
+        }
+      }
+
+      // ✅ 调试信息（可选）
+      if (kDebugMode && result.isNotEmpty && newPosts.length != result.length) {
+        print('🔄 过滤了 ${result.length - newPosts.length} 条重复帖子');
+      }
+
       setState(() {
-        _isLoadingMore = false;
+        if (isRefresh) {
+          _posts.clear();
+        }
+        _posts.addAll(newPosts);
+        // ✅ 修改：根据去重后的数量判断是否有更多
+        _hasMore = newPosts.length >= _pageSize;
+        _postsError = null;
       });
+    } catch (e) {
+      setState(() {
+        _postsError = '加载失败: ${e.toString()}';
+        if (isRefresh) {
+          _posts.clear();
+          _loadedPostIds.clear();
+        }
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPostsLoading = false;
+        });
+      }
     }
   }
-}
+
+  // 修改后的 _loadMorePosts 方法
+  Future<void> _loadMorePosts() async {
+    if (_isLoadingMore || !_hasMore) return;
+
+    try {
+      setState(() {
+        _isLoadingMore = true;
+      });
+
+      _currentPage++;
+
+      final result = await _postService.fetchHotPostsWithTimeDecay(
+        limit: _pageSize,
+        offset: (_currentPage - 1) * _pageSize,
+      );
+
+      // ✅ 新增：同样的去重逻辑
+      final newPosts = <Map<String, dynamic>>[];
+      for (final post in result) {
+        final postId = post['id'] as int?;
+        if (postId != null && !_loadedPostIds.contains(postId)) {
+          newPosts.add(post);
+          _loadedPostIds.add(postId);
+        }
+      }
+
+      // ✅ 新增：如果没有新数据，认为没有更多了
+      if (newPosts.isEmpty) {
+        setState(() {
+          _hasMore = false;
+        });
+        return;
+      }
+
+      setState(() {
+        _posts.addAll(newPosts);
+        // ✅ 修改：根据去重后的数量判断是否有更多
+        _hasMore = newPosts.length >= _pageSize;
+      });
+    } catch (e) {
+      _currentPage--; // 加载失败，回退页码
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('加载更多失败: ${e.toString()}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+      }
+    }
+  }
+
+// // 修改后的 _loadPosts 方法
+// Future<void> _loadPosts({bool isRefresh = false}) async {
+//   try {
+//     setState(() {
+//       if (isRefresh) {
+//         _currentPage = 1;
+//         _hasMore = true;
+//         _posts.clear();
+//         _loadedPostIds.clear(); // ✅ 刷新时清空已加载的ID
+//       }
+//       _isPostsLoading = true;
+//       _postsError = null;
+//     });
+
+//     // 使用新的热门帖子算法
+//     final result = await _postService.fetchHotPostsWithTimeDecay(
+//       limit: _pageSize,
+//       offset: isRefresh ? 0 : (_currentPage - 1) * _pageSize,
+//     );
+    
+
+//     setState(() {
+//       if (isRefresh) {
+//         _posts.clear();
+//       }
+//       _posts.addAll(result);
+//       _hasMore = result.length >= _pageSize;
+//       _postsError = null;
+//     });
+//   } catch (e) {
+//     setState(() {
+//       _postsError = '加载失败: ${e.toString()}';
+//       if (isRefresh) {
+//         _posts.clear();
+//       }
+//     });
+//   } finally {
+//     if (mounted) {
+//       setState(() {
+//         _isPostsLoading = false;
+//       });
+//     }
+//   }
+// }
+
+// // 修改后的 _loadMorePosts 方法
+// Future<void> _loadMorePosts() async {
+//   if (_isLoadingMore || !_hasMore) return;
+
+//   try {
+//     setState(() {
+//       _isLoadingMore = true;
+//     });
+
+//     _currentPage++;
+
+//     final result = await _postService.fetchHotPostsWithTimeDecay(
+//       limit: _pageSize,
+//       offset: (_currentPage - 1) * _pageSize,
+//     );
+
+//     setState(() {
+//       _posts.addAll(result);
+//       _hasMore = result.length >= _pageSize;
+//     });
+//   } catch (e) {
+//     _currentPage--; // 加载失败，回退页码
+//     if (mounted) {
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(
+//           content: Text('加载更多失败: ${e.toString()}'),
+//           duration: const Duration(seconds: 2),
+//         ),
+//       );
+//     }
+//   } finally {
+//     if (mounted) {
+//       setState(() {
+//         _isLoadingMore = false;
+//       });
+//     }
+//   }
+// }
   // Future<void> _loadPosts({bool isRefresh = false}) async {
   //   try {
   //     setState(() {
