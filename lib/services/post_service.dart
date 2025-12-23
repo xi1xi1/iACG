@@ -1817,8 +1817,8 @@ Future<List<Map<String, dynamic>>> fetchIslandPosts({
         'content': content.trim(),
         'island_type': '分享', // 转发类型固定为分享
         'original_post_id': originalPostId,
-        'created_at': DateTime.now().toIso8601String(),
-        'updated_at': DateTime.now().toIso8601String(),
+        // 'created_at': DateTime.now().toIso8601String(),
+        // 'updated_at': DateTime.now().toIso8601String(),
       };
 
       final response =
