@@ -2119,28 +2119,32 @@ Widget _buildMediaCarousel(List media) {
     ],
   );
 }
-  Widget _arrowBtn({required bool left, required VoidCallback onTap}) {
-    return Positioned(
-      top: 0,
-      bottom: 0,
-      left: left ? 8 : null,
-      right: left ? null : 8,
-      child: Center(
-        child: Material(
-          color: Colors.black45,
-          shape: const CircleBorder(),
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: onTap,
-            child: const Padding(
-              padding: EdgeInsets.all(6),
-              child: Icon(Icons.chevron_right, color: Colors.white, size: 22),
+Widget _arrowBtn({required bool left, required VoidCallback onTap}) {
+  return Positioned(
+    top: 0,
+    bottom: 0,
+    left: left ? 8 : null,
+    right: left ? null : 8,
+    child: Center(
+      child: Material(
+        color: Colors.black45,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.all(6),
+            child: Icon(
+              left ? Icons.chevron_left : Icons.chevron_right,  // 修改这里
+              color: Colors.white,
+              size: 22,
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 /* ============================
